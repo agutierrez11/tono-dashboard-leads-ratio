@@ -4,10 +4,10 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, TrendingUp, Clock } from "lucide-react";
 import { Channel } from "@/utils/types";
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
-import { dailyData } from "@/utils/mock-data";
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar } from "recharts";
+import { dailyData, conversionRates, salesCycleTimes } from "@/utils/mock-data";
 import { cn } from "@/lib/utils";
 
 interface ChannelPageProps {
@@ -34,6 +34,10 @@ export const ChannelPage = ({
   };
   
   const color = channelColors[channel];
+  
+  // Get conversion rate and sales cycle time for this channel
+  const conversionRate = conversionRates.find(item => item.channel === channel);
+  const salesCycleTime = salesCycleTimes.find(item => item.channel === channel);
   
   return (
     <DashboardLayout>
@@ -102,6 +106,76 @@ export const ChannelPage = ({
                   />
                 </AreaChart>
               </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card className={cn(
+            "glass-card overflow-hidden animate-slide-up",
+          )}>
+            <CardHeader className="flex flex-row items-center space-y-0 pb-2">
+              <div className="flex flex-1 items-center">
+                <CardTitle className="text-base font-medium">Tasa de Conversión</CardTitle>
+                <TrendingUp className="ml-2 h-4 w-4 text-muted-foreground" />
+              </div>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="flex flex-col items-center justify-center text-center">
+                <div className={cn(
+                  "text-4xl font-bold",
+                  `text-${channel}`,
+                )}>
+                  {conversionRate?.rate}%
+                </div>
+                <p className="text-sm text-muted-foreground mt-2">
+                  {conversionRate?.closed} de {conversionRate?.leads} leads convertidos
+                </p>
+                <div className="w-full mt-4 px-6">
+                  <div className="w-full bg-muted rounded-full h-3">
+                    <div 
+                      className={cn("h-3 rounded-full transition-all duration-1000")}
+                      style={{ 
+                        width: `${Math.min(conversionRate?.rate || 0, 100)}%`,
+                        backgroundColor: color
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className={cn(
+            "glass-card overflow-hidden animate-slide-up delay-75",
+          )}>
+            <CardHeader className="flex flex-row items-center space-y-0 pb-2">
+              <div className="flex flex-1 items-center">
+                <CardTitle className="text-base font-medium">Ciclo de Venta</CardTitle>
+                <Clock className="ml-2 h-4 w-4 text-muted-foreground" />
+              </div>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="flex flex-col items-center justify-center text-center">
+                <div className={cn(
+                  "text-4xl font-bold",
+                  `text-${channel}`,
+                )}>
+                  {salesCycleTime?.avgDays} días
+                </div>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Basado en {salesCycleTime?.count} leads cerrados
+                </p>
+                <div className="w-full mt-4">
+                  <ResponsiveContainer width="100%" height={60}>
+                    <BarChart data={[
+                      { name: "Ciclo", value: salesCycleTime?.avgDays || 0 }
+                    ]}>
+                      <Bar dataKey="value" fill={color} radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>

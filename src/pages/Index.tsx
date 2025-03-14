@@ -1,10 +1,11 @@
 
 import { useMemo } from "react";
-import { BarChart3, Linkedin, Phone, Mail, Users, TrendingUp } from "lucide-react";
+import { BarChart3, Linkedin, Phone, Mail, Users, TrendingUp, Clock } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { LeadChart } from "@/components/dashboard/LeadChart";
-import { mockLeads } from "@/utils/mock-data";
+import { ChannelMetrics } from "@/components/dashboard/ChannelMetrics";
+import { mockLeads, conversionRates, salesCycleTimes } from "@/utils/mock-data";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 
@@ -37,9 +38,16 @@ const Index = () => {
     const emailTrend = Math.floor(Math.random() * 20) - 5;
     const totalTrend = Math.floor((linkedinTrend + phoneTrend + emailTrend) / 3);
 
+    // Get overall conversion rate and cycle time
+    const overallConversionRate = conversionRates.reduce((sum, item) => sum + (item.rate * item.leads), 0) / totalLeads;
+    const overallCycleTime = salesCycleTimes.reduce((sum, item) => sum + (item.avgDays * item.count), 0) / 
+                              salesCycleTimes.reduce((sum, item) => sum + item.count, 0);
+
     return {
       total: totalLeads,
       byChannel,
+      conversionRate: parseFloat(overallConversionRate.toFixed(1)),
+      salesCycleTime: parseFloat(overallCycleTime.toFixed(1)),
       trends: {
         linkedin: { value: linkedinTrend, isPositive: linkedinTrend >= 0 },
         phone: { value: phoneTrend, isPositive: phoneTrend >= 0 },
@@ -101,7 +109,26 @@ const Index = () => {
           />
         </div>
 
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <StatCard
+            title="Tasa de Conversión"
+            value={`${stats.conversionRate}%`}
+            icon={<TrendingUp className="h-4 w-4" />}
+            description="Promedio general"
+            className="lg:col-span-1"
+          />
+          <StatCard
+            title="Ciclo de Venta"
+            value={`${stats.salesCycleTime} días`}
+            icon={<Clock className="h-4 w-4" />}
+            description="Tiempo promedio"
+            className="lg:col-span-2"
+          />
+        </div>
+
         <LeadChart />
+        
+        <ChannelMetrics />
 
         <div className="mt-4 flex justify-center">
           <Button variant="outline" size="sm" asChild className="animate-fade-in">

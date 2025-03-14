@@ -9,12 +9,15 @@ export interface Lead {
   status: 'new' | 'contacted' | 'qualified' | 'proposal' | 'closed' | 'lost';
   date: Date;
   notes?: string;
+  closedDate?: Date; // Date when the lead was closed/lost
 }
 
 export interface LeadStats {
   total: number;
   byChannel: Record<Channel, number>;
   byStatus: Record<string, number>;
+  conversionRate: Record<Channel, number>; // Conversion rate by channel
+  salesCycleTime: Record<Channel, number>; // Average sales cycle time in days by channel
 }
 
 export interface TimeframeData {
@@ -26,3 +29,16 @@ export interface TimeframeData {
 }
 
 export type Timeframe = 'daily' | 'weekly' | 'monthly';
+
+export interface ConversionData {
+  channel: Channel;
+  rate: number;
+  leads: number;
+  closed: number;
+}
+
+export interface SalesCycleData {
+  channel: Channel;
+  avgDays: number;
+  count: number;
+}

@@ -1,5 +1,5 @@
 
-import { Lead, TimeframeData } from './types';
+import { Lead, TimeframeData, ConversionData, SalesCycleData } from './types';
 
 // Generate random dates within a range
 const getRandomDate = (start: Date, end: Date): Date => {
@@ -18,19 +18,88 @@ export const generateMockLeads = (count: number): Lead[] => {
   const startDate = new Date();
   startDate.setMonth(endDate.getMonth() - 3);
 
-  return Array.from({ length: count }).map((_, index) => ({
-    id: `lead-${index + 1}`,
-    name: names[Math.floor(Math.random() * names.length)],
-    company: companies[Math.floor(Math.random() * companies.length)],
-    channel: channels[Math.floor(Math.random() * channels.length)],
-    status: statuses[Math.floor(Math.random() * statuses.length)],
-    date: getRandomDate(startDate, endDate),
-    notes: Math.random() > 0.3 ? `Nota de seguimiento ${index + 1}` : undefined,
-  }));
+  return Array.from({ length: count }).map((_, index) => {
+    const date = getRandomDate(startDate, endDate);
+    const status = statuses[Math.floor(Math.random() * statuses.length)];
+    
+    // Add closedDate for closed or lost leads
+    let closedDate;
+    if (status === 'closed' || status === 'lost') {
+      // Generate a random closed date that's after the creation date
+      const minClosedDate = new Date(date);
+      minClosedDate.setDate(minClosedDate.getDate() + Math.floor(Math.random() * 30) + 1); // 1-30 days after creation
+      closedDate = minClosedDate > endDate ? endDate : minClosedDate;
+    }
+    
+    return {
+      id: `lead-${index + 1}`,
+      name: names[Math.floor(Math.random() * names.length)],
+      company: companies[Math.floor(Math.random() * companies.length)],
+      channel: channels[Math.floor(Math.random() * channels.length)],
+      status,
+      date,
+      notes: Math.random() > 0.3 ? `Nota de seguimiento ${index + 1}` : undefined,
+      closedDate
+    };
+  });
 };
 
 // Initial mock leads data
 export const mockLeads: Lead[] = generateMockLeads(50);
+
+// Calculate conversion rate by channel
+export const calculateConversionRates = (): ConversionData[] => {
+  const channels = ['linkedin', 'phone', 'email'] as const;
+  
+  return channels.map(channel => {
+    const channelLeads = mockLeads.filter(lead => lead.channel === channel);
+    const totalLeads = channelLeads.length;
+    const closedLeads = channelLeads.filter(lead => lead.status === 'closed').length;
+    const rate = totalLeads > 0 ? (closedLeads / totalLeads) * 100 : 0;
+    
+    return {
+      channel,
+      rate: parseFloat(rate.toFixed(1)),
+      leads: totalLeads,
+      closed: closedLeads
+    };
+  });
+};
+
+// Calculate average sales cycle time by channel
+export const calculateSalesCycleTimes = (): SalesCycleData[] => {
+  const channels = ['linkedin', 'phone', 'email'] as const;
+  
+  return channels.map(channel => {
+    const closedLeads = mockLeads.filter(
+      lead => lead.channel === channel && 
+      (lead.status === 'closed' || lead.status === 'lost') && 
+      lead.closedDate
+    );
+    
+    let totalDays = 0;
+    closedLeads.forEach(lead => {
+      if (lead.closedDate) {
+        const cycleTime = Math.floor((lead.closedDate.getTime() - lead.date.getTime()) / (1000 * 60 * 60 * 24));
+        totalDays += cycleTime;
+      }
+    });
+    
+    const avgDays = closedLeads.length > 0 ? totalDays / closedLeads.length : 0;
+    
+    return {
+      channel,
+      avgDays: parseFloat(avgDays.toFixed(1)),
+      count: closedLeads.length
+    };
+  });
+};
+
+// Generate conversion rates
+export const conversionRates = calculateConversionRates();
+
+// Generate sales cycle times
+export const salesCycleTimes = calculateSalesCycleTimes();
 
 // Daily data for the last 14 days
 export const dailyData: TimeframeData[] = Array.from({ length: 14 }).map((_, i) => {
