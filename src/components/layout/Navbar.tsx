@@ -56,10 +56,10 @@ export const Navbar = () => {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 glass-panel border-b">
-      <div className="container flex items-center justify-between h-14 sm:h-16 px-3 sm:px-4">
-        <div className="flex items-center gap-4 sm:gap-6">
+      <div className="container flex items-center justify-between h-16 px-4">
+        <div className="flex items-center gap-6">
           <Link to="/" className="flex items-center gap-2">
-            <span className="text-primary font-semibold text-base sm:text-lg animate-float">LeadTrack</span>
+            <span className="text-primary font-semibold text-lg animate-float">LeadTrack</span>
           </Link>
 
           {!isMobile && (
@@ -80,7 +80,7 @@ export const Navbar = () => {
         {isMobile ? (
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-9 w-9">
+              <Button variant="ghost" size="icon">
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
@@ -96,15 +96,6 @@ export const Navbar = () => {
                     onClick={handleLinkClick}
                   />
                 ))}
-                <div className="mt-4 pt-4 border-t">
-                  <NavLink
-                    to="/reports"
-                    label="Reportes"
-                    icon={<BarChart3 className="h-4 w-4" />}
-                    active={location.pathname === "/reports"}
-                    onClick={handleLinkClick}
-                  />
-                </div>
               </nav>
             </SheetContent>
           </Sheet>

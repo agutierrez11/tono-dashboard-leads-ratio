@@ -1,12 +1,12 @@
 
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LineChart, Line } from "recharts";
 import { Channel, TimeframeData, Timeframe } from "@/utils/types";
+import { dailyData, weeklyData, monthlyData } from "@/utils/mock-data";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useLeadsStore, generateTimeframeData } from "@/hooks/useLeadsStore";
 
 const channelColors: Record<Channel, string> = {
   linkedin: "#0A66C2",
@@ -20,24 +20,23 @@ interface LeadChartProps {
 
 export const LeadChart = ({ className }: LeadChartProps) => {
   const [activeTimeframe, setActiveTimeframe] = useState<Timeframe>("daily");
+  const [activeData, setActiveData] = useState<TimeframeData[]>(dailyData);
   const [chartType, setChartType] = useState<"bar" | "line">("bar");
   const isMobile = useIsMobile();
-  const { leads } = useLeadsStore();
 
-  const { daily, weekly, monthly } = useMemo(() => generateTimeframeData(leads), [leads]);
-
-  const activeData = useMemo(() => {
+  useEffect(() => {
     switch (activeTimeframe) {
       case "daily":
-        return daily;
+        setActiveData(dailyData);
+        break;
       case "weekly":
-        return weekly;
+        setActiveData(weeklyData);
+        break;
       case "monthly":
-        return monthly;
-      default:
-        return daily;
+        setActiveData(monthlyData);
+        break;
     }
-  }, [activeTimeframe, daily, weekly, monthly]);
+  }, [activeTimeframe]);
 
   const getTimeframeLabel = (timeframe: Timeframe): string => {
     switch (timeframe) {
