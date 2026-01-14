@@ -39,7 +39,7 @@ const formSchema = z.object({
   channel: z.enum(["linkedin", "phone", "email"], {
     required_error: "Por favor selecciona un canal.",
   }),
-  status: z.enum(["new", "contacted", "qualified", "proposal", "closed", "lost"], {
+  status: z.enum(["new", "contacted", "qualified", "proposal", "won", "lost"], {
     required_error: "Por favor selecciona una etapa.",
   }),
 });
@@ -114,7 +114,7 @@ export const AddLeadForm = () => {
     { value: "contacted", label: "📞 Contactado", description: "Primera comunicación realizada" },
     { value: "qualified", label: "✅ Calificado", description: "Lead con potencial confirmado" },
     { value: "proposal", label: "📋 Propuesta", description: "Propuesta enviada" },
-    { value: "closed", label: "🎉 Cerrado", description: "Venta concretada" },
+    { value: "won", label: "🎉 Ganado", description: "Venta concretada" },
     { value: "lost", label: "❌ Perdido", description: "No se concretó" },
   ];
 
