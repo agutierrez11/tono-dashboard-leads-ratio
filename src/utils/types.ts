@@ -1,15 +1,17 @@
-
 export type Channel = 'linkedin' | 'phone' | 'email';
+
+export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'proposal' | 'closed' | 'lost';
 
 export interface Lead {
   id: string;
   name: string;
   company: string;
   channel: Channel;
-  status: 'new' | 'contacted' | 'qualified' | 'proposal' | 'closed' | 'lost';
+  status: LeadStatus;
   date: Date;
   notes?: string;
   closedDate?: Date; // Date when the lead was closed/lost
+  nextFollowUp?: Date; // Next scheduled follow-up date
 }
 
 export interface LeadStats {
