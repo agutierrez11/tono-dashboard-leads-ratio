@@ -1,25 +1,28 @@
 
 import { useState } from "react";
-import { Linkedin, Phone, Mail, Download, TrendingUp, Clock } from "lucide-react";
+import { Download, TrendingUp, Clock } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { LeadChart } from "@/components/dashboard/LeadChart";
 import { ChannelMetrics } from "@/components/dashboard/ChannelMetrics";
-import { mockLeads, conversionRates, salesCycleTimes } from "@/utils/mock-data";
+import { useLeads, useLeadStats } from "@/hooks/useLeads";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Timeframe } from "@/utils/types";
 import { ResponsiveContainer, PieChart, Pie, Cell, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import { toast } from "sonner";
 
 const Reports = () => {
   const [timeframe, setTimeframe] = useState<Timeframe>("monthly");
+  const { data: leads = [], isLoading } = useLeads();
+  const { stats } = useLeadStats();
 
   // Calculate channel distribution
   const channelData = [
-    { name: "LinkedIn", value: mockLeads.filter(lead => lead.channel === "linkedin").length, color: "#0A66C2" },
-    { name: "Teléfono", value: mockLeads.filter(lead => lead.channel === "phone").length, color: "#34D399" },
-    { name: "Email", value: mockLeads.filter(lead => lead.channel === "email").length, color: "#F59E0B" },
+    { name: "LinkedIn", value: stats.byChannel.linkedin, color: "#0A66C2" },
+    { name: "Teléfono", value: stats.byChannel.phone, color: "#34D399" },
+    { name: "Email", value: stats.byChannel.email, color: "#F59E0B" },
   ];
 
   // Calculate status distribution
@@ -42,18 +45,18 @@ const Reports = () => {
   };
 
   const statusData = Object.entries(
-    mockLeads.reduce((acc, lead) => {
+    leads.reduce((acc, lead) => {
       acc[lead.status] = (acc[lead.status] || 0) + 1;
       return acc;
     }, {} as Record<string, number>)
   ).map(([status, count]) => ({
-    name: statusLabels[status],
+    name: statusLabels[status] || status,
     value: count,
-    color: statusColors[status]
+    color: statusColors[status] || "#94A3B8"
   }));
 
   // Prepare conversion rate and sales cycle data for charts
-  const conversionChartData = conversionRates.map(item => ({
+  const conversionChartData = stats.conversionRates.map(item => ({
     name: item.channel === "linkedin" ? "LinkedIn" : 
           item.channel === "phone" ? "Teléfono" : "Email",
     value: item.rate,
@@ -61,7 +64,7 @@ const Reports = () => {
            item.channel === "phone" ? "#34D399" : "#F59E0B"
   }));
 
-  const cycleTimeChartData = salesCycleTimes.map(item => ({
+  const cycleTimeChartData = stats.salesCycleTimes.map(item => ({
     name: item.channel === "linkedin" ? "LinkedIn" : 
           item.channel === "phone" ? "Teléfono" : "Email",
     value: item.avgDays,
@@ -72,6 +75,20 @@ const Reports = () => {
   const handleDownloadReport = () => {
     toast.success("Reporte descargado exitosamente");
   };
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex flex-col gap-8">
+          <Skeleton className="h-10 w-48" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Skeleton className="h-[300px]" />
+            <Skeleton className="h-[300px]" />
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -107,32 +124,38 @@ const Reports = () => {
               <CardTitle>Distribución por Canal</CardTitle>
             </CardHeader>
             <CardContent className="p-1 h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={channelData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                    animationDuration={800}
-                    className="animate-fade-in"
-                  >
-                    {channelData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Legend 
-                    verticalAlign="bottom"
-                    height={36}
-                    iconType="circle"
-                    formatter={(value) => <span className="text-sm">{value}</span>}
-                  />
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+              {stats.total === 0 ? (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  No hay datos disponibles
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={channelData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                      animationDuration={800}
+                      className="animate-fade-in"
+                    >
+                      {channelData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Legend 
+                      verticalAlign="bottom"
+                      height={36}
+                      iconType="circle"
+                      formatter={(value) => <span className="text-sm">{value}</span>}
+                    />
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
             </CardContent>
           </Card>
 
@@ -141,32 +164,38 @@ const Reports = () => {
               <CardTitle>Distribución por Estado</CardTitle>
             </CardHeader>
             <CardContent className="p-1 h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={statusData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                    animationDuration={800}
-                    className="animate-fade-in"
-                  >
-                    {statusData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Legend 
-                    verticalAlign="bottom"
-                    height={36}
-                    iconType="circle"
-                    formatter={(value) => <span className="text-sm">{value}</span>}
-                  />
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+              {statusData.length === 0 ? (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  No hay datos disponibles
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={statusData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                      animationDuration={800}
+                      className="animate-fade-in"
+                    >
+                      {statusData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Legend 
+                      verticalAlign="bottom"
+                      height={36}
+                      iconType="circle"
+                      formatter={(value) => <span className="text-sm">{value}</span>}
+                    />
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
             </CardContent>
           </Card>
         </div>

@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { Trash2, Download, Upload, FileSpreadsheet, FileText, FileDown, Info } from "lucide-react";
+import { Trash2, Download, Upload, FileSpreadsheet, FileText, FileDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -28,7 +28,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { mockLeads, conversionRates, salesCycleTimes } from "@/utils/mock-data";
+import { useLeads, useLeadStats } from "@/hooks/useLeads";
 
 interface DataActionsProps {
   onClearData?: () => void;
@@ -37,23 +37,23 @@ interface DataActionsProps {
 
 export const DataActions = ({ onClearData, onImportData }: DataActionsProps) => {
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const { data: leads = [] } = useLeads();
+  const { stats } = useLeadStats();
 
   const handleClearData = () => {
     onClearData?.();
-    toast.success("Datos eliminados correctamente");
   };
 
   const generateCSV = () => {
-    const headers = ["ID", "Nombre", "Empresa", "Canal", "Estado", "Fecha", "Fecha Cierre", "Notas"];
-    const rows = mockLeads.map(lead => [
+    const headers = ["ID", "Nombre", "Empresa", "Canal", "Estado", "Fecha", "Fecha Cierre"];
+    const rows = leads.map(lead => [
       lead.id,
       lead.name,
-      lead.company,
+      lead.company || "",
       lead.channel,
       lead.status,
-      lead.date.toISOString().split('T')[0],
-      lead.closedDate ? lead.closedDate.toISOString().split('T')[0] : "",
-      lead.notes || ""
+      new Date(lead.created_at).toISOString().split('T')[0],
+      lead.closed_at ? new Date(lead.closed_at).toISOString().split('T')[0] : ""
     ]);
     
     const csvContent = [headers, ...rows].map(row => row.join(",")).join("\n");
@@ -61,7 +61,6 @@ export const DataActions = ({ onClearData, onImportData }: DataActionsProps) => 
   };
 
   const generateExcelCSV = () => {
-    // Excel-compatible CSV with BOM for proper encoding
     const bom = "\uFEFF";
     return bom + generateCSV();
   };
@@ -91,7 +90,6 @@ export const DataActions = ({ onClearData, onImportData }: DataActionsProps) => 
   };
 
   const handleDownloadPDF = () => {
-    // Generate a simple HTML for PDF-like report
     const reportHTML = `
       <!DOCTYPE html>
       <html>
@@ -113,7 +111,7 @@ export const DataActions = ({ onClearData, onImportData }: DataActionsProps) => 
         
         <div class="metrics">
           <h2>Métricas por Canal</h2>
-          ${conversionRates.map(cr => `
+          ${stats.conversionRates.map(cr => `
             <div class="metric-card">
               <strong>${cr.channel.toUpperCase()}</strong>
               <p>Tasa de Conversión: ${cr.rate}%</p>
@@ -124,7 +122,7 @@ export const DataActions = ({ onClearData, onImportData }: DataActionsProps) => 
 
         <div class="metrics">
           <h2>Ciclo de Venta por Canal</h2>
-          ${salesCycleTimes.map(sc => `
+          ${stats.salesCycleTimes.map(sc => `
             <div class="metric-card">
               <strong>${sc.channel.toUpperCase()}</strong>
               <p>Tiempo Promedio: ${sc.avgDays} días</p>
@@ -145,13 +143,13 @@ export const DataActions = ({ onClearData, onImportData }: DataActionsProps) => 
             </tr>
           </thead>
           <tbody>
-            ${mockLeads.map(lead => `
+            ${leads.map(lead => `
               <tr>
                 <td>${lead.name}</td>
-                <td>${lead.company}</td>
+                <td>${lead.company || ""}</td>
                 <td>${lead.channel}</td>
                 <td>${lead.status}</td>
-                <td>${lead.date.toLocaleDateString('es-ES')}</td>
+                <td>${new Date(lead.created_at).toLocaleDateString('es-ES')}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -172,13 +170,12 @@ export const DataActions = ({ onClearData, onImportData }: DataActionsProps) => 
   };
 
   const generateTemplate = () => {
-    const headers = ["nombre", "empresa", "canal", "estado", "fecha", "fecha_cierre", "notas"];
-    const exampleRow = ["Juan Pérez", "Empresa ABC", "linkedin", "new", "2024-01-15", "", "Primera contactación"];
+    const headers = ["nombre", "empresa", "canal", "estado", "email", "telefono"];
+    const exampleRow = ["Juan Pérez", "Empresa ABC", "linkedin", "new", "juan@email.com", "5551234567"];
     const instructions = [
       "# INSTRUCCIONES DE USO",
       "# Canal: linkedin | phone | email",
       "# Estado: new | contacted | qualified | proposal | closed | lost",
-      "# Fecha formato: YYYY-MM-DD",
       ""
     ];
     
@@ -217,16 +214,14 @@ export const DataActions = ({ onClearData, onImportData }: DataActionsProps) => 
             else if (header === "empresa") lead.company = values[i];
             else if (header === "canal") lead.channel = values[i];
             else if (header === "estado") lead.status = values[i];
-            else if (header === "fecha") lead.date = new Date(values[i]);
-            else if (header === "fecha_cierre" && values[i]) lead.closedDate = new Date(values[i]);
-            else if (header === "notas") lead.notes = values[i];
+            else if (header === "email") lead.email = values[i];
+            else if (header === "telefono") lead.phone = values[i];
           });
           
           return lead;
         });
 
         onImportData?.(data);
-        toast.success(`${data.length} leads importados correctamente`);
         setIsUploadDialogOpen(false);
       } catch (error) {
         toast.error("Error al procesar el archivo");
@@ -237,7 +232,6 @@ export const DataActions = ({ onClearData, onImportData }: DataActionsProps) => 
 
   return (
     <div className="flex flex-wrap gap-2">
-      {/* Delete Data Button */}
       <AlertDialog>
         <AlertDialogTrigger asChild>
           <Button variant="destructive" size="sm">
@@ -261,7 +255,6 @@ export const DataActions = ({ onClearData, onImportData }: DataActionsProps) => 
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Download Reports Dropdown */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm">
@@ -285,7 +278,6 @@ export const DataActions = ({ onClearData, onImportData }: DataActionsProps) => 
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* Upload Data Dialog */}
       <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
         <DialogTrigger asChild>
           <Button variant="outline" size="sm">

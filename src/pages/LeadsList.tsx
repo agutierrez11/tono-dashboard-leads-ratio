@@ -1,11 +1,12 @@
 
 import { useState, useMemo } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { mockLeads } from "@/utils/mock-data";
+import { useLeads } from "@/hooks/useLeads";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -33,17 +34,18 @@ import { Channel } from "@/utils/types";
 import { toast } from "sonner";
 
 const LeadsList = () => {
+  const { data: leads = [], isLoading } = useLeads();
   const [searchTerm, setSearchTerm] = useState("");
   const [channelFilter, setChannelFilter] = useState<string>("all");
 
   const filteredLeads = useMemo(() => {
-    return mockLeads.filter(lead => {
+    return leads.filter(lead => {
       const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (lead.company && lead.company.toLowerCase().includes(searchTerm.toLowerCase()));
       const matchesChannel = channelFilter === "all" || lead.channel === channelFilter;
       return matchesSearch && matchesChannel;
     });
-  }, [searchTerm, channelFilter]);
+  }, [leads, searchTerm, channelFilter]);
 
   const getChannelIcon = (channel: Channel) => {
     switch (channel) {
@@ -71,7 +73,7 @@ const LeadsList = () => {
       lead.name,
       lead.company || "",
       lead.channel,
-      lead.date.toLocaleDateString(),
+      new Date(lead.created_at).toLocaleDateString(),
       lead.status || "nuevo"
     ]);
     return [headers, ...rows].map(row => row.join(",")).join("\n");
@@ -107,6 +109,17 @@ const LeadsList = () => {
       toast.success("PDF descargado");
     }, 1000);
   };
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex flex-col gap-6">
+          <Skeleton className="h-10 w-48" />
+          <Skeleton className="h-96 w-full" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -208,7 +221,7 @@ const LeadsList = () => {
                             </span>
                           </Badge>
                         </TableCell>
-                        <TableCell>{lead.date.toLocaleDateString()}</TableCell>
+                        <TableCell>{new Date(lead.created_at).toLocaleDateString()}</TableCell>
                         <TableCell>
                           <Badge variant="secondary">
                             {lead.status || "nuevo"}
