@@ -1,13 +1,17 @@
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { BarChart3, Linkedin, Phone, Mail, Users, TrendingUp, Clock } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { LeadChart } from "@/components/dashboard/LeadChart";
 import { ChannelMetrics } from "@/components/dashboard/ChannelMetrics";
+import { ChannelComparison } from "@/components/dashboard/ChannelComparison";
+import { MetricsInstructions } from "@/components/dashboard/MetricsInstructions";
+import { DataActions } from "@/components/dashboard/DataActions";
 import { mockLeads, conversionRates, salesCycleTimes } from "@/utils/mock-data";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
 
 const Index = () => {
   const stats = useMemo(() => {
@@ -57,22 +61,34 @@ const Index = () => {
     };
   }, []);
 
+  const handleClearData = () => {
+    toast.success("Datos eliminados correctamente");
+  };
+
+  const handleImportData = (data: any[]) => {
+    console.log("Imported data:", data);
+    toast.success(`${data.length} leads importados`);
+  };
+
   return (
     <DashboardLayout>
       <div className="flex flex-col gap-8">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-            <p className="text-muted-foreground mt-1">
-              Monitorea el rendimiento de tus leads a través de distintos canales.
-            </p>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+              <p className="text-muted-foreground mt-1">
+                Monitorea el rendimiento de tus leads a través de distintos canales.
+              </p>
+            </div>
+            <Button size="sm" className="animate-fade-in" asChild>
+              <Link to="/leads">
+                <Users className="h-4 w-4 mr-2" />
+                Agregar Lead
+              </Link>
+            </Button>
           </div>
-          <Button size="sm" className="animate-fade-in" asChild>
-            <Link to="/leads">
-              <Users className="h-4 w-4 mr-2" />
-              Agregar Lead
-            </Link>
-          </Button>
+          <DataActions onClearData={handleClearData} onImportData={handleImportData} />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -129,6 +145,10 @@ const Index = () => {
         <LeadChart />
         
         <ChannelMetrics />
+        
+        <ChannelComparison />
+        
+        <MetricsInstructions />
 
         <div className="mt-4 flex justify-center">
           <Button variant="outline" size="sm" asChild className="animate-fade-in">
