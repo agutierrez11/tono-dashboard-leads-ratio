@@ -1,7 +1,6 @@
-
 import { useState, useMemo } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { useLeads } from "@/hooks/useLeads";
+import { useLeads, useUpdateLeadStatus } from "@/hooks/useLeads";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -33,19 +32,31 @@ import { Link } from "react-router-dom";
 import { Channel } from "@/utils/types";
 import { toast } from "sonner";
 
+const statusOptions = [
+  { value: "new", label: "🆕 Nuevo", color: "bg-blue-500/10 text-blue-600 border-blue-500/20" },
+  { value: "contacted", label: "📞 Contactado", color: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20" },
+  { value: "qualified", label: "✅ Calificado", color: "bg-purple-500/10 text-purple-600 border-purple-500/20" },
+  { value: "proposal", label: "📋 Propuesta", color: "bg-orange-500/10 text-orange-600 border-orange-500/20" },
+  { value: "closed", label: "🎉 Cerrado", color: "bg-green-500/10 text-green-600 border-green-500/20" },
+  { value: "lost", label: "❌ Perdido", color: "bg-red-500/10 text-red-600 border-red-500/20" },
+];
+
 const LeadsList = () => {
   const { data: leads = [], isLoading } = useLeads();
+  const updateStatus = useUpdateLeadStatus();
   const [searchTerm, setSearchTerm] = useState("");
   const [channelFilter, setChannelFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   const filteredLeads = useMemo(() => {
     return leads.filter(lead => {
       const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (lead.company && lead.company.toLowerCase().includes(searchTerm.toLowerCase()));
       const matchesChannel = channelFilter === "all" || lead.channel === channelFilter;
-      return matchesSearch && matchesChannel;
+      const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
+      return matchesSearch && matchesChannel && matchesStatus;
     });
-  }, [leads, searchTerm, channelFilter]);
+  }, [leads, searchTerm, channelFilter, statusFilter]);
 
   const getChannelIcon = (channel: Channel) => {
     switch (channel) {
@@ -67,14 +78,29 @@ const LeadsList = () => {
     return variants[channel];
   };
 
+  const getStatusOption = (status: string) => {
+    return statusOptions.find(s => s.value === status) || statusOptions[0];
+  };
+
+  const handleStatusChange = async (leadId: string, newStatus: string) => {
+    try {
+      await updateStatus.mutateAsync({ leadId, status: newStatus });
+      const statusLabel = getStatusOption(newStatus).label;
+      toast.success(`Estado actualizado a ${statusLabel}`);
+    } catch (error: any) {
+      toast.error("Error al actualizar: " + error.message);
+    }
+  };
+
   const generateCSV = () => {
-    const headers = ["Nombre", "Empresa", "Canal", "Fecha", "Estado"];
+    const headers = ["Nombre", "Empresa", "Canal", "Fecha", "Estado", "Días en ciclo"];
     const rows = filteredLeads.map(lead => [
       lead.name,
       lead.company || "",
       lead.channel,
       new Date(lead.created_at).toLocaleDateString(),
-      lead.status || "nuevo"
+      lead.status || "nuevo",
+      lead.sale_cycle_days || ""
     ]);
     return [headers, ...rows].map(row => row.join(",")).join("\n");
   };
@@ -186,6 +212,19 @@ const LeadsList = () => {
                   <SelectItem value="email">Email</SelectItem>
                 </SelectContent>
               </Select>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full md:w-[180px]">
+                  <SelectValue placeholder="Filtrar por estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los estados</SelectItem>
+                  {statusOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </CardHeader>
           <CardContent>
@@ -198,37 +237,60 @@ const LeadsList = () => {
                     <TableHead>Canal</TableHead>
                     <TableHead>Fecha</TableHead>
                     <TableHead>Estado</TableHead>
+                    <TableHead className="text-right">Días</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredLeads.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                         No se encontraron leads
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredLeads.map((lead) => (
-                      <TableRow key={lead.id} className="hover:bg-muted/50">
-                        <TableCell className="font-medium">{lead.name}</TableCell>
-                        <TableCell>{lead.company || "-"}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={getChannelBadge(lead.channel)}>
-                            <span className="flex items-center gap-1">
-                              {getChannelIcon(lead.channel)}
-                              {lead.channel === "linkedin" ? "LinkedIn" : 
-                               lead.channel === "phone" ? "Teléfono" : "Email"}
-                            </span>
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{new Date(lead.created_at).toLocaleDateString()}</TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">
-                            {lead.status || "nuevo"}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                    filteredLeads.map((lead) => {
+                      const statusOption = getStatusOption(lead.status);
+                      return (
+                        <TableRow key={lead.id} className="hover:bg-muted/50">
+                          <TableCell className="font-medium">{lead.name}</TableCell>
+                          <TableCell>{lead.company || "-"}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={getChannelBadge(lead.channel)}>
+                              <span className="flex items-center gap-1">
+                                {getChannelIcon(lead.channel)}
+                                {lead.channel === "linkedin" ? "LinkedIn" : 
+                                 lead.channel === "phone" ? "Teléfono" : "Email"}
+                              </span>
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{new Date(lead.created_at).toLocaleDateString()}</TableCell>
+                          <TableCell>
+                            <Select 
+                              value={lead.status} 
+                              onValueChange={(value) => handleStatusChange(lead.id, value)}
+                            >
+                              <SelectTrigger className={`w-[160px] h-8 text-xs ${statusOption.color}`}>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {statusOptions.map(option => (
+                                  <SelectItem key={option.value} value={option.value}>
+                                    {option.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {lead.sale_cycle_days !== null ? (
+                              <span className="text-muted-foreground">{lead.sale_cycle_days}d</span>
+                            ) : (
+                              <span className="text-muted-foreground/50">-</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>
