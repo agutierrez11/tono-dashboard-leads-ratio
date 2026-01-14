@@ -1,4 +1,3 @@
-
 import { useMemo } from "react";
 import { BarChart3, Linkedin, Phone, Mail, Users, TrendingUp, Clock, Trash2, RefreshCw } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -26,18 +25,18 @@ const Index = () => {
 
   const stats = useMemo(() => {
     const totalLeads = leads.length;
-    
+
     const byChannel = {
-      linkedin: leads.filter(lead => lead.channel === "linkedin").length,
-      phone: leads.filter(lead => lead.channel === "phone").length,
-      email: leads.filter(lead => lead.channel === "email").length,
+      linkedin: leads.filter((lead) => lead.channel === "linkedin").length,
+      phone: leads.filter((lead) => lead.channel === "phone").length,
+      email: leads.filter((lead) => lead.channel === "email").length,
     };
 
     // Calculate percentages for last 30 days
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
-    const recentLeads = leads.filter(lead => lead.date > thirtyDaysAgo);
+
+    const recentLeads = leads.filter((lead) => lead.date > thirtyDaysAgo);
 
     // Generate random trends
     const linkedinTrend = Math.floor(Math.random() * 30) + 5;
@@ -48,14 +47,14 @@ const Index = () => {
     // Get overall conversion rate and cycle time from leads
     const conversionRates = calculateConversionRates(leads);
     const salesCycleTimes = calculateSalesCycleTimes(leads);
-    
-    const overallConversionRate = totalLeads > 0 
-      ? conversionRates.reduce((sum, item) => sum + (item.rate * item.leads), 0) / totalLeads 
-      : 0;
+
+    const overallConversionRate =
+      totalLeads > 0 ? conversionRates.reduce((sum, item) => sum + item.rate * item.leads, 0) / totalLeads : 0;
     const totalCycleCount = salesCycleTimes.reduce((sum, item) => sum + item.count, 0);
-    const overallCycleTime = totalCycleCount > 0 
-      ? salesCycleTimes.reduce((sum, item) => sum + (item.avgDays * item.count), 0) / totalCycleCount
-      : 0;
+    const overallCycleTime =
+      totalCycleCount > 0
+        ? salesCycleTimes.reduce((sum, item) => sum + item.avgDays * item.count, 0) / totalCycleCount
+        : 0;
 
     return {
       total: totalLeads,
@@ -67,7 +66,7 @@ const Index = () => {
         phone: { value: phoneTrend, isPositive: phoneTrend >= 0 },
         email: { value: emailTrend, isPositive: emailTrend >= 0 },
         total: { value: totalTrend, isPositive: totalTrend >= 0 },
-      }
+      },
     };
   }, [leads]);
 
@@ -104,13 +103,16 @@ const Index = () => {
                   <AlertDialogHeader>
                     <AlertDialogTitle>¿Eliminar todos los datos?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Esta acción eliminará todos los leads actuales ({leads.length} registros).
-                      Podrás comenzar a ingresar tus datos reales desde cero.
+                      Esta acción eliminará todos los leads actuales ({leads.length} registros). Podrás comenzar a
+                      ingresar tus datos reales desde cero.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleClearData} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    <AlertDialogAction
+                      onClick={handleClearData}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
                       Eliminar todo
                     </AlertDialogAction>
                   </AlertDialogFooter>
@@ -202,7 +204,7 @@ const Index = () => {
             </div>
 
             <LeadChart />
-            
+
             <ChannelMetrics />
 
             <div className="mt-4 flex justify-center">
