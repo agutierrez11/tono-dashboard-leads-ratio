@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { LeadsProvider } from "@/hooks/useLeadsStore";
 import Index from "./pages/Index";
 import Leads from "./pages/Leads";
 import Reports from "./pages/Reports";
@@ -16,21 +17,23 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/leads" element={<Leads />} />
-          <Route path="/reports" element={<Reports />} />
-          <Route path="/linkedin" element={<LinkedinPage />} />
-          <Route path="/phone" element={<PhonePage />} />
-          <Route path="/email" element={<EmailPage />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+    <LeadsProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/leads" element={<Leads />} />
+            <Route path="/reports" element={<Reports />} />
+            <Route path="/linkedin" element={<LinkedinPage />} />
+            <Route path="/phone" element={<PhonePage />} />
+            <Route path="/email" element={<EmailPage />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </LeadsProvider>
   </QueryClientProvider>
 );
 
