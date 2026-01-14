@@ -3,16 +3,14 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Linkedin, Phone, Mail, Calendar } from "lucide-react";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Linkedin, Phone, Mail, Plus, CheckCircle } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -25,43 +23,35 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { format } from "date-fns";
-import { cn } from "@/lib/utils";
-import { Lead } from "@/utils/types";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 
 const formSchema = z.object({
   name: z.string().min(2, {
     message: "El nombre debe tener al menos 2 caracteres.",
+  }).max(100, {
+    message: "El nombre no puede tener más de 100 caracteres.",
   }),
-  company: z.string().min(1, {
-    message: "La empresa es requerida.",
-  }),
+  company: z.string().max(100, {
+    message: "La empresa no puede tener más de 100 caracteres.",
+  }).optional(),
   channel: z.enum(["linkedin", "phone", "email"], {
     required_error: "Por favor selecciona un canal.",
   }),
   status: z.enum(["new", "contacted", "qualified", "proposal", "closed", "lost"], {
-    required_error: "Por favor selecciona un estado.",
+    required_error: "Por favor selecciona una etapa.",
   }),
-  date: z.date({
-    required_error: "La fecha es requerida.",
-  }),
-  notes: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
-interface AddLeadFormProps {
-  onSave?: (lead: Lead) => void;
-}
+// Temporary user ID for demo purposes (will be replaced with auth)
+const DEMO_USER_ID = "00000000-0000-0000-0000-000000000001";
 
-export const AddLeadForm = ({ onSave }: AddLeadFormProps) => {
+export const AddLeadForm = () => {
   const [loading, setLoading] = useState(false);
+  const [addAnother, setAddAnother] = useState(false);
+  const queryClient = useQueryClient();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -70,8 +60,6 @@ export const AddLeadForm = ({ onSave }: AddLeadFormProps) => {
       company: "",
       channel: "linkedin",
       status: "new",
-      date: new Date(),
-      notes: "",
     },
   });
 
@@ -79,224 +67,190 @@ export const AddLeadForm = ({ onSave }: AddLeadFormProps) => {
     setLoading(true);
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      const newLead: Lead = {
-        id: `lead-${Date.now()}`,
-        name: values.name,
-        company: values.company,
+      const { error } = await supabase.from("leads").insert({
+        name: values.name.trim(),
+        company: values.company?.trim() || null,
         channel: values.channel,
         status: values.status,
-        date: values.date,
-        notes: values.notes,
-      };
+        user_id: DEMO_USER_ID,
+      });
+
+      if (error) throw error;
       
-      if (onSave) {
-        onSave(newLead);
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+      toast.success("Lead agregado exitosamente", {
+        icon: <CheckCircle className="h-4 w-4 text-green-500" />,
+      });
+      
+      if (addAnother) {
+        form.reset({
+          name: "",
+          company: "",
+          channel: values.channel, // Keep the same channel
+          status: "new",
+        });
+      } else {
+        form.reset();
       }
-      
-      toast.success("Lead agregado exitosamente");
-      form.reset();
-    } catch (error) {
-      toast.error("Error al guardar el lead");
-      console.error(error);
+    } catch (error: any) {
+      toast.error("Error al guardar: " + (error.message || "Intenta de nuevo"));
     } finally {
       setLoading(false);
     }
   };
 
-  const getChannelIcon = (channel: string) => {
-    switch (channel) {
-      case "linkedin":
-        return <Linkedin className="h-4 w-4" />;
-      case "phone":
-        return <Phone className="h-4 w-4" />;
-      case "email":
-        return <Mail className="h-4 w-4" />;
-      default:
-        return null;
-    }
-  };
+  const channelButtons = [
+    { value: "linkedin", label: "LinkedIn", icon: Linkedin, color: "text-linkedin bg-linkedin/10 border-linkedin/30 hover:bg-linkedin/20" },
+    { value: "phone", label: "Teléfono", icon: Phone, color: "text-phone bg-phone/10 border-phone/30 hover:bg-phone/20" },
+    { value: "email", label: "Email", icon: Mail, color: "text-email bg-email/10 border-email/30 hover:bg-email/20" },
+  ];
+
+  const statusOptions = [
+    { value: "new", label: "🆕 Nuevo", description: "Lead recién captado" },
+    { value: "contacted", label: "📞 Contactado", description: "Primera comunicación realizada" },
+    { value: "qualified", label: "✅ Calificado", description: "Lead con potencial confirmado" },
+    { value: "proposal", label: "📋 Propuesta", description: "Propuesta enviada" },
+    { value: "closed", label: "🎉 Cerrado", description: "Venta concretada" },
+    { value: "lost", label: "❌ Perdido", description: "No se concretó" },
+  ];
 
   return (
-    <Card className="glass-card w-full max-w-3xl mx-auto animate-scale-in">
+    <Card className="glass-card w-full max-w-2xl mx-auto animate-scale-in">
       <CardHeader>
-        <CardTitle>Agregar Nuevo Lead</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          <Plus className="h-5 w-5" />
+          Agregar Lead
+        </CardTitle>
         <CardDescription>
-          Registra la información de un nuevo prospecto o contacto.
+          Registra un nuevo prospecto de forma rápida y sencilla.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nombre del contacto</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Juan Pérez" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="company"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Empresa</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Empresa S.A." {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            {/* Channel Selection - Visual Buttons */}
+            <FormField
+              control={form.control}
+              name="channel"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Canal de captación</FormLabel>
+                  <div className="grid grid-cols-3 gap-3">
+                    {channelButtons.map((channel) => {
+                      const Icon = channel.icon;
+                      const isSelected = field.value === channel.value;
+                      return (
+                        <button
+                          key={channel.value}
+                          type="button"
+                          onClick={() => field.onChange(channel.value)}
+                          className={`
+                            flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all
+                            ${isSelected 
+                              ? channel.color + " border-current shadow-md scale-105" 
+                              : "border-muted hover:border-muted-foreground/30 hover:bg-muted/50"
+                            }
+                          `}
+                        >
+                          <Icon className={`h-6 w-6 mb-1 ${isSelected ? "" : "text-muted-foreground"}`} />
+                          <span className={`text-sm font-medium ${isSelected ? "" : "text-muted-foreground"}`}>
+                            {channel.label}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-              <FormField
-                control={form.control}
-                name="channel"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Canal</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecciona un canal" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="linkedin" className="flex items-center">
-                          <div className="flex items-center gap-2">
-                            <Linkedin className="h-4 w-4 text-linkedin" />
-                            <span>LinkedIn</span>
+            {/* Name Field */}
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nombre completo *</FormLabel>
+                  <FormControl>
+                    <Input 
+                      placeholder="Ej: Juan García López" 
+                      {...field} 
+                      autoFocus
+                      className="text-lg"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Company Field - Optional */}
+            <FormField
+              control={form.control}
+              name="company"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Empresa <span className="text-muted-foreground text-xs">(opcional)</span></FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ej: Tech Solutions S.A." {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Status/Stage Field */}
+            <FormField
+              control={form.control}
+              name="status"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Etapa del embudo</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger className="text-base">
+                        <SelectValue placeholder="Selecciona una etapa" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {statusOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          <div className="flex flex-col">
+                            <span>{option.label}</span>
                           </div>
                         </SelectItem>
-                        <SelectItem value="phone">
-                          <div className="flex items-center gap-2">
-                            <Phone className="h-4 w-4 text-phone" />
-                            <span>Teléfono</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="email">
-                          <div className="flex items-center gap-2">
-                            <Mail className="h-4 w-4 text-email" />
-                            <span>Email</span>
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-              <FormField
-                control={form.control}
-                name="status"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Estado</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecciona un estado" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="new">Nuevo</SelectItem>
-                        <SelectItem value="contacted">Contactado</SelectItem>
-                        <SelectItem value="qualified">Calificado</SelectItem>
-                        <SelectItem value="proposal">Propuesta</SelectItem>
-                        <SelectItem value="closed">Cerrado</SelectItem>
-                        <SelectItem value="lost">Perdido</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="date"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Fecha</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>Selecciona una fecha</span>
-                            )}
-                            <Calendar className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <CalendarComponent
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          disabled={(date) => date > new Date()}
-                          initialFocus
-                          className="p-3 pointer-events-auto"
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="notes"
-                render={({ field }) => (
-                  <FormItem className="col-span-1 md:col-span-2">
-                    <FormLabel>Notas</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Información adicional sobre el contacto..."
-                        className="resize-none min-h-[100px]"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <CardFooter className="px-0 pt-4 flex justify-end gap-2">
-              <Button type="button" variant="outline">
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={loading}>
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3 pt-4">
+              <Button 
+                type="submit" 
+                disabled={loading}
+                className="flex-1"
+                size="lg"
+              >
                 {loading ? "Guardando..." : "Guardar Lead"}
               </Button>
-            </CardFooter>
+              <Button 
+                type="submit"
+                variant="outline"
+                disabled={loading}
+                onClick={() => setAddAnother(true)}
+                onMouseDown={() => setAddAnother(true)}
+                className="flex-1"
+                size="lg"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Guardar y agregar otro
+              </Button>
+            </div>
           </form>
         </Form>
       </CardContent>
