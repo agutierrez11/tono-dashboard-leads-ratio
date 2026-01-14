@@ -1,5 +1,4 @@
-
-import { Linkedin, Phone, Mail, BarChart3, Plus, Menu } from 'lucide-react';
+import { Linkedin, Phone, Mail, BarChart3, Plus, Menu, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link, useLocation } from 'react-router-dom';
 import { useState } from 'react';
@@ -10,6 +9,8 @@ import {
 } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 interface NavLinkProps {
   to: string;
@@ -39,6 +40,12 @@ export const Navbar = () => {
   const location = useLocation();
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
+  const { user, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast.success("Sesión cerrada correctamente");
+  };
 
   const navLinks = [
     { to: "/", label: "Dashboard", icon: <BarChart3 className="h-4 w-4" /> },
@@ -96,17 +103,39 @@ export const Navbar = () => {
                     onClick={handleLinkClick}
                   />
                 ))}
+                {user && (
+                  <button
+                    onClick={() => {
+                      handleSignOut();
+                      handleLinkClick();
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg text-destructive hover:bg-destructive/10 transition-all mt-4"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    <span>Cerrar Sesión</span>
+                  </button>
+                )}
               </nav>
             </SheetContent>
           </Sheet>
         ) : (
           <div className="flex items-center gap-2">
+            {user && (
+              <span className="text-sm text-muted-foreground hidden lg:inline">
+                {user.email}
+              </span>
+            )}
             <Button size="sm" variant="ghost" asChild>
               <Link to="/reports">Reportes</Link>
             </Button>
             <Button size="sm" className="animate-fade-in" asChild>
               <Link to="/leads">Agregar Lead</Link>
             </Button>
+            {user && (
+              <Button size="sm" variant="ghost" onClick={handleSignOut}>
+                <LogOut className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         )}
       </div>

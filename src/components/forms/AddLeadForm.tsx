@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/useAuth";
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -45,13 +46,11 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-// Temporary user ID for demo purposes (will be replaced with auth)
-const DEMO_USER_ID = "00000000-0000-0000-0000-000000000001";
-
 export const AddLeadForm = () => {
   const [loading, setLoading] = useState(false);
   const [addAnother, setAddAnother] = useState(false);
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -64,6 +63,11 @@ export const AddLeadForm = () => {
   });
 
   const onSubmit = async (values: FormValues) => {
+    if (!user) {
+      toast.error("Debes iniciar sesión para agregar leads");
+      return;
+    }
+
     setLoading(true);
     
     try {
@@ -72,7 +76,7 @@ export const AddLeadForm = () => {
         company: values.company?.trim() || null,
         channel: values.channel,
         status: values.status,
-        user_id: DEMO_USER_ID,
+        user_id: user.id,
       });
 
       if (error) throw error;
