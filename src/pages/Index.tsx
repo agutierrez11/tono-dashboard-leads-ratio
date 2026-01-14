@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from "react-router-dom";
 import { useLeads, calculateConversionRates, calculateSalesCycleTimes } from "@/hooks/useLeads";
-import { useAuth } from "@/hooks/useAuth";
 import { Lead } from "@/utils/types";
 import { toast } from "sonner";
 import {
@@ -30,7 +29,6 @@ import {
 import { Loader2 } from "lucide-react";
 
 const Index = () => {
-  const { signOut } = useAuth();
   const { leads, isLoading, deleteAllLeads, updateLead } = useLeads();
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
