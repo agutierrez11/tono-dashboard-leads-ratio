@@ -15,12 +15,17 @@ const Leads = () => {
   
   return (
     <DashboardLayout>
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Agregar Lead</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Agregar Leads</h1>
           <p className="text-muted-foreground mt-1">
-            Registra información de nuevos contactos y prospectos.
+            Registro rápido de contactos y prospectos.
           </p>
+          {leads.length > 0 && (
+            <p className="text-sm text-muted-foreground mt-2">
+              Total agregados esta sesión: <span className="font-semibold text-foreground">{leads.length}</span>
+            </p>
+          )}
         </div>
         
         <AddLeadForm onSave={handleSaveLead} />
