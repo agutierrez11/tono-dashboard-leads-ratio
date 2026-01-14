@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Trash2, Download, Upload, FileSpreadsheet, FileText, FileDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,20 +27,24 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { useLeads, useLeadStats } from "@/hooks/useLeads";
+import { useLeads, useLeadStats, useDeleteAllLeads } from "@/hooks/useLeads";
 
 interface DataActionsProps {
-  onClearData?: () => void;
   onImportData?: (data: any[]) => void;
 }
 
-export const DataActions = ({ onClearData, onImportData }: DataActionsProps) => {
+export const DataActions = ({ onImportData }: DataActionsProps) => {
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const { data: leads = [] } = useLeads();
   const { stats } = useLeadStats();
+  const deleteAllLeads = useDeleteAllLeads();
 
-  const handleClearData = () => {
-    onClearData?.();
+  const handleClearData = async () => {
+    try {
+      await deleteAllLeads.mutateAsync();
+    } catch (error) {
+      // Error already handled in the hook
+    }
   };
 
   const generateCSV = () => {
