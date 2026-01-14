@@ -7,8 +7,11 @@ import { Link } from "react-router-dom";
 import { PlusCircle, TrendingUp, Clock } from "lucide-react";
 import { Channel } from "@/utils/types";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar } from "recharts";
-import { dailyData, conversionRates, salesCycleTimes } from "@/utils/mock-data";
+import { useLeadStats, useLeads } from "@/hooks/useLeads";
 import { cn } from "@/lib/utils";
+import { useMemo } from "react";
+import { format, subDays, startOfDay, isAfter } from "date-fns";
+import { es } from "date-fns/locale";
 
 interface ChannelPageProps {
   channel: Channel;
@@ -33,11 +36,30 @@ export const ChannelPage = ({
     email: "#F59E0B"
   };
   
+  const { stats } = useLeadStats();
+  const { data: leads = [] } = useLeads();
+
   const color = channelColors[channel];
-  
+
   // Get conversion rate and sales cycle time for this channel
-  const conversionRate = conversionRates.find(item => item.channel === channel);
-  const salesCycleTime = salesCycleTimes.find(item => item.channel === channel);
+  const conversionRate = stats.conversionRates.find((item) => item.channel === channel);
+  const salesCycleTime = stats.salesCycleTimes.find((item) => item.channel === channel);
+
+  const dailyData = useMemo(() => {
+    const now = new Date();
+    return Array.from({ length: 14 }).map((_, i) => {
+      const from = subDays(startOfDay(now), 13 - i);
+      const to = i === 13 ? now : subDays(startOfDay(now), 12 - i);
+      const bucket = leads.filter((l) => {
+        const created = new Date(l.created_at);
+        return l.channel === channel && isAfter(created, from) && !isAfter(created, to);
+      });
+      return {
+        label: format(from, "d MMM", { locale: es }),
+        [channel]: bucket.length,
+      };
+    });
+  }, [leads, channel]);
   
   return (
     <DashboardLayout>

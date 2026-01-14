@@ -1,12 +1,14 @@
 
-import { useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LineChart, Line } from "recharts";
 import { Channel, TimeframeData, Timeframe } from "@/utils/types";
-import { dailyData, weeklyData, monthlyData } from "@/utils/mock-data";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useLeads } from "@/hooks/useLeads";
+import { format, subDays, subWeeks, subMonths, startOfDay, startOfWeek, startOfMonth, isAfter } from "date-fns";
+import { es } from "date-fns/locale";
 
 const channelColors: Record<Channel, string> = {
   linkedin: "#0A66C2",
@@ -19,24 +21,53 @@ interface LeadChartProps {
 }
 
 export const LeadChart = ({ className }: LeadChartProps) => {
+  const { data: leads = [] } = useLeads();
   const [activeTimeframe, setActiveTimeframe] = useState<Timeframe>("daily");
-  const [activeData, setActiveData] = useState<TimeframeData[]>(dailyData);
   const [chartType, setChartType] = useState<"bar" | "line">("bar");
   const isMobile = useIsMobile();
 
-  useEffect(() => {
-    switch (activeTimeframe) {
-      case "daily":
-        setActiveData(dailyData);
-        break;
-      case "weekly":
-        setActiveData(weeklyData);
-        break;
-      case "monthly":
-        setActiveData(monthlyData);
-        break;
+  const activeData = useMemo<TimeframeData[]>(() => {
+    const now = new Date();
+
+    const makeRow = (label: string, from: Date, to: Date) => {
+      const bucket = leads.filter((l) => {
+        const created = new Date(l.created_at);
+        return isAfter(created, from) && !isAfter(created, to);
+      });
+
+      return {
+        label,
+        linkedin: bucket.filter((l) => l.channel === "linkedin").length,
+        phone: bucket.filter((l) => l.channel === "phone").length,
+        email: bucket.filter((l) => l.channel === "email").length,
+      } as TimeframeData;
+    };
+
+    if (activeTimeframe === "daily") {
+      // últimos 14 días
+      return Array.from({ length: 14 }).map((_, i) => {
+        const day = subDays(startOfDay(now), 13 - i);
+        const next = i === 13 ? now : subDays(startOfDay(now), 12 - i);
+        return makeRow(format(day, "d MMM", { locale: es }), day, next);
+      });
     }
-  }, [activeTimeframe]);
+
+    if (activeTimeframe === "weekly") {
+      // últimas 12 semanas
+      return Array.from({ length: 12 }).map((_, i) => {
+        const weekStart = startOfWeek(subWeeks(now, 11 - i), { locale: es });
+        const weekEnd = i === 11 ? now : startOfWeek(subWeeks(now, 10 - i), { locale: es });
+        return makeRow(format(weekStart, "d MMM", { locale: es }), weekStart, weekEnd);
+      });
+    }
+
+    // monthly: últimos 12 meses
+    return Array.from({ length: 12 }).map((_, i) => {
+      const monthStart = startOfMonth(subMonths(now, 11 - i));
+      const monthEnd = i === 11 ? now : startOfMonth(subMonths(now, 10 - i));
+      return makeRow(format(monthStart, "MMM", { locale: es }), monthStart, monthEnd);
+    });
+  }, [activeTimeframe, leads]);
 
   const getTimeframeLabel = (timeframe: Timeframe): string => {
     switch (timeframe) {

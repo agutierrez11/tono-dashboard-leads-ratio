@@ -81,7 +81,7 @@ const calculateSalesCycleTimes = (leads: DatabaseLead[]) => {
     const closedLeads = leads.filter(
       (lead) =>
         lead.channel === channel &&
-        (lead.status === "closed" || lead.status === "lost") &&
+        (lead.status === "won" || lead.status === "lost") &&
         lead.closed_at
     );
 

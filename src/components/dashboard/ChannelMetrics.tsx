@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Linkedin, Phone, Mail, Clock, TrendingUp } from "lucide-react";
-import { conversionRates, salesCycleTimes } from "@/utils/mock-data";
+import { useLeadStats } from "@/hooks/useLeads";
 import { Channel } from "@/utils/types";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +30,10 @@ interface ChannelMetricsProps {
 }
 
 export const ChannelMetrics = ({ className }: ChannelMetricsProps) => {
+  const { stats } = useLeadStats();
+  const conversionRates = stats.conversionRates;
+  const salesCycleTimes = stats.salesCycleTimes;
+
   return (
     <Card className={cn("glass-card animate-slide-up", className)}>
       <CardHeader>

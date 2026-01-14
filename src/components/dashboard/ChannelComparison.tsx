@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Linkedin, Phone, Mail, ArrowRight, TrendingUp, TrendingDown, Clock, Users } from "lucide-react";
-import { conversionRates, salesCycleTimes } from "@/utils/mock-data";
+import { useLeadStats } from "@/hooks/useLeads";
 import { Channel } from "@/utils/types";
 import { cn } from "@/lib/utils";
 
@@ -36,12 +36,16 @@ interface ChannelComparisonProps {
 }
 
 export const ChannelComparison = ({ className }: ChannelComparisonProps) => {
+  const { stats } = useLeadStats();
+  const conversionRates = stats.conversionRates;
+  const salesCycleTimes = stats.salesCycleTimes;
+
   const [channel1, setChannel1] = useState<Channel>("linkedin");
   const [channel2, setChannel2] = useState<Channel>("phone");
 
   const getChannelData = (channel: Channel) => {
-    const conversion = conversionRates.find(c => c.channel === channel);
-    const cycle = salesCycleTimes.find(c => c.channel === channel);
+    const conversion = conversionRates.find((c) => c.channel === channel);
+    const cycle = salesCycleTimes.find((c) => c.channel === channel);
     return { conversion, cycle };
   };
 
