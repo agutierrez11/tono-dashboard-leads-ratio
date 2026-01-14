@@ -112,7 +112,7 @@ export const useDeleteAllLeads = () => {
 
   return useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("leads").delete().neq("id", "");
+      const { error } = await supabase.from("leads").delete().gte("created_at", "1970-01-01");
       if (error) throw error;
     },
     onSuccess: () => {
