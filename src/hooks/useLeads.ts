@@ -61,7 +61,7 @@ const calculateConversionRates = (leads: DatabaseLead[]) => {
     const channelLeads = leads.filter((lead) => lead.channel === channel);
     const totalLeads = channelLeads.length;
     const closedLeads = channelLeads.filter(
-      (lead) => lead.status === "closed"
+      (lead) => lead.status === "won"
     ).length;
     const rate = totalLeads > 0 ? (closedLeads / totalLeads) * 100 : 0;
 
