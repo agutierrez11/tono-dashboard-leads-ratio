@@ -1,12 +1,19 @@
-import { useMemo } from "react";
-import { BarChart3, Linkedin, Phone, Mail, Users, TrendingUp, Clock, Trash2, RefreshCw } from "lucide-react";
+
+import { useMemo, useState } from "react";
+import { BarChart3, Linkedin, Phone, Mail, Users, TrendingUp, Clock, Trash2, Plus, LayoutGrid, List } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { LeadChart } from "@/components/dashboard/LeadChart";
 import { ChannelMetrics } from "@/components/dashboard/ChannelMetrics";
+import { LeadPipeline } from "@/components/leads/LeadPipeline";
+import { FollowupReminders } from "@/components/leads/FollowupReminders";
+import { LeadDetailDialog } from "@/components/leads/LeadDetailDialog";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from "react-router-dom";
-import { useLeadsStore, calculateConversionRates, calculateSalesCycleTimes } from "@/hooks/useLeadsStore";
+import { useLeads, calculateConversionRates, calculateSalesCycleTimes } from "@/hooks/useLeads";
+import { useAuth } from "@/hooks/useAuth";
+import { Lead } from "@/utils/types";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -19,9 +26,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Loader2 } from "lucide-react";
 
 const Index = () => {
-  const { leads, clearAllData, loadMockData, hasMockData } = useLeadsStore();
+  const { signOut } = useAuth();
+  const { leads, isLoading, deleteAllLeads, updateLead } = useLeads();
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   const stats = useMemo(() => {
     const totalLeads = leads.length;
@@ -32,19 +43,6 @@ const Index = () => {
       email: leads.filter((lead) => lead.channel === "email").length,
     };
 
-    // Calculate percentages for last 30 days
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    const recentLeads = leads.filter((lead) => lead.date > thirtyDaysAgo);
-
-    // Generate random trends
-    const linkedinTrend = Math.floor(Math.random() * 30) + 5;
-    const phoneTrend = Math.floor(Math.random() * 15) + 2;
-    const emailTrend = Math.floor(Math.random() * 20) - 5;
-    const totalTrend = Math.floor((linkedinTrend + phoneTrend + emailTrend) / 3);
-
-    // Get overall conversion rate and cycle time from leads
     const conversionRates = calculateConversionRates(leads);
     const salesCycleTimes = calculateSalesCycleTimes(leads);
 
@@ -61,24 +59,31 @@ const Index = () => {
       byChannel,
       conversionRate: parseFloat(overallConversionRate.toFixed(1)),
       salesCycleTime: parseFloat(overallCycleTime.toFixed(1)),
-      trends: {
-        linkedin: { value: linkedinTrend, isPositive: linkedinTrend >= 0 },
-        phone: { value: phoneTrend, isPositive: phoneTrend >= 0 },
-        email: { value: emailTrend, isPositive: emailTrend >= 0 },
-        total: { value: totalTrend, isPositive: totalTrend >= 0 },
-      },
     };
   }, [leads]);
 
-  const handleClearData = () => {
-    clearAllData();
-    toast.success("Todos los datos han sido eliminados. ¡Listo para ingresar datos reales!");
+  const handleClearData = async () => {
+    try {
+      await deleteAllLeads();
+    } catch (error) {
+      toast.error("Error al eliminar los datos");
+    }
   };
 
-  const handleLoadMockData = () => {
-    loadMockData();
-    toast.success("Datos de ejemplo cargados");
+  const handleLeadClick = (lead: Lead) => {
+    setSelectedLead(lead);
+    setDetailOpen(true);
   };
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -103,8 +108,7 @@ const Index = () => {
                   <AlertDialogHeader>
                     <AlertDialogTitle>¿Eliminar todos los datos?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Esta acción eliminará todos los leads actuales ({leads.length} registros). Podrás comenzar a
-                      ingresar tus datos reales desde cero.
+                      Esta acción eliminará todos los leads actuales ({leads.length} registros).
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -119,15 +123,9 @@ const Index = () => {
                 </AlertDialogContent>
               </AlertDialog>
             )}
-            {leads.length === 0 && (
-              <Button variant="outline" size="sm" onClick={handleLoadMockData}>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Cargar datos ejemplo
-              </Button>
-            )}
             <Button size="sm" className="animate-fade-in" asChild>
               <Link to="/leads">
-                <Users className="h-4 w-4 mr-2" />
+                <Plus className="h-4 w-4 mr-2" />
                 Agregar Lead
               </Link>
             </Button>
@@ -145,7 +143,7 @@ const Index = () => {
             </p>
             <Button asChild>
               <Link to="/leads">
-                <Users className="h-4 w-4 mr-2" />
+                <Plus className="h-4 w-4 mr-2" />
                 Agregar primer lead
               </Link>
             </Button>
@@ -158,7 +156,6 @@ const Index = () => {
                 value={stats.total}
                 icon={<BarChart3 className="h-4 w-4" />}
                 description="Todos los canales"
-                trend={stats.trends.total}
               />
               <StatCard
                 title="LinkedIn"
@@ -166,7 +163,6 @@ const Index = () => {
                 icon={<Linkedin className="h-4 w-4" />}
                 description="Leads vía LinkedIn"
                 channel="linkedin"
-                trend={stats.trends.linkedin}
               />
               <StatCard
                 title="Teléfono"
@@ -174,7 +170,6 @@ const Index = () => {
                 icon={<Phone className="h-4 w-4" />}
                 description="Leads vía Teléfono"
                 channel="phone"
-                trend={stats.trends.phone}
               />
               <StatCard
                 title="Email"
@@ -182,7 +177,6 @@ const Index = () => {
                 icon={<Mail className="h-4 w-4" />}
                 description="Leads vía Email"
                 channel="email"
-                trend={stats.trends.email}
               />
             </div>
 
@@ -192,7 +186,6 @@ const Index = () => {
                 value={`${stats.conversionRate}%`}
                 icon={<TrendingUp className="h-4 w-4" />}
                 description="Promedio general"
-                className="lg:col-span-1"
               />
               <StatCard
                 title="Ciclo de Venta"
@@ -203,9 +196,45 @@ const Index = () => {
               />
             </div>
 
-            <LeadChart />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2">
+                <Tabs defaultValue="pipeline">
+                  <TabsList>
+                    <TabsTrigger value="pipeline">
+                      <LayoutGrid className="h-4 w-4 mr-2" />
+                      Pipeline
+                    </TabsTrigger>
+                    <TabsTrigger value="chart">
+                      <BarChart3 className="h-4 w-4 mr-2" />
+                      Tendencia
+                    </TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="pipeline" className="mt-4">
+                    <LeadPipeline 
+                      leads={leads} 
+                      onLeadClick={handleLeadClick}
+                      onStatusChange={async (lead, newStatus) => {
+                        try {
+                          await updateLead({ id: lead.id, status: newStatus });
+                          toast.success("Estado actualizado");
+                        } catch {
+                          toast.error("Error al actualizar");
+                        }
+                      }}
+                    />
+                  </TabsContent>
+                  <TabsContent value="chart" className="mt-4">
+                    <LeadChart leads={leads} />
+                  </TabsContent>
+                </Tabs>
+              </div>
+              
+              <div>
+                <FollowupReminders leads={leads} onLeadClick={handleLeadClick} />
+              </div>
+            </div>
 
-            <ChannelMetrics />
+            <ChannelMetrics leads={leads} />
 
             <div className="mt-4 flex justify-center">
               <Button variant="outline" size="sm" asChild className="animate-fade-in">
@@ -218,6 +247,13 @@ const Index = () => {
           </>
         )}
       </div>
+
+      <LeadDetailDialog
+        lead={selectedLead}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        onSave={updateLead}
+      />
     </DashboardLayout>
   );
 };

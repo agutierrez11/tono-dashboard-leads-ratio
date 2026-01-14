@@ -14,7 +14,169 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      channel_goals: {
+        Row: {
+          channel: string
+          created_at: string
+          end_date: string
+          goal_type: string
+          id: string
+          period: string
+          start_date: string
+          target_value: number
+          user_id: string
+        }
+        Insert: {
+          channel: string
+          created_at?: string
+          end_date: string
+          goal_type: string
+          id?: string
+          period: string
+          start_date: string
+          target_value: number
+          user_id: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          end_date?: string
+          goal_type?: string
+          id?: string
+          period?: string
+          start_date?: string
+          target_value?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      lead_notes: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          lead_id: string
+          note_type: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          lead_id: string
+          note_type?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          lead_id?: string
+          note_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_notes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_status_history: {
+        Row: {
+          changed_at: string
+          changed_by: string
+          from_status: string | null
+          id: string
+          lead_id: string
+          to_status: string
+        }
+        Insert: {
+          changed_at?: string
+          changed_by: string
+          from_status?: string | null
+          id?: string
+          lead_id: string
+          to_status: string
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string
+          from_status?: string | null
+          id?: string
+          lead_id?: string
+          to_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_status_history_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leads: {
+        Row: {
+          channel: string
+          closed_at: string | null
+          company: string | null
+          contacted_at: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          next_followup_at: string | null
+          phone: string | null
+          sale_cycle_days: number | null
+          sale_value: number | null
+          source: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          channel: string
+          closed_at?: string | null
+          company?: string | null
+          contacted_at?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          next_followup_at?: string | null
+          phone?: string | null
+          sale_cycle_days?: number | null
+          sale_value?: number | null
+          source?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          channel?: string
+          closed_at?: string | null
+          company?: string | null
+          contacted_at?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          next_followup_at?: string | null
+          phone?: string | null
+          sale_cycle_days?: number | null
+          sale_value?: number | null
+          source?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
