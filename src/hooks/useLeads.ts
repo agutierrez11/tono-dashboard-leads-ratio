@@ -144,3 +144,24 @@ export const useCreateLead = () => {
     },
   });
 };
+
+export const useUpdateLeadStatus = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ leadId, status }: { leadId: string; status: string }) => {
+      const { data, error } = await supabase
+        .from("leads")
+        .update({ status })
+        .eq("id", leadId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+    },
+  });
+};
