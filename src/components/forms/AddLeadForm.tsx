@@ -7,7 +7,6 @@ import { Linkedin, Phone, Mail, Calendar, Plus, Check } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import {
   Form,
@@ -33,7 +32,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { Lead, Channel } from "@/utils/types";
+import { Lead, Channel, LeadStatus } from "@/utils/types";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 
@@ -45,19 +44,25 @@ const formSchema = z.object({
   channel: z.enum(["linkedin", "phone", "email"], {
     required_error: "Por favor selecciona un canal.",
   }),
-  status: z.enum(["new", "contacted", "qualified", "proposal", "closed", "lost"], {
+  status: z.enum(["new", "contacted", "negotiation", "won", "lost"], {
     required_error: "Por favor selecciona un estado.",
   }),
-  date: z.date({
-    required_error: "La fecha es requerida.",
-  }),
+  next_followup_at: z.date().optional().nullable(),
   notes: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
+interface RecentLead {
+  id: string;
+  name: string;
+  channel: Channel;
+  company?: string;
+}
+
 interface AddLeadFormProps {
-  onSave?: (lead: Lead) => void;
+  onSave?: (lead: Omit<Lead, "id" | "user_id" | "created_at" | "updated_at">) => Promise<any>;
+  isLoading?: boolean;
 }
 
 const channelOptions: { value: Channel; label: string; icon: typeof Linkedin; colorClass: string }[] = [
@@ -69,16 +74,15 @@ const channelOptions: { value: Channel; label: string; icon: typeof Linkedin; co
 const statusOptions = [
   { value: "new", label: "Nuevo" },
   { value: "contacted", label: "Contactado" },
-  { value: "qualified", label: "Calificado" },
-  { value: "proposal", label: "Propuesta" },
-  { value: "closed", label: "Cerrado" },
+  { value: "negotiation", label: "Negociación" },
+  { value: "won", label: "Ganado" },
   { value: "lost", label: "Perdido" },
 ];
 
-export const AddLeadForm = ({ onSave }: AddLeadFormProps) => {
+export const AddLeadForm = ({ onSave, isLoading }: AddLeadFormProps) => {
   const [loading, setLoading] = useState(false);
   const [addAnother, setAddAnother] = useState(true);
-  const [recentLeads, setRecentLeads] = useState<Lead[]>([]);
+  const [recentLeads, setRecentLeads] = useState<RecentLead[]>([]);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<FormValues>({
@@ -87,33 +91,28 @@ export const AddLeadForm = ({ onSave }: AddLeadFormProps) => {
       name: "",
       company: "",
       channel: "linkedin",
-      status: "contacted",
-      date: new Date(),
+      status: "new",
+      next_followup_at: null,
       notes: "",
     },
   });
 
-  const selectedChannel = form.watch("channel");
-
   const onSubmit = async (values: FormValues) => {
+    if (!onSave) return;
     setLoading(true);
     
     try {
-      const newLead: Lead = {
-        id: `lead-${Date.now()}`,
+      const newLead = {
         name: values.name,
-        company: values.company || "",
-        channel: values.channel,
-        status: values.status,
-        date: values.date,
-        notes: values.notes,
+        company: values.company || undefined,
+        channel: values.channel as Channel,
+        status: values.status as LeadStatus,
+        next_followup_at: values.next_followup_at?.toISOString(),
       };
       
-      if (onSave) {
-        onSave(newLead);
-      }
+      await onSave(newLead);
       
-      setRecentLeads(prev => [newLead, ...prev].slice(0, 5));
+      setRecentLeads(prev => [{ id: Date.now().toString(), name: values.name, channel: values.channel as Channel, company: values.company }, ...prev].slice(0, 5));
       
       toast.success(`Lead "${values.name}" agregado`, {
         description: `Canal: ${channelOptions.find(c => c.value === values.channel)?.label}`,
@@ -123,32 +122,28 @@ export const AddLeadForm = ({ onSave }: AddLeadFormProps) => {
         form.reset({
           name: "",
           company: "",
-          channel: values.channel, // Keep the same channel
-          status: "contacted",
-          date: new Date(),
+          channel: values.channel,
+          status: "new",
+          next_followup_at: null,
           notes: "",
         });
-        // Focus on name input for quick entry
         setTimeout(() => nameInputRef.current?.focus(), 100);
       } else {
         form.reset();
       }
     } catch (error) {
       toast.error("Error al guardar el lead");
-      console.error(error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Auto-focus on mount
   useEffect(() => {
     nameInputRef.current?.focus();
   }, []);
 
   return (
     <div className="flex flex-col lg:flex-row gap-6">
-      {/* Main Form */}
       <Card className="glass-card flex-1 animate-scale-in">
         <CardHeader className="pb-4">
           <CardTitle className="flex items-center gap-2">
@@ -162,7 +157,6 @@ export const AddLeadForm = ({ onSave }: AddLeadFormProps) => {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-              {/* Channel Quick Select */}
               <FormField
                 control={form.control}
                 name="channel"
@@ -196,7 +190,6 @@ export const AddLeadForm = ({ onSave }: AddLeadFormProps) => {
                 )}
               />
 
-              {/* Name - Main Field */}
               <FormField
                 control={form.control}
                 name="name"
@@ -217,7 +210,6 @@ export const AddLeadForm = ({ onSave }: AddLeadFormProps) => {
                 )}
               />
 
-              {/* Secondary Fields - Collapsible Row */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -239,10 +231,7 @@ export const AddLeadForm = ({ onSave }: AddLeadFormProps) => {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Estado</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value}
-                      >
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Selecciona estado" />
@@ -262,83 +251,56 @@ export const AddLeadForm = ({ onSave }: AddLeadFormProps) => {
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="date"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Fecha</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant={"outline"}
-                              className={cn(
-                                "w-full pl-3 text-left font-normal",
-                                !field.value && "text-muted-foreground"
-                              )}
-                            >
-                              {field.value ? (
-                                format(field.value, "d MMM yyyy", { locale: es })
-                              ) : (
-                                <span>Hoy</span>
-                              )}
-                              <Calendar className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <CalendarComponent
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            disabled={(date) => date > new Date()}
-                            initialFocus
-                            className="p-3 pointer-events-auto"
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="notes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nota rápida (opcional)</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="Ej: Interesado en demo" 
-                          {...field} 
+              <FormField
+                control={form.control}
+                name="next_followup_at"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Próximo seguimiento (opcional)</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant={"outline"}
+                            className={cn(
+                              "w-full pl-3 text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value ? (
+                              format(field.value, "d MMM yyyy", { locale: es })
+                            ) : (
+                              <span>Sin fecha programada</span>
+                            )}
+                            <Calendar className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent
+                          mode="single"
+                          selected={field.value || undefined}
+                          onSelect={field.onChange}
+                          initialFocus
+                          className="p-3 pointer-events-auto"
                         />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-              {/* Action Row */}
               <div className="flex items-center justify-between pt-4 border-t">
                 <div className="flex items-center space-x-2">
-                  <Switch
-                    id="add-another"
-                    checked={addAnother}
-                    onCheckedChange={setAddAnother}
-                  />
+                  <Switch id="add-another" checked={addAnother} onCheckedChange={setAddAnother} />
                   <Label htmlFor="add-another" className="text-sm text-muted-foreground">
                     Agregar otro después
                   </Label>
                 </div>
                 
-                <Button type="submit" disabled={loading} size="lg" className="min-w-[140px]">
-                  {loading ? (
-                    "Guardando..."
-                  ) : (
+                <Button type="submit" disabled={loading || isLoading} size="lg" className="min-w-[140px]">
+                  {loading ? "Guardando..." : (
                     <>
                       <Plus className="h-4 w-4 mr-2" />
                       Agregar Lead
@@ -351,7 +313,6 @@ export const AddLeadForm = ({ onSave }: AddLeadFormProps) => {
         </CardContent>
       </Card>
 
-      {/* Recent Leads Sidebar */}
       {recentLeads.length > 0 && (
         <Card className="glass-card w-full lg:w-72 animate-fade-in">
           <CardHeader className="pb-3">
@@ -364,21 +325,13 @@ export const AddLeadForm = ({ onSave }: AddLeadFormProps) => {
               const channelInfo = channelOptions.find(c => c.value === lead.channel);
               const Icon = channelInfo?.icon || Linkedin;
               return (
-                <div 
-                  key={lead.id} 
-                  className="flex items-center gap-3 p-2 rounded-lg bg-muted/50 animate-slide-in"
-                >
-                  <div className={cn(
-                    "p-1.5 rounded-md",
-                    channelInfo?.colorClass
-                  )}>
+                <div key={lead.id} className="flex items-center gap-3 p-2 rounded-lg bg-muted/50 animate-slide-in">
+                  <div className={cn("p-1.5 rounded-md", channelInfo?.colorClass)}>
                     <Icon className="h-3.5 w-3.5" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{lead.name}</p>
-                    {lead.company && (
-                      <p className="text-xs text-muted-foreground truncate">{lead.company}</p>
-                    )}
+                    {lead.company && <p className="text-xs text-muted-foreground truncate">{lead.company}</p>}
                   </div>
                   <Check className="h-4 w-4 text-green-500" />
                 </div>
