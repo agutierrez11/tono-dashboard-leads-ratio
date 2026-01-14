@@ -9,21 +9,14 @@ import { MetricsInstructions } from "@/components/dashboard/MetricsInstructions"
 import { DataActions } from "@/components/dashboard/DataActions";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { useLeadStats, useDeleteAllLeads, useCreateLead } from "@/hooks/useLeads";
+import { useLeadStats, useCreateLead } from "@/hooks/useLeads";
 import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const Index = () => {
   const { stats, isLoading } = useLeadStats();
-  const deleteAllLeads = useDeleteAllLeads();
   const createLead = useCreateLead();
   const { user } = useAuth();
-
-  const handleClearData = () => {
-    if (user) {
-      deleteAllLeads.mutate();
-    }
-  };
 
   const handleImportData = async (data: any[]) => {
     if (!user) return;
@@ -92,7 +85,7 @@ const Index = () => {
               </Link>
             </Button>
           </div>
-          <DataActions onClearData={handleClearData} onImportData={handleImportData} />
+          <DataActions onImportData={handleImportData} />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
