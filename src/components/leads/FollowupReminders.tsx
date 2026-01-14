@@ -3,10 +3,11 @@ import { Lead } from "@/utils/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Linkedin, Phone, Mail, Clock, Bell, ChevronRight, Building } from "lucide-react";
+import { Linkedin, Phone, Mail, Clock, Bell, ChevronRight, Building, BellRing } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, isToday, isTomorrow, isPast, differenceInDays } from "date-fns";
 import { es } from "date-fns/locale";
+import { useFollowupNotifications } from "@/hooks/useNotifications";
 
 interface FollowupRemindersProps {
   leads: Lead[];
@@ -26,6 +27,8 @@ const channelColors = {
 };
 
 export const FollowupReminders = ({ leads, onLeadClick }: FollowupRemindersProps) => {
+  const { notificationState, requestPermission, getFollowupSummary } = useFollowupNotifications(leads);
+  
   const followupLeads = leads
     .filter(lead => lead.next_followup_at)
     .sort((a, b) => new Date(a.next_followup_at!).getTime() - new Date(b.next_followup_at!).getTime());
@@ -132,7 +135,26 @@ export const FollowupReminders = ({ leads, onLeadClick }: FollowupRemindersProps
             <Bell className="h-4 w-4" />
             Próximos Seguimientos
           </span>
-          <Badge variant="outline">{followupLeads.length}</Badge>
+          <div className="flex items-center gap-2">
+            {notificationState.isSupported && notificationState.permission !== 'granted' && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={requestPermission}
+              >
+                <BellRing className="h-3 w-3 mr-1" />
+                Activar alertas
+              </Button>
+            )}
+            {notificationState.permission === 'granted' && (
+              <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
+                <BellRing className="h-3 w-3 mr-1" />
+                Activas
+              </Badge>
+            )}
+            <Badge variant="outline">{followupLeads.length}</Badge>
+          </div>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">

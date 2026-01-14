@@ -1,6 +1,6 @@
 
 import { useMemo, useState } from "react";
-import { BarChart3, Linkedin, Phone, Mail, Users, TrendingUp, Clock, Trash2, Plus, LayoutGrid, List } from "lucide-react";
+import { BarChart3, Linkedin, Phone, Mail, Users, TrendingUp, Clock, Trash2, Plus, LayoutGrid, Target } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { LeadChart } from "@/components/dashboard/LeadChart";
@@ -8,6 +8,7 @@ import { ChannelMetrics } from "@/components/dashboard/ChannelMetrics";
 import { LeadPipeline } from "@/components/leads/LeadPipeline";
 import { FollowupReminders } from "@/components/leads/FollowupReminders";
 import { LeadDetailDialog } from "@/components/leads/LeadDetailDialog";
+import { GoalsManager } from "@/components/goals/GoalsManager";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from "react-router-dom";
@@ -208,6 +209,10 @@ const Index = () => {
                       <BarChart3 className="h-4 w-4 mr-2" />
                       Tendencia
                     </TabsTrigger>
+                    <TabsTrigger value="goals">
+                      <Target className="h-4 w-4 mr-2" />
+                      Metas
+                    </TabsTrigger>
                   </TabsList>
                   <TabsContent value="pipeline" className="mt-4">
                     <LeadPipeline 
@@ -225,6 +230,9 @@ const Index = () => {
                   </TabsContent>
                   <TabsContent value="chart" className="mt-4">
                     <LeadChart leads={leads} />
+                  </TabsContent>
+                  <TabsContent value="goals" className="mt-4">
+                    <GoalsManager />
                   </TabsContent>
                 </Tabs>
               </div>
