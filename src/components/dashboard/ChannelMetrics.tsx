@@ -4,9 +4,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Linkedin, Phone, Mail, Clock, TrendingUp } from "lucide-react";
-import { Channel, Lead } from "@/utils/types";
+import { Channel } from "@/utils/types";
 import { cn } from "@/lib/utils";
-import { calculateConversionRates, calculateSalesCycleTimes } from "@/hooks/useLeads";
+import { useLeadsStore, calculateConversionRates, calculateSalesCycleTimes } from "@/hooks/useLeadsStore";
 
 const channelIcons: Record<Channel, React.ReactNode> = {
   linkedin: <Linkedin className="h-4 w-4" />,
@@ -28,13 +28,13 @@ const channelLabels: Record<Channel, string> = {
 
 interface ChannelMetricsProps {
   className?: string;
-  leads?: Lead[];
 }
 
-export const ChannelMetrics = ({ className, leads = [] }: ChannelMetricsProps) => {
+export const ChannelMetrics = ({ className }: ChannelMetricsProps) => {
+  const { leads } = useLeadsStore();
+  
   const conversionRates = useMemo(() => calculateConversionRates(leads), [leads]);
   const salesCycleTimes = useMemo(() => calculateSalesCycleTimes(leads), [leads]);
-  
   return (
     <Card className={cn("glass-card animate-slide-up", className)}>
       <CardHeader>

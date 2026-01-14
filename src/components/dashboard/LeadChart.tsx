@@ -3,10 +3,10 @@ import { useState, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LineChart, Line } from "recharts";
-import { Channel, TimeframeData, Timeframe, Lead } from "@/utils/types";
+import { Channel, TimeframeData, Timeframe } from "@/utils/types";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { generateTimeframeData } from "@/hooks/useLeads";
+import { useLeadsStore, generateTimeframeData } from "@/hooks/useLeadsStore";
 
 const channelColors: Record<Channel, string> = {
   linkedin: "#0A66C2",
@@ -16,13 +16,13 @@ const channelColors: Record<Channel, string> = {
 
 interface LeadChartProps {
   className?: string;
-  leads?: Lead[];
 }
 
-export const LeadChart = ({ className, leads = [] }: LeadChartProps) => {
+export const LeadChart = ({ className }: LeadChartProps) => {
   const [activeTimeframe, setActiveTimeframe] = useState<Timeframe>("daily");
   const [chartType, setChartType] = useState<"bar" | "line">("bar");
   const isMobile = useIsMobile();
+  const { leads } = useLeadsStore();
 
   const { daily, weekly, monthly } = useMemo(() => generateTimeframeData(leads), [leads]);
 
