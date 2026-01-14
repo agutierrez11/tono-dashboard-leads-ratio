@@ -1,4 +1,3 @@
-
 import { BarChart3, Linkedin, Phone, Mail, Users, TrendingUp, Clock } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { StatCard } from "@/components/dashboard/StatCard";
@@ -7,6 +6,7 @@ import { ChannelMetrics } from "@/components/dashboard/ChannelMetrics";
 import { ChannelComparison } from "@/components/dashboard/ChannelComparison";
 import { MetricsInstructions } from "@/components/dashboard/MetricsInstructions";
 import { DataActions } from "@/components/dashboard/DataActions";
+import { DealsTimeline } from "@/components/dashboard/DealsTimeline";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useLeadStats, useCreateLead } from "@/hooks/useLeads";
@@ -138,6 +138,8 @@ const Index = () => {
             className="lg:col-span-2"
           />
         </div>
+
+        <DealsTimeline />
 
         <LeadChart />
         
