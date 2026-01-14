@@ -98,6 +98,7 @@ const Index = () => {
             icon={<BarChart3 className="h-4 w-4" />}
             description="Todos los canales"
             trend={stats.trends.total}
+            linkTo="/leads-list"
           />
           <StatCard
             title="LinkedIn"
@@ -106,6 +107,7 @@ const Index = () => {
             description="Leads vía LinkedIn"
             channel="linkedin"
             trend={stats.trends.linkedin}
+            linkTo="/linkedin"
           />
           <StatCard
             title="Teléfono"
@@ -114,6 +116,7 @@ const Index = () => {
             description="Leads vía Teléfono"
             channel="phone"
             trend={stats.trends.phone}
+            linkTo="/phone"
           />
           <StatCard
             title="Email"
@@ -122,6 +125,7 @@ const Index = () => {
             description="Leads vía Email"
             channel="email"
             trend={stats.trends.email}
+            linkTo="/email"
           />
         </div>
 

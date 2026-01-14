@@ -2,6 +2,8 @@
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Channel } from "@/utils/types";
+import { Link } from "react-router-dom";
+import { ExternalLink } from "lucide-react";
 
 interface StatCardProps {
   title: string;
@@ -14,6 +16,7 @@ interface StatCardProps {
     isPositive: boolean;
   };
   className?: string;
+  linkTo?: string;
 }
 
 export const StatCard = ({ 
@@ -23,7 +26,8 @@ export const StatCard = ({
   description, 
   channel, 
   trend, 
-  className 
+  className,
+  linkTo 
 }: StatCardProps) => {
   const getChannelColor = (channel?: Channel): string => {
     switch (channel) {
@@ -38,18 +42,20 @@ export const StatCard = ({
     }
   };
 
-  return (
-    <Card className={cn(
-      "glass-card overflow-hidden transition-all duration-300 hover:shadow-xl animate-scale-in",
-      className
-    )}>
+  const cardContent = (
+    <>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <div className={cn(
-          "p-2 rounded-full",
-          channel ? getChannelColor(channel) : "bg-primary/10 text-primary"
-        )}>
-          {icon}
+        <div className="flex items-center gap-2">
+          {linkTo && (
+            <ExternalLink className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+          )}
+          <div className={cn(
+            "p-2 rounded-full",
+            channel ? getChannelColor(channel) : "bg-primary/10 text-primary"
+          )}>
+            {icon}
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -69,6 +75,28 @@ export const StatCard = ({
           </div>
         )}
       </CardContent>
+    </>
+  );
+
+  if (linkTo) {
+    return (
+      <Link to={linkTo} className="block">
+        <Card className={cn(
+          "glass-card overflow-hidden transition-all duration-300 hover:shadow-xl hover:scale-[1.02] animate-scale-in cursor-pointer group",
+          className
+        )}>
+          {cardContent}
+        </Card>
+      </Link>
+    );
+  }
+
+  return (
+    <Card className={cn(
+      "glass-card overflow-hidden transition-all duration-300 hover:shadow-xl animate-scale-in",
+      className
+    )}>
+      {cardContent}
     </Card>
   );
 };
