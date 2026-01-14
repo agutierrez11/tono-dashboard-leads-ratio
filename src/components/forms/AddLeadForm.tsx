@@ -84,7 +84,12 @@ export const AddLeadForm = ({ onSave }: AddLeadFormProps) => {
       
       const newLead: Lead = {
         id: `lead-${Date.now()}`,
-        ...values,
+        name: values.name,
+        company: values.company,
+        channel: values.channel,
+        status: values.status,
+        date: values.date,
+        notes: values.notes,
       };
       
       if (onSave) {
