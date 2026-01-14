@@ -1,5 +1,4 @@
 
-import { useMemo, useState } from "react";
 import { BarChart3, Linkedin, Phone, Mail, Users, TrendingUp, Clock } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { StatCard } from "@/components/dashboard/StatCard";
@@ -8,67 +7,72 @@ import { ChannelMetrics } from "@/components/dashboard/ChannelMetrics";
 import { ChannelComparison } from "@/components/dashboard/ChannelComparison";
 import { MetricsInstructions } from "@/components/dashboard/MetricsInstructions";
 import { DataActions } from "@/components/dashboard/DataActions";
-import { mockLeads, conversionRates, salesCycleTimes } from "@/utils/mock-data";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { toast } from "sonner";
+import { useLeadStats, useDeleteAllLeads, useCreateLead } from "@/hooks/useLeads";
+import { useAuth } from "@/hooks/useAuth";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const Index = () => {
-  const stats = useMemo(() => {
-    const totalLeads = mockLeads.length;
-    
-    const byChannel = {
-      linkedin: mockLeads.filter(lead => lead.channel === "linkedin").length,
-      phone: mockLeads.filter(lead => lead.channel === "phone").length,
-      email: mockLeads.filter(lead => lead.channel === "email").length,
-    };
-
-    // Calculate percentages for last 30 days
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
-    const recentLeads = mockLeads.filter(lead => lead.date > thirtyDaysAgo);
-    const totalRecent = recentLeads.length;
-    
-    const byChannelRecent = {
-      linkedin: recentLeads.filter(lead => lead.channel === "linkedin").length,
-      phone: recentLeads.filter(lead => lead.channel === "phone").length,
-      email: recentLeads.filter(lead => lead.channel === "email").length,
-    };
-
-    // Generate random trends
-    const linkedinTrend = Math.floor(Math.random() * 30) + 5;
-    const phoneTrend = Math.floor(Math.random() * 15) + 2;
-    const emailTrend = Math.floor(Math.random() * 20) - 5;
-    const totalTrend = Math.floor((linkedinTrend + phoneTrend + emailTrend) / 3);
-
-    // Get overall conversion rate and cycle time
-    const overallConversionRate = conversionRates.reduce((sum, item) => sum + (item.rate * item.leads), 0) / totalLeads;
-    const overallCycleTime = salesCycleTimes.reduce((sum, item) => sum + (item.avgDays * item.count), 0) / 
-                              salesCycleTimes.reduce((sum, item) => sum + item.count, 0);
-
-    return {
-      total: totalLeads,
-      byChannel,
-      conversionRate: parseFloat(overallConversionRate.toFixed(1)),
-      salesCycleTime: parseFloat(overallCycleTime.toFixed(1)),
-      trends: {
-        linkedin: { value: linkedinTrend, isPositive: linkedinTrend >= 0 },
-        phone: { value: phoneTrend, isPositive: phoneTrend >= 0 },
-        email: { value: emailTrend, isPositive: emailTrend >= 0 },
-        total: { value: totalTrend, isPositive: totalTrend >= 0 },
-      }
-    };
-  }, []);
+  const { stats, isLoading } = useLeadStats();
+  const deleteAllLeads = useDeleteAllLeads();
+  const createLead = useCreateLead();
+  const { user } = useAuth();
 
   const handleClearData = () => {
-    toast.success("Datos eliminados correctamente");
+    if (user) {
+      deleteAllLeads.mutate();
+    }
   };
 
-  const handleImportData = (data: any[]) => {
-    console.log("Imported data:", data);
-    toast.success(`${data.length} leads importados`);
+  const handleImportData = async (data: any[]) => {
+    if (!user) return;
+    
+    for (const item of data) {
+      await createLead.mutateAsync({
+        name: item.nombre || item.name || "Sin nombre",
+        email: item.email || null,
+        phone: item.telefono || item.phone || null,
+        company: item.empresa || item.company || null,
+        channel: item.canal || item.channel || "email",
+        status: item.estado || item.status || "new",
+        source: item.fuente || item.source || null,
+        user_id: user.id,
+        contacted_at: null,
+        closed_at: null,
+        next_followup_at: null,
+        sale_value: null,
+        sale_cycle_days: null,
+      });
+    }
   };
+
+  // Calculate overall metrics
+  const overallConversionRate = stats.conversionRates.length > 0
+    ? stats.conversionRates.reduce((sum, item) => sum + item.rate, 0) / stats.conversionRates.length
+    : 0;
+  
+  const overallCycleTime = stats.salesCycleTimes.length > 0
+    ? stats.salesCycleTimes.reduce((sum, item) => sum + item.avgDays, 0) / stats.salesCycleTimes.filter(s => s.count > 0).length || 0
+    : 0;
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex flex-col gap-8">
+          <div className="flex flex-col gap-4">
+            <Skeleton className="h-10 w-48" />
+            <Skeleton className="h-6 w-96" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-32" />
+            ))}
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -97,7 +101,6 @@ const Index = () => {
             value={stats.total}
             icon={<BarChart3 className="h-4 w-4" />}
             description="Todos los canales"
-            trend={stats.trends.total}
             linkTo="/leads-list"
           />
           <StatCard
@@ -106,7 +109,6 @@ const Index = () => {
             icon={<Linkedin className="h-4 w-4" />}
             description="Leads vía LinkedIn"
             channel="linkedin"
-            trend={stats.trends.linkedin}
             linkTo="/linkedin"
           />
           <StatCard
@@ -115,7 +117,6 @@ const Index = () => {
             icon={<Phone className="h-4 w-4" />}
             description="Leads vía Teléfono"
             channel="phone"
-            trend={stats.trends.phone}
             linkTo="/phone"
           />
           <StatCard
@@ -124,7 +125,6 @@ const Index = () => {
             icon={<Mail className="h-4 w-4" />}
             description="Leads vía Email"
             channel="email"
-            trend={stats.trends.email}
             linkTo="/email"
           />
         </div>
@@ -132,14 +132,14 @@ const Index = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <StatCard
             title="Tasa de Conversión"
-            value={`${stats.conversionRate}%`}
+            value={`${overallConversionRate.toFixed(1)}%`}
             icon={<TrendingUp className="h-4 w-4" />}
             description="Promedio general"
             className="lg:col-span-1"
           />
           <StatCard
             title="Ciclo de Venta"
-            value={`${stats.salesCycleTime} días`}
+            value={`${overallCycleTime.toFixed(1)} días`}
             icon={<Clock className="h-4 w-4" />}
             description="Tiempo promedio"
             className="lg:col-span-2"
