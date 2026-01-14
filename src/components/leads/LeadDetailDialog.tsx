@@ -56,7 +56,7 @@ interface LeadDetailDialogProps {
   lead: Lead | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (lead: Partial<Lead> & { id: string }) => Promise<void>;
+  onSave: (lead: Partial<Lead> & { id: string }) => Promise<Lead | void>;
 }
 
 const noteTypeIcons = {

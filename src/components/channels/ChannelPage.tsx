@@ -1,32 +1,31 @@
 
+import { useMemo } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { PlusCircle, TrendingUp, Clock } from "lucide-react";
-import { Channel } from "@/utils/types";
+import { PlusCircle, TrendingUp, Clock, Loader2 } from "lucide-react";
+import { Channel, Lead } from "@/utils/types";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar } from "recharts";
-import { dailyData, conversionRates, salesCycleTimes } from "@/utils/mock-data";
 import { cn } from "@/lib/utils";
+import { useLeads, calculateConversionRates, calculateSalesCycleTimes, generateTimeframeData } from "@/hooks/useLeads";
 
 interface ChannelPageProps {
   channel: Channel;
   title: string;
   description: string;
   icon: React.ReactNode;
-  count: number;
-  trend: { value: number; isPositive: boolean };
 }
 
 export const ChannelPage = ({ 
   channel, 
   title, 
   description, 
-  icon, 
-  count, 
-  trend 
+  icon
 }: ChannelPageProps) => {
+  const { leads, isLoading } = useLeads({ channel });
+
   const channelColors: Record<Channel, string> = {
     linkedin: "#0A66C2",
     phone: "#34D399",
@@ -35,9 +34,28 @@ export const ChannelPage = ({
   
   const color = channelColors[channel];
   
-  // Get conversion rate and sales cycle time for this channel
-  const conversionRate = conversionRates.find(item => item.channel === channel);
-  const salesCycleTime = salesCycleTimes.find(item => item.channel === channel);
+  const metrics = useMemo(() => {
+    const conversionRates = calculateConversionRates(leads);
+    const salesCycleTimes = calculateSalesCycleTimes(leads);
+    const { daily } = generateTimeframeData(leads);
+
+    return {
+      count: leads.length,
+      conversionRate: conversionRates.find(item => item.channel === channel),
+      salesCycleTime: salesCycleTimes.find(item => item.channel === channel),
+      dailyData: daily
+    };
+  }, [leads, channel]);
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
   
   return (
     <DashboardLayout>
@@ -63,11 +81,10 @@ export const ChannelPage = ({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <StatCard
             title={`Leads vía ${title}`}
-            value={count}
+            value={metrics.count}
             icon={icon}
             description="Total acumulado"
             channel={channel}
-            trend={trend}
             className="md:col-span-1"
           />
           
@@ -83,7 +100,7 @@ export const ChannelPage = ({
             <CardContent className="p-0 h-[220px]">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart
-                  data={dailyData}
+                  data={metrics.dailyData}
                   margin={{ top: 20, right: 30, left: 0, bottom: 0 }}
                 >
                   <defs>
@@ -126,17 +143,17 @@ export const ChannelPage = ({
                   "text-4xl font-bold",
                   `text-${channel}`,
                 )}>
-                  {conversionRate?.rate}%
+                  {metrics.conversionRate?.rate || 0}%
                 </div>
                 <p className="text-sm text-muted-foreground mt-2">
-                  {conversionRate?.closed} de {conversionRate?.leads} leads convertidos
+                  {metrics.conversionRate?.closed || 0} de {metrics.conversionRate?.leads || 0} leads convertidos
                 </p>
                 <div className="w-full mt-4 px-6">
                   <div className="w-full bg-muted rounded-full h-3">
                     <div 
                       className={cn("h-3 rounded-full transition-all duration-1000")}
                       style={{ 
-                        width: `${Math.min(conversionRate?.rate || 0, 100)}%`,
+                        width: `${Math.min(metrics.conversionRate?.rate || 0, 100)}%`,
                         backgroundColor: color
                       }}
                     />
@@ -161,15 +178,15 @@ export const ChannelPage = ({
                   "text-4xl font-bold",
                   `text-${channel}`,
                 )}>
-                  {salesCycleTime?.avgDays} días
+                  {metrics.salesCycleTime?.avgDays || 0} días
                 </div>
                 <p className="text-sm text-muted-foreground mt-2">
-                  Basado en {salesCycleTime?.count} leads cerrados
+                  Basado en {metrics.salesCycleTime?.count || 0} leads cerrados
                 </p>
                 <div className="w-full mt-4">
                   <ResponsiveContainer width="100%" height={60}>
                     <BarChart data={[
-                      { name: "Ciclo", value: salesCycleTime?.avgDays || 0 }
+                      { name: "Ciclo", value: metrics.salesCycleTime?.avgDays || 0 }
                     ]}>
                       <Bar dataKey="value" fill={color} radius={[4, 4, 0, 0]} />
                     </BarChart>
