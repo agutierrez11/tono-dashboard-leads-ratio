@@ -93,10 +93,12 @@ const LeadsList = () => {
   };
 
   const generateCSV = () => {
-    const headers = ["Nombre", "Empresa", "Canal", "Fecha", "Estado", "Días en ciclo"];
+    const headers = ["Nombre", "Empresa", "Correo", "Teléfono", "Canal", "Fecha", "Estado", "Días en ciclo"];
     const rows = filteredLeads.map(lead => [
       lead.name,
       lead.company || "",
+      lead.email || "",
+      lead.phone || "",
       lead.channel,
       new Date(lead.created_at).toLocaleDateString(),
       lead.status || "nuevo",
@@ -234,6 +236,8 @@ const LeadsList = () => {
                   <TableRow>
                     <TableHead>Nombre</TableHead>
                     <TableHead>Empresa</TableHead>
+                    <TableHead>Correo</TableHead>
+                    <TableHead>Teléfono</TableHead>
                     <TableHead>Canal</TableHead>
                     <TableHead>Fecha</TableHead>
                     <TableHead>Estado</TableHead>
@@ -243,7 +247,7 @@ const LeadsList = () => {
                 <TableBody>
                   {filteredLeads.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                         No se encontraron leads
                       </TableCell>
                     </TableRow>
@@ -254,6 +258,8 @@ const LeadsList = () => {
                         <TableRow key={lead.id} className="hover:bg-muted/50">
                           <TableCell className="font-medium">{lead.name}</TableCell>
                           <TableCell>{lead.company || "-"}</TableCell>
+                          <TableCell className="text-muted-foreground">{lead.email || "-"}</TableCell>
+                          <TableCell className="text-muted-foreground">{lead.phone || "-"}</TableCell>
                           <TableCell>
                             <Badge variant="outline" className={getChannelBadge(lead.channel)}>
                               <span className="flex items-center gap-1">
