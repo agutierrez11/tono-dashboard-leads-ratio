@@ -17,9 +17,14 @@ export const useDailyGoals = () => {
   return useQuery({
     queryKey: ["daily-goals"],
     queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("No authenticated user");
+
       const { data, error } = await supabase
         .from("daily_goals")
-        .select("*");
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
       return (data as DailyGoal[]) || [];
@@ -40,6 +45,7 @@ export const useSetDailyGoal = () => {
         .from("daily_goals")
         .select("*")
         .eq("goal_type", goalType)
+        .eq("user_id", user.id)
         .maybeSingle();
 
       if (existing) {
@@ -47,6 +53,7 @@ export const useSetDailyGoal = () => {
           .from("daily_goals")
           .update({ target_value: targetValue })
           .eq("id", existing.id)
+          .eq("user_id", user.id)
           .select()
           .single();
 
