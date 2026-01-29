@@ -1,4 +1,4 @@
-import { Linkedin, Phone, Mail, BarChart3, Plus, Menu, LogOut } from 'lucide-react';
+import { Linkedin, Phone, Mail, BarChart3, Plus, Menu, LogOut, Table2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link, useLocation } from 'react-router-dom';
 import { useState } from 'react';
@@ -50,6 +50,7 @@ export const Navbar = () => {
   const navLinks = [
     { to: "/", label: "Dashboard", icon: <BarChart3 className="h-4 w-4" /> },
     { to: "/leads", label: "Leads", icon: <Plus className="h-4 w-4" /> },
+    { to: "/leads-list", label: "Lista (Hoja)", icon: <Table2 className="h-4 w-4" /> },
     { to: "/linkedin", label: "LinkedIn", icon: <Linkedin className="h-4 w-4" /> },
     { to: "/phone", label: "Teléfono", icon: <Phone className="h-4 w-4" /> },
     { to: "/email", label: "Email", icon: <Mail className="h-4 w-4" /> },
