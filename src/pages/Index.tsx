@@ -28,26 +28,33 @@ const Index = () => {
       return;
     }
     
+    console.log("Datos recibidos para importar:", data);
+    
     let successCount = 0;
     let errorCount = 0;
     
     for (const item of data) {
       try {
-        await createLead.mutateAsync({
-          name: item.nombre || item.name || "Sin nombre",
+        // El parser ya normaliza los campos a: name, company, channel, status, email, phone
+        const leadData = {
+          name: item.name || "Sin nombre",
           email: item.email || null,
-          phone: item.telefono || item.phone || null,
-          company: item.empresa || item.company || null,
-          channel: item.canal || item.channel || "email",
-          status: item.estado || item.status || "new",
-          source: item.fuente || item.source || null,
+          phone: item.phone || null,
+          company: item.company || null,
+          channel: item.channel || "email",
+          status: item.status || "new",
+          source: null,
           user_id: user.id,
           contacted_at: null,
           closed_at: null,
           next_followup_at: null,
           sale_value: null,
           sale_cycle_days: null,
-        });
+        };
+        
+        console.log("Insertando lead:", leadData);
+        
+        await createLead.mutateAsync(leadData);
         successCount++;
       } catch (error) {
         errorCount++;
