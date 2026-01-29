@@ -227,6 +227,15 @@ export const DataActions = ({ onImportData }: DataActionsProps) => {
     return result;
   };
 
+  const normalizeHeader = (header: string): string => {
+    // Remove BOM, trim, lowercase, and strip surrounding quotes
+    return header
+      .replace(/^\uFEFF/, "")
+      .trim()
+      .replace(/^"|"$/g, "")
+      .toLowerCase();
+  };
+
   // Mapear el valor del canal al formato correcto
   const normalizeChannel = (value: string): string => {
     const normalized = value.toLowerCase().trim();
@@ -266,7 +275,7 @@ export const DataActions = ({ onImportData }: DataActionsProps) => {
         const delimiter = detectDelimiter(text);
         console.log("Delimitador detectado:", delimiter);
         
-        const headers = parseCSVLine(lines[0], delimiter).map(h => h.toLowerCase());
+        const headers = parseCSVLine(lines[0], delimiter).map(normalizeHeader);
         console.log("Headers encontrados:", headers);
         
         const data = lines.slice(1).map((line, index) => {
@@ -288,9 +297,11 @@ export const DataActions = ({ onImportData }: DataActionsProps) => {
           // Asegurar valores por defecto
           if (!lead.channel) lead.channel = "email";
           if (!lead.status) lead.status = "new";
+          // La BD requiere name NOT NULL: si viene vacío, ponemos placeholder
+          if (!lead.name || !String(lead.name).trim()) lead.name = "Sin nombre";
           
           return lead;
-        }).filter(lead => lead.name); // Solo leads con nombre
+        });
 
         console.log("Datos parseados:", data);
         
