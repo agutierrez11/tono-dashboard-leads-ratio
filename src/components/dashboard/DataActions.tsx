@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useLeads, useLeadStats, useDeleteAllLeads } from "@/hooks/useLeads";
+import * as XLSX from "xlsx";
 
 interface DataActionsProps {
   onImportData?: (data: any[]) => void;
@@ -265,10 +266,104 @@ export const DataActions = ({ onImportData }: DataActionsProps) => {
     return "new"; // default
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  // Procesar datos desde filas (tanto CSV como XLSX)
+  const processRowsData = (rows: string[][]): Record<string, any>[] => {
+    if (rows.length < 2) return [];
 
+    const headers = rows[0].map(normalizeHeader);
+    console.log("Headers encontrados:", headers);
+
+    const idxName = getIndexByHeader(headers, ["nombre", "name"]);
+    const idxCompany = getIndexByHeader(headers, ["empresa", "company"]);
+    const idxChannel = getIndexByHeader(headers, ["canal", "channel"]);
+    const idxStatus = getIndexByHeader(headers, ["estado", "status"]);
+    const idxEmail = getIndexByHeader(headers, ["email", "correo"]);
+    const idxPhone = getIndexByHeader(headers, ["telefono", "teléfono", "phone", "tel"]);
+
+    const hasRecognizedHeaders = idxName !== -1 || idxCompany !== -1 || idxChannel !== -1 || idxStatus !== -1;
+
+    return rows.slice(1).map((values, index) => {
+      console.log(`Fila ${index + 1}:`, values);
+      
+      const lead: Record<string, any> = { id: `imported-${index + 1}` };
+
+      if (hasRecognizedHeaders) {
+        if (idxName >= 0) lead.name = values[idxName] || "";
+        if (idxCompany >= 0) lead.company = values[idxCompany] || "";
+        if (idxChannel >= 0) lead.channel = normalizeChannel(values[idxChannel] || "");
+        if (idxStatus >= 0) lead.status = normalizeStatus(values[idxStatus] || "");
+        if (idxEmail >= 0) lead.email = values[idxEmail] || "";
+        if (idxPhone >= 0) lead.phone = values[idxPhone] || "";
+      } else {
+        // Fallback por posición: A nombre | B empresa | C canal | D estado | E email | F telefono
+        lead.name = values[0] || "";
+        lead.company = values[1] || "";
+        lead.channel = normalizeChannel(values[2] || "");
+        lead.status = normalizeStatus(values[3] || "");
+        lead.email = values[4] || "";
+        lead.phone = values[5] || "";
+      }
+
+      if (!lead.channel) lead.channel = "email";
+      if (!lead.status) lead.status = "new";
+      if (!lead.name || !String(lead.name).trim()) lead.name = "Sin nombre";
+
+      return lead;
+    });
+  };
+
+  // Procesar archivo XLSX
+  const processXLSX = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: "array" });
+        
+        // Usar la primera hoja
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        
+        // Convertir a array de arrays, leyendo columnas A-F
+        const rows: string[][] = XLSX.utils.sheet_to_json(sheet, { 
+          header: 1,
+          defval: "",
+          range: "A:F"
+        });
+
+        console.log("Filas XLSX:", rows);
+
+        // Filtrar filas vacías y comentarios
+        const validRows = rows.filter(row => 
+          row.some(cell => cell && String(cell).trim() && !String(cell).startsWith("#"))
+        );
+
+        if (validRows.length < 2) {
+          toast.error("El archivo no contiene datos válidos");
+          return;
+        }
+
+        const leads = processRowsData(validRows);
+        console.log("Datos parseados XLSX:", leads);
+
+        if (leads.length === 0) {
+          toast.error("No se encontraron leads válidos en el archivo");
+          return;
+        }
+
+        toast.success(`${leads.length} leads listos para importar`);
+        onImportData?.(leads);
+        setIsUploadDialogOpen(false);
+      } catch (error) {
+        console.error("Error al procesar archivo XLSX:", error);
+        toast.error("Error al procesar el archivo Excel");
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  // Procesar archivo CSV
+  const processCSV = (file: File) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
@@ -283,70 +378,38 @@ export const DataActions = ({ onImportData }: DataActionsProps) => {
         const delimiter = detectDelimiter(text);
         console.log("Delimitador detectado:", delimiter);
         
-        const headers = parseCSVLine(lines[0], delimiter).map(normalizeHeader);
-        console.log("Headers encontrados:", headers);
+        const rows = lines.map(line => parseCSVLine(line, delimiter));
+        const leads = processRowsData(rows);
 
-        // Soporte “por columnas” (A=nombre, B=empresa, C=canal, ...)
-        // cuando Excel/CSV viene con encabezados raros o sin reconocer.
-        const idxName = getIndexByHeader(headers, ["nombre", "name"]);
-        const idxCompany = getIndexByHeader(headers, ["empresa", "company"]);
-        const idxChannel = getIndexByHeader(headers, ["canal", "channel"]);
-        const idxStatus = getIndexByHeader(headers, ["estado", "status"]);
-        const idxEmail = getIndexByHeader(headers, ["email", "correo"]);
-        const idxPhone = getIndexByHeader(headers, ["telefono", "teléfono", "phone", "tel"]);
-
-        const hasRecognizedHeaders = idxName !== -1 || idxCompany !== -1 || idxChannel !== -1 || idxStatus !== -1;
+        console.log("Datos parseados CSV:", leads);
         
-        const data = lines.slice(1).map((line, index) => {
-          const values = parseCSVLine(line, delimiter);
-          console.log(`Fila ${index + 1}:`, values);
-          
-          const lead: Record<string, any> = { id: `imported-${index + 1}` };
-
-          if (hasRecognizedHeaders) {
-            // Modo por encabezados
-            if (idxName >= 0) lead.name = values[idxName] || "";
-            if (idxCompany >= 0) lead.company = values[idxCompany] || "";
-            if (idxChannel >= 0) lead.channel = normalizeChannel(values[idxChannel] || "");
-            if (idxStatus >= 0) lead.status = normalizeStatus(values[idxStatus] || "");
-            if (idxEmail >= 0) lead.email = values[idxEmail] || "";
-            if (idxPhone >= 0) lead.phone = values[idxPhone] || "";
-          } else {
-            // Fallback por posición (como en la plantilla):
-            // A nombre | B empresa | C canal | D estado | E email | F telefono
-            lead.name = values[0] || "";
-            lead.company = values[1] || "";
-            lead.channel = normalizeChannel(values[2] || "");
-            lead.status = normalizeStatus(values[3] || "");
-            lead.email = values[4] || "";
-            lead.phone = values[5] || "";
-          }
-          
-          // Asegurar valores por defecto
-          if (!lead.channel) lead.channel = "email";
-          if (!lead.status) lead.status = "new";
-          // La BD requiere name NOT NULL: si viene vacío, ponemos placeholder
-          if (!lead.name || !String(lead.name).trim()) lead.name = "Sin nombre";
-          
-          return lead;
-        });
-
-        console.log("Datos parseados:", data);
-        
-        if (data.length === 0) {
+        if (leads.length === 0) {
           toast.error("No se encontraron leads válidos en el archivo");
           return;
         }
 
-        toast.success(`${data.length} leads listos para importar`);
-        onImportData?.(data);
+        toast.success(`${leads.length} leads listos para importar`);
+        onImportData?.(leads);
         setIsUploadDialogOpen(false);
       } catch (error) {
-        console.error("Error al procesar archivo:", error);
+        console.error("Error al procesar archivo CSV:", error);
         toast.error("Error al procesar el archivo");
       }
     };
     reader.readAsText(file);
+  };
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const fileName = file.name.toLowerCase();
+    
+    if (fileName.endsWith(".xlsx") || fileName.endsWith(".xls")) {
+      processXLSX(file);
+    } else {
+      processCSV(file);
+    }
   };
 
   return (
@@ -408,26 +471,29 @@ export const DataActions = ({ onImportData }: DataActionsProps) => {
           <DialogHeader>
             <DialogTitle>Importar Leads</DialogTitle>
             <DialogDescription>
-              Sube un archivo CSV con tus leads. Usa la plantilla para el formato correcto.
+              Sube un archivo Excel (.xlsx) o CSV con tus leads. Usa la plantilla para el formato correcto.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <Button variant="outline" onClick={handleDownloadTemplate} className="w-full">
               <FileDown className="h-4 w-4 mr-2" />
-              Descargar Plantilla
+              Descargar Plantilla CSV
             </Button>
             <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
               <input
                 type="file"
-                accept=".csv"
+                accept=".csv,.xlsx,.xls"
                 onChange={handleFileUpload}
                 className="hidden"
                 id="file-upload"
               />
               <label htmlFor="file-upload" className="cursor-pointer">
-                <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                <FileSpreadsheet className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">
-                  Haz clic para seleccionar un archivo CSV
+                  Haz clic para seleccionar un archivo
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Excel (.xlsx) o CSV
                 </p>
               </label>
             </div>
