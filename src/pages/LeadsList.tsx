@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useLeads, useUpdateLeadStatus } from "@/hooks/useLeads";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -27,7 +27,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Download, Search, Filter, Linkedin, Phone, Mail, Users, ArrowLeft } from "lucide-react";
+import { Download, Search, Filter, Linkedin, Phone, Mail, Users, ArrowLeft, Clock, TrendingUp, Calendar } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Channel } from "@/utils/types";
 import { toast } from "sonner";
@@ -40,6 +40,13 @@ const statusOptions = [
   { value: "won", label: "🎉 Ganado", color: "bg-green-500/10 text-green-600 border-green-500/20" },
   { value: "lost", label: "❌ Perdido", color: "bg-red-500/10 text-red-600 border-red-500/20" },
 ];
+
+// Helper to calculate days between two dates
+const calculateDaysBetween = (startDate: string, endDate?: string | null): number => {
+  const start = new Date(startDate);
+  const end = endDate ? new Date(endDate) : new Date();
+  return Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+};
 
 const LeadsList = () => {
   const { data: leads = [], isLoading } = useLeads();
@@ -57,6 +64,51 @@ const LeadsList = () => {
       return matchesSearch && matchesChannel && matchesStatus;
     });
   }, [leads, searchTerm, channelFilter, statusFilter]);
+
+  // Conversion metrics calculations
+  const conversionMetrics = useMemo(() => {
+    const wonLeads = leads.filter(l => l.status === "won" && l.closed_at);
+    const lostLeads = leads.filter(l => l.status === "lost" && l.closed_at);
+    const closedLeads = [...wonLeads, ...lostLeads];
+
+    // Average days to won
+    const avgDaysToWon = wonLeads.length > 0
+      ? wonLeads.reduce((sum, l) => sum + calculateDaysBetween(l.created_at, l.closed_at), 0) / wonLeads.length
+      : 0;
+
+    // Average days to lost
+    const avgDaysToLost = lostLeads.length > 0
+      ? lostLeads.reduce((sum, l) => sum + calculateDaysBetween(l.created_at, l.closed_at), 0) / lostLeads.length
+      : 0;
+
+    // Average cycle time overall (won + lost)
+    const avgCycleTime = closedLeads.length > 0
+      ? closedLeads.reduce((sum, l) => sum + calculateDaysBetween(l.created_at, l.closed_at), 0) / closedLeads.length
+      : 0;
+
+    // Conversion rate (won / total closed)
+    const conversionRate = closedLeads.length > 0
+      ? (wonLeads.length / closedLeads.length) * 100
+      : 0;
+
+    // Active leads (not won or lost)
+    const activeLeads = leads.filter(l => l.status !== "won" && l.status !== "lost");
+    const avgDaysActive = activeLeads.length > 0
+      ? activeLeads.reduce((sum, l) => sum + calculateDaysBetween(l.created_at), 0) / activeLeads.length
+      : 0;
+
+    return {
+      totalLeads: leads.length,
+      wonCount: wonLeads.length,
+      lostCount: lostLeads.length,
+      activeCount: activeLeads.length,
+      avgDaysToWon: Math.round(avgDaysToWon * 10) / 10,
+      avgDaysToLost: Math.round(avgDaysToLost * 10) / 10,
+      avgCycleTime: Math.round(avgCycleTime * 10) / 10,
+      avgDaysActive: Math.round(avgDaysActive * 10) / 10,
+      conversionRate: Math.round(conversionRate * 10) / 10,
+    };
+  }, [leads]);
 
   const getChannelIcon = (channel: Channel) => {
     switch (channel) {
@@ -93,7 +145,7 @@ const LeadsList = () => {
   };
 
   const generateCSV = () => {
-    const headers = ["Nombre", "Empresa", "Correo", "Teléfono", "Canal", "Fecha", "Estado", "Días en ciclo"];
+    const headers = ["Nombre", "Empresa", "Correo", "Teléfono", "Canal", "Fecha Creación", "Estado", "Días Totales", "Días Ciclo"];
     const rows = filteredLeads.map(lead => [
       lead.name,
       lead.company || "",
@@ -102,6 +154,7 @@ const LeadsList = () => {
       lead.channel,
       new Date(lead.created_at).toLocaleDateString(),
       lead.status || "nuevo",
+      calculateDaysBetween(lead.created_at),
       lead.sale_cycle_days || ""
     ]);
     return [headers, ...rows].map(row => row.join(",")).join("\n");
@@ -190,6 +243,94 @@ const LeadsList = () => {
           </DropdownMenu>
         </div>
 
+        {/* Conversion Metrics Section */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription className="flex items-center gap-1">
+                <TrendingUp className="h-3 w-3" />
+                Tasa Conversión
+              </CardDescription>
+              <CardTitle className="text-2xl text-green-600">
+                {conversionMetrics.conversionRate}%
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground">
+                {conversionMetrics.wonCount} ganados / {conversionMetrics.wonCount + conversionMetrics.lostCount} cerrados
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription className="flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                Prom. días a Ganado
+              </CardDescription>
+              <CardTitle className="text-2xl text-green-600">
+                {conversionMetrics.avgDaysToWon} días
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground">
+                De {conversionMetrics.wonCount} leads ganados
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription className="flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                Prom. días a Perdido
+              </CardDescription>
+              <CardTitle className="text-2xl text-red-600">
+                {conversionMetrics.avgDaysToLost} días
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground">
+                De {conversionMetrics.lostCount} leads perdidos
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription className="flex items-center gap-1">
+                <Calendar className="h-3 w-3" />
+                Ciclo Promedio
+              </CardDescription>
+              <CardTitle className="text-2xl">
+                {conversionMetrics.avgCycleTime} días
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground">
+                Nuevo → Cerrado (ganado/perdido)
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription className="flex items-center gap-1">
+                <Users className="h-3 w-3" />
+                Leads Activos
+              </CardDescription>
+              <CardTitle className="text-2xl">
+                {conversionMetrics.activeCount}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground">
+                Prom. {conversionMetrics.avgDaysActive} días abiertos
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
         <Card>
           <CardHeader>
             <div className="flex flex-col md:flex-row gap-4">
@@ -239,21 +380,23 @@ const LeadsList = () => {
                     <TableHead>Correo</TableHead>
                     <TableHead>Teléfono</TableHead>
                     <TableHead>Canal</TableHead>
-                    <TableHead>Fecha</TableHead>
+                    <TableHead>Fecha Creación</TableHead>
                     <TableHead>Estado</TableHead>
-                    <TableHead className="text-right">Días</TableHead>
+                    <TableHead className="text-right">Días Totales</TableHead>
+                    <TableHead className="text-right">Días Ciclo</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredLeads.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                         No se encontraron leads
                       </TableCell>
                     </TableRow>
                   ) : (
                     filteredLeads.map((lead) => {
                       const statusOption = getStatusOption(lead.status);
+                      const totalDays = calculateDaysBetween(lead.created_at);
                       return (
                         <TableRow key={lead.id} className="hover:bg-muted/50">
                           <TableCell className="font-medium">{lead.name}</TableCell>
@@ -288,8 +431,15 @@ const LeadsList = () => {
                             </Select>
                           </TableCell>
                           <TableCell className="text-right">
+                            <span className={totalDays > 30 ? "text-orange-600 font-medium" : "text-muted-foreground"}>
+                              {totalDays}d
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right">
                             {lead.sale_cycle_days !== null ? (
-                              <span className="text-muted-foreground">{lead.sale_cycle_days}d</span>
+                              <Badge variant="outline" className={lead.status === "won" ? "bg-green-500/10 text-green-600" : lead.status === "lost" ? "bg-red-500/10 text-red-600" : ""}>
+                                {lead.sale_cycle_days}d
+                              </Badge>
                             ) : (
                               <span className="text-muted-foreground/50">-</span>
                             )}
