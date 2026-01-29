@@ -178,7 +178,8 @@ export const DataActions = ({ onImportData }: DataActionsProps) => {
     const instructions = [
       "# INSTRUCCIONES DE USO",
       "# Canal: linkedin | phone | email",
-      "# Estado: new | contacted | qualified | proposal | closed | lost",
+      "# Estado: new | contacted | qualified | proposal | won | lost",
+      "# IMPORTANTE: No uses comas dentro de los valores",
       ""
     ];
     
@@ -192,6 +193,61 @@ export const DataActions = ({ onImportData }: DataActionsProps) => {
     toast.success("Plantilla descargada");
   };
 
+  // Detectar el delimitador usado en el CSV (coma o punto y coma)
+  const detectDelimiter = (text: string): string => {
+    const firstDataLine = text.split("\n").find(line => !line.startsWith("#") && line.trim());
+    if (!firstDataLine) return ",";
+    
+    const commaCount = (firstDataLine.match(/,/g) || []).length;
+    const semicolonCount = (firstDataLine.match(/;/g) || []).length;
+    
+    return semicolonCount > commaCount ? ";" : ",";
+  };
+
+  // Parsear una línea CSV respetando comillas
+  const parseCSVLine = (line: string, delimiter: string): string[] => {
+    const result: string[] = [];
+    let current = "";
+    let inQuotes = false;
+    
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === delimiter && !inQuotes) {
+        result.push(current.trim().replace(/^"|"$/g, ""));
+        current = "";
+      } else {
+        current += char;
+      }
+    }
+    
+    result.push(current.trim().replace(/^"|"$/g, ""));
+    return result;
+  };
+
+  // Mapear el valor del canal al formato correcto
+  const normalizeChannel = (value: string): string => {
+    const normalized = value.toLowerCase().trim();
+    if (normalized.includes("linkedin") || normalized === "li") return "linkedin";
+    if (normalized.includes("phone") || normalized.includes("telefono") || normalized.includes("tel") || normalized.includes("llamada")) return "phone";
+    if (normalized.includes("email") || normalized.includes("correo") || normalized.includes("mail")) return "email";
+    return "email"; // default
+  };
+
+  // Mapear el valor del estado al formato correcto
+  const normalizeStatus = (value: string): string => {
+    const normalized = value.toLowerCase().trim();
+    if (normalized === "new" || normalized === "nuevo") return "new";
+    if (normalized === "contacted" || normalized === "contactado") return "contacted";
+    if (normalized === "qualified" || normalized === "calificado") return "qualified";
+    if (normalized === "proposal" || normalized === "propuesta") return "proposal";
+    if (normalized === "won" || normalized === "ganado" || normalized === "closed" || normalized === "cerrado") return "won";
+    if (normalized === "lost" || normalized === "perdido") return "lost";
+    return "new"; // default
+  };
+
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -200,33 +256,54 @@ export const DataActions = ({ onImportData }: DataActionsProps) => {
     reader.onload = (e) => {
       try {
         const text = e.target?.result as string;
-        const lines = text.split("\n").filter(line => !line.startsWith("#") && line.trim());
+        const lines = text.split(/\r?\n/).filter(line => !line.startsWith("#") && line.trim());
         
         if (lines.length < 2) {
           toast.error("El archivo no contiene datos válidos");
           return;
         }
 
-        const headers = lines[0].split(",").map(h => h.trim().toLowerCase());
+        const delimiter = detectDelimiter(text);
+        console.log("Delimitador detectado:", delimiter);
+        
+        const headers = parseCSVLine(lines[0], delimiter).map(h => h.toLowerCase());
+        console.log("Headers encontrados:", headers);
+        
         const data = lines.slice(1).map((line, index) => {
-          const values = line.split(",").map(v => v.trim());
+          const values = parseCSVLine(line, delimiter);
+          console.log(`Fila ${index + 1}:`, values);
+          
           const lead: Record<string, any> = { id: `imported-${index + 1}` };
           
           headers.forEach((header, i) => {
-            if (header === "nombre") lead.name = values[i];
-            else if (header === "empresa") lead.company = values[i];
-            else if (header === "canal") lead.channel = values[i];
-            else if (header === "estado") lead.status = values[i];
-            else if (header === "email") lead.email = values[i];
-            else if (header === "telefono") lead.phone = values[i];
+            const value = values[i] || "";
+            if (header === "nombre" || header === "name") lead.name = value;
+            else if (header === "empresa" || header === "company") lead.company = value;
+            else if (header === "canal" || header === "channel") lead.channel = normalizeChannel(value);
+            else if (header === "estado" || header === "status") lead.status = normalizeStatus(value);
+            else if (header === "email" || header === "correo") lead.email = value;
+            else if (header === "telefono" || header === "phone" || header === "tel") lead.phone = value;
           });
           
+          // Asegurar valores por defecto
+          if (!lead.channel) lead.channel = "email";
+          if (!lead.status) lead.status = "new";
+          
           return lead;
-        });
+        }).filter(lead => lead.name); // Solo leads con nombre
 
+        console.log("Datos parseados:", data);
+        
+        if (data.length === 0) {
+          toast.error("No se encontraron leads válidos en el archivo");
+          return;
+        }
+
+        toast.success(`${data.length} leads listos para importar`);
         onImportData?.(data);
         setIsUploadDialogOpen(false);
       } catch (error) {
+        console.error("Error al procesar archivo:", error);
         toast.error("Error al procesar el archivo");
       }
     };
