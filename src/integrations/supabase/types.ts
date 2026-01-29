@@ -50,6 +50,42 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_activities: {
+        Row: {
+          activity_date: string
+          calls_connected: number
+          calls_made: number
+          created_at: string
+          emails_sent: number
+          id: string
+          linkedin_contacts: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activity_date?: string
+          calls_connected?: number
+          calls_made?: number
+          created_at?: string
+          emails_sent?: number
+          id?: string
+          linkedin_contacts?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activity_date?: string
+          calls_connected?: number
+          calls_made?: number
+          created_at?: string
+          emails_sent?: number
+          id?: string
+          linkedin_contacts?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       lead_notes: {
         Row: {
           content: string
