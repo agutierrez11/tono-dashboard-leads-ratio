@@ -36,6 +36,8 @@ const formSchema = z.object({
   company: z.string().max(100, {
     message: "La empresa no puede tener más de 100 caracteres.",
   }).optional(),
+  email: z.string().email({ message: "Correo inválido" }).max(255).optional().or(z.literal("")),
+  phone: z.string().max(30, { message: "Máximo 30 caracteres" }).optional().or(z.literal("")),
   channel: z.enum(["linkedin", "phone", "email"], {
     required_error: "Por favor selecciona un canal.",
   }),
@@ -57,6 +59,8 @@ export const AddLeadForm = () => {
     defaultValues: {
       name: "",
       company: "",
+      email: "",
+      phone: "",
       channel: "linkedin",
       status: "new",
     },
@@ -74,6 +78,8 @@ export const AddLeadForm = () => {
       const { error } = await supabase.from("leads").insert({
         name: values.name.trim(),
         company: values.company?.trim() || null,
+        email: values.email?.trim() || null,
+        phone: values.phone?.trim() || null,
         channel: values.channel,
         status: values.status,
         user_id: user.id,
@@ -90,6 +96,8 @@ export const AddLeadForm = () => {
         form.reset({
           name: "",
           company: "",
+          email: "",
+          phone: "",
           channel: values.channel, // Keep the same channel
           status: "new",
         });
@@ -203,6 +211,36 @@ export const AddLeadForm = () => {
                 </FormItem>
               )}
             />
+
+            {/* Email & Phone Fields - Optional */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Correo <span className="text-muted-foreground text-xs">(opcional)</span></FormLabel>
+                    <FormControl>
+                      <Input type="email" placeholder="correo@ejemplo.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Teléfono <span className="text-muted-foreground text-xs">(opcional)</span></FormLabel>
+                    <FormControl>
+                      <Input type="tel" placeholder="+52 55 1234 5678" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             {/* Status/Stage Field */}
             <FormField
