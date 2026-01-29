@@ -236,6 +236,14 @@ export const DataActions = ({ onImportData }: DataActionsProps) => {
       .toLowerCase();
   };
 
+  const getIndexByHeader = (headers: string[], candidates: string[]) => {
+    for (const c of candidates) {
+      const idx = headers.indexOf(c);
+      if (idx >= 0) return idx;
+    }
+    return -1;
+  };
+
   // Mapear el valor del canal al formato correcto
   const normalizeChannel = (value: string): string => {
     const normalized = value.toLowerCase().trim();
@@ -277,22 +285,42 @@ export const DataActions = ({ onImportData }: DataActionsProps) => {
         
         const headers = parseCSVLine(lines[0], delimiter).map(normalizeHeader);
         console.log("Headers encontrados:", headers);
+
+        // Soporte “por columnas” (A=nombre, B=empresa, C=canal, ...)
+        // cuando Excel/CSV viene con encabezados raros o sin reconocer.
+        const idxName = getIndexByHeader(headers, ["nombre", "name"]);
+        const idxCompany = getIndexByHeader(headers, ["empresa", "company"]);
+        const idxChannel = getIndexByHeader(headers, ["canal", "channel"]);
+        const idxStatus = getIndexByHeader(headers, ["estado", "status"]);
+        const idxEmail = getIndexByHeader(headers, ["email", "correo"]);
+        const idxPhone = getIndexByHeader(headers, ["telefono", "teléfono", "phone", "tel"]);
+
+        const hasRecognizedHeaders = idxName !== -1 || idxCompany !== -1 || idxChannel !== -1 || idxStatus !== -1;
         
         const data = lines.slice(1).map((line, index) => {
           const values = parseCSVLine(line, delimiter);
           console.log(`Fila ${index + 1}:`, values);
           
           const lead: Record<string, any> = { id: `imported-${index + 1}` };
-          
-          headers.forEach((header, i) => {
-            const value = values[i] || "";
-            if (header === "nombre" || header === "name") lead.name = value;
-            else if (header === "empresa" || header === "company") lead.company = value;
-            else if (header === "canal" || header === "channel") lead.channel = normalizeChannel(value);
-            else if (header === "estado" || header === "status") lead.status = normalizeStatus(value);
-            else if (header === "email" || header === "correo") lead.email = value;
-            else if (header === "telefono" || header === "phone" || header === "tel") lead.phone = value;
-          });
+
+          if (hasRecognizedHeaders) {
+            // Modo por encabezados
+            if (idxName >= 0) lead.name = values[idxName] || "";
+            if (idxCompany >= 0) lead.company = values[idxCompany] || "";
+            if (idxChannel >= 0) lead.channel = normalizeChannel(values[idxChannel] || "");
+            if (idxStatus >= 0) lead.status = normalizeStatus(values[idxStatus] || "");
+            if (idxEmail >= 0) lead.email = values[idxEmail] || "";
+            if (idxPhone >= 0) lead.phone = values[idxPhone] || "";
+          } else {
+            // Fallback por posición (como en la plantilla):
+            // A nombre | B empresa | C canal | D estado | E email | F telefono
+            lead.name = values[0] || "";
+            lead.company = values[1] || "";
+            lead.channel = normalizeChannel(values[2] || "");
+            lead.status = normalizeStatus(values[3] || "");
+            lead.email = values[4] || "";
+            lead.phone = values[5] || "";
+          }
           
           // Asegurar valores por defecto
           if (!lead.channel) lead.channel = "email";
