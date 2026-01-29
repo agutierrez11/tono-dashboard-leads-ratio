@@ -3,12 +3,24 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Settings, MessageCircle, Sparkles } from "lucide-react";
+import { Settings, MessageCircle, Sparkles, RotateCcw } from "lucide-react";
 import { useUserProfile, useCreateOrUpdateProfile } from "@/hooks/useUserProfile";
-import { useTodayActivities, useMonthlyActivities } from "@/hooks/useActivities";
+import { useTodayActivities } from "@/hooks/useActivities";
 import { useLeads } from "@/hooks/useLeads";
 import { useMonthlyGoal } from "@/hooks/useGoals";
+import { useResetTodayActivities } from "@/hooks/useDailyGoals";
 import { AvatarSelector } from "./AvatarSelector";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const getAvatarEmoji = (type: string, style: string) => {
   const avatarMap: Record<string, string> = {
@@ -91,6 +103,7 @@ export const SalesCompanion = () => {
   const { data: leads = [] } = useLeads();
   const { data: monthlyGoal } = useMonthlyGoal();
   const updateProfile = useCreateOrUpdateProfile();
+  const resetActivities = useResetTodayActivities();
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [displayName, setDisplayName] = useState("");
@@ -194,47 +207,74 @@ export const SalesCompanion = () => {
             </div>
           </div>
 
-          {/* Settings Button */}
-          <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-            <DialogTrigger asChild>
-              <Button variant="ghost" size="icon" className="shrink-0">
-                <Settings className="h-4 w-4" />
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Personaliza tu Compañero</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Tu nombre</label>
-                  <Input
-                    placeholder="¿Cómo te llamo?"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Elige tu avatar</label>
-                  <AvatarSelector
-                    selectedType={avatarType}
-                    selectedStyle={avatarStyle}
-                    onSelect={(type, style) => {
-                      setAvatarType(type);
-                      setAvatarStyle(style);
-                    }}
-                  />
-                </div>
-                <Button 
-                  onClick={handleSaveProfile} 
-                  className="w-full"
-                  disabled={updateProfile.isPending}
-                >
-                  {updateProfile.isPending ? "Guardando..." : "Guardar"}
+          {/* Action Buttons */}
+          <div className="flex flex-col gap-1 shrink-0">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="icon" title="Reiniciar contadores">
+                  <RotateCcw className="h-4 w-4" />
                 </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>¿Reiniciar contadores de hoy?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esto pondrá todos los contadores de hoy en cero. Esta acción no se puede deshacer.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={() => resetActivities.mutate()}
+                    className="bg-destructive text-destructive-foreground"
+                  >
+                    Reiniciar
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            
+            <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Personaliza tu Compañero</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Tu nombre</label>
+                    <Input
+                      placeholder="¿Cómo te llamo?"
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Elige tu avatar</label>
+                    <AvatarSelector
+                      selectedType={avatarType}
+                      selectedStyle={avatarStyle}
+                      onSelect={(type, style) => {
+                        setAvatarType(type);
+                        setAvatarStyle(style);
+                      }}
+                    />
+                  </div>
+                  <Button 
+                    onClick={handleSaveProfile} 
+                    className="w-full"
+                    disabled={updateProfile.isPending}
+                  >
+                    {updateProfile.isPending ? "Guardando..." : "Guardar"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
       </CardContent>
     </Card>
