@@ -7,13 +7,15 @@ import { ChannelComparison } from "@/components/dashboard/ChannelComparison";
 import { MetricsInstructions } from "@/components/dashboard/MetricsInstructions";
 import { DataActions } from "@/components/dashboard/DataActions";
 import { DealsTimeline } from "@/components/dashboard/DealsTimeline";
-import { GamificationPanel } from "@/components/dashboard/GamificationPanel";
 import { SalesCompanion } from "@/components/gamification/SalesCompanion";
+import { DailyGoalTracker } from "@/components/gamification/DailyGoalTracker";
+import { ActivityHistory } from "@/components/gamification/ActivityHistory";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useLeadStats, useCreateLead } from "@/hooks/useLeads";
 import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 
 const Index = () => {
   const { stats, isLoading } = useLeadStats();
@@ -21,24 +23,43 @@ const Index = () => {
   const { user } = useAuth();
 
   const handleImportData = async (data: any[]) => {
-    if (!user) return;
+    if (!user) {
+      toast.error("Debes iniciar sesión para importar leads");
+      return;
+    }
+    
+    let successCount = 0;
+    let errorCount = 0;
     
     for (const item of data) {
-      await createLead.mutateAsync({
-        name: item.nombre || item.name || "Sin nombre",
-        email: item.email || null,
-        phone: item.telefono || item.phone || null,
-        company: item.empresa || item.company || null,
-        channel: item.canal || item.channel || "email",
-        status: item.estado || item.status || "new",
-        source: item.fuente || item.source || null,
-        user_id: user.id,
-        contacted_at: null,
-        closed_at: null,
-        next_followup_at: null,
-        sale_value: null,
-        sale_cycle_days: null,
-      });
+      try {
+        await createLead.mutateAsync({
+          name: item.nombre || item.name || "Sin nombre",
+          email: item.email || null,
+          phone: item.telefono || item.phone || null,
+          company: item.empresa || item.company || null,
+          channel: item.canal || item.channel || "email",
+          status: item.estado || item.status || "new",
+          source: item.fuente || item.source || null,
+          user_id: user.id,
+          contacted_at: null,
+          closed_at: null,
+          next_followup_at: null,
+          sale_value: null,
+          sale_cycle_days: null,
+        });
+        successCount++;
+      } catch (error) {
+        errorCount++;
+        console.error("Error importing lead:", error);
+      }
+    }
+    
+    if (successCount > 0) {
+      toast.success(`${successCount} leads importados correctamente`);
+    }
+    if (errorCount > 0) {
+      toast.error(`${errorCount} leads no pudieron importarse`);
     }
   };
 
@@ -144,8 +165,11 @@ const Index = () => {
           />
         </div>
 
-        {/* Gamification Panel */}
-        <GamificationPanel />
+        {/* Daily Goal Tracker & Activity History */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <DailyGoalTracker />
+          <ActivityHistory />
+        </div>
 
         <DealsTimeline />
 
