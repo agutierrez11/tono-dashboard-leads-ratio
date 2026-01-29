@@ -44,7 +44,12 @@ export const DailyGoalTracker = () => {
   const resetActivities = useResetTodayActivities();
   
   const [editingGoal, setEditingGoal] = useState<ActivityType | null>(null);
-  const [goalValue, setGoalValue] = useState("");
+  const [goalValues, setGoalValues] = useState<Record<ActivityType, string>>({
+    calls_made: "",
+    calls_connected: "",
+    emails_sent: "",
+    linkedin_contacts: "",
+  });
 
   const getGoalTarget = (goalType: ActivityType): number => {
     const goal = dailyGoals.find(g => g.goal_type === goalType);
@@ -70,12 +75,15 @@ export const DailyGoalTracker = () => {
   };
 
   const handleSaveGoal = (goalType: ActivityType) => {
-    const value = parseInt(goalValue);
+    const value = parseInt(goalValues[goalType]);
     if (value > 0) {
       setDailyGoal.mutate({ goalType, targetValue: value });
       setEditingGoal(null);
-      setGoalValue("");
     }
+  };
+
+  const handleGoalValueChange = (goalType: ActivityType, value: string) => {
+    setGoalValues(prev => ({ ...prev, [goalType]: value }));
   };
 
   const handleIncrement = (type: ActivityType) => {
@@ -141,8 +149,8 @@ export const DailyGoalTracker = () => {
                     <div className="flex items-center gap-1">
                       <Input
                         type="number"
-                        value={goalValue}
-                        onChange={(e) => setGoalValue(e.target.value)}
+                        value={goalValues[key]}
+                        onChange={(e) => handleGoalValueChange(key, e.target.value)}
                         className="h-7 w-16 text-sm"
                         placeholder="Meta"
                         min={1}
@@ -167,7 +175,7 @@ export const DailyGoalTracker = () => {
                         size="sm" 
                         className="h-7 px-2"
                         onClick={() => {
-                          setGoalValue(target.toString());
+                          handleGoalValueChange(key, target.toString());
                           setEditingGoal(key);
                         }}
                       >
