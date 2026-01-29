@@ -7,6 +7,7 @@ import { ChannelComparison } from "@/components/dashboard/ChannelComparison";
 import { MetricsInstructions } from "@/components/dashboard/MetricsInstructions";
 import { DataActions } from "@/components/dashboard/DataActions";
 import { DealsTimeline } from "@/components/dashboard/DealsTimeline";
+import { GamificationPanel } from "@/components/dashboard/GamificationPanel";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useLeadStats, useCreateLead } from "@/hooks/useLeads";
@@ -138,6 +139,9 @@ const Index = () => {
             className="lg:col-span-2"
           />
         </div>
+
+        {/* Gamification Panel */}
+        <GamificationPanel />
 
         <DealsTimeline />
 
