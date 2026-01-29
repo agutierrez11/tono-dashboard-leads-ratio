@@ -8,6 +8,7 @@ import { MetricsInstructions } from "@/components/dashboard/MetricsInstructions"
 import { DataActions } from "@/components/dashboard/DataActions";
 import { DealsTimeline } from "@/components/dashboard/DealsTimeline";
 import { GamificationPanel } from "@/components/dashboard/GamificationPanel";
+import { SalesCompanion } from "@/components/gamification/SalesCompanion";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useLeadStats, useCreateLead } from "@/hooks/useLeads";
@@ -88,6 +89,9 @@ const Index = () => {
           </div>
           <DataActions onImportData={handleImportData} />
         </div>
+
+        {/* Sales Companion - Interactive Avatar */}
+        <SalesCompanion />
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
