@@ -15,6 +15,8 @@ export interface FunnelMetrics {
   totalLeads: number;
   conversionRateByChannel: Record<string, number>;
   averageCycleTime: number;
+  averageProspectingTime: number;
+  averageClosingTime: number;
   bottlenecks: string[];
   recommendations: string[];
   projections: {
@@ -44,6 +46,8 @@ export const useSalesFunnelMetrics = () => {
         totalLeads: 0,
         conversionRateByChannel: {},
         averageCycleTime: 0,
+        averageProspectingTime: 0,
+        averageClosingTime: 0,
         bottlenecks: [],
         recommendations: [],
         projections: {
@@ -141,6 +145,34 @@ export const useSalesFunnelMetrics = () => {
     });
     const averageCycleTime = closedLeads.length > 0 ? totalDays / closedLeads.length : 0;
 
+    // Calcular tiempo promedio de prospección (SDR: created_at -> contacted_at)
+    const leadsWithContactTime = leads.filter(l => l.contacted_at);
+    let totalProspectingDays = 0;
+    leadsWithContactTime.forEach(lead => {
+      const createdAt = new Date(lead.created_at);
+      const contactedAt = new Date(lead.contacted_at!);
+      const diff = Math.floor(
+        (contactedAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24)
+      );
+      totalProspectingDays += Math.max(0, diff);
+    });
+    const averageProspectingTime = leadsWithContactTime.length > 0 ? totalProspectingDays / leadsWithContactTime.length : 0;
+
+    // Calcular tiempo promedio de cierre (AE: contacted_at -> closed_at)
+    const leadsWithCloseTime = leads.filter(l => 
+      l.contacted_at && l.closed_at && (l.status === "won" || l.status === "lost")
+    );
+    let totalAEDays = 0;
+    leadsWithCloseTime.forEach(lead => {
+      const contactedAt = new Date(lead.contacted_at!);
+      const closedAt = new Date(lead.closed_at!);
+      const diff = Math.floor(
+        (closedAt.getTime() - contactedAt.getTime()) / (1000 * 60 * 60 * 24)
+      );
+      totalAEDays += Math.max(0, diff);
+    });
+    const averageClosingTime = leadsWithCloseTime.length > 0 ? totalAEDays / leadsWithCloseTime.length : 0;
+
     // Identificar cuellos de botella
     const bottlenecks: string[] = [];
     if (contactedRate < 40) {
@@ -208,6 +240,8 @@ export const useSalesFunnelMetrics = () => {
       totalLeads: totalContacts,
       conversionRateByChannel,
       averageCycleTime: parseFloat(averageCycleTime.toFixed(1)),
+      averageProspectingTime: parseFloat(averageProspectingTime.toFixed(1)),
+      averageClosingTime: parseFloat(averageClosingTime.toFixed(1)),
       bottlenecks,
       recommendations,
       projections,

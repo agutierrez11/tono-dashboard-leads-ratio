@@ -223,25 +223,42 @@ export const PerformanceAnalytics = () => {
       {/* Ciclo de Venta Promedio */}
       <Card className="glass-card">
         <CardHeader>
-          <CardTitle>Ciclo de Venta Promedio</CardTitle>
+          <CardTitle>Ciclo de Venta Promedio (Full Cycle)</CardTitle>
           <CardDescription>
-            Tiempo promedio desde primer contacto hasta cierre
+            Tiempo promedio total y desglose por etapas comerciales
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center py-8">
+        <CardContent className="space-y-6">
+          <div className="flex items-center justify-center py-4 border-b border-border/40 pb-6">
             <div className="text-center">
               <div className="text-5xl font-bold text-primary">
                 {metrics.averageCycleTime.toFixed(0)}
               </div>
-              <div className="text-muted-foreground mt-2">días</div>
-              <p className="text-sm text-muted-foreground mt-4">
+              <div className="text-sm font-semibold text-foreground mt-1">Días Totales (Full Cycle)</div>
+              <p className="text-xs text-muted-foreground mt-2">
                 {metrics.averageCycleTime > 30
-                  ? "⚠️ Ciclo largo. Considera acelerar el proceso."
+                  ? "⚠️ Ciclo total largo. Analiza cuál de las fases tiene cuellos de botella."
                   : metrics.averageCycleTime > 15
-                  ? "✅ Ciclo moderado. Mantén el ritmo."
-                  : "🚀 Ciclo rápido. Excelente velocidad."}
+                  ? "✅ Ciclo total moderado. Mantén la velocidad de seguimiento."
+                  : "🚀 Ciclo total rápido. Excelente tiempo de respuesta."}
               </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-secondary/20 p-3 rounded-lg text-center border border-border/30">
+              <div className="text-2xl font-bold text-yellow-600">
+                {metrics.averageProspectingTime.toFixed(0)}
+              </div>
+              <div className="text-xs font-semibold text-foreground mt-1">Fase Prospección (SDR)</div>
+              <p className="text-[10px] text-muted-foreground mt-1">Creación del lead a primer contacto</p>
+            </div>
+            <div className="bg-secondary/20 p-3 rounded-lg text-center border border-border/30">
+              <div className="text-2xl font-bold text-green-600">
+                {metrics.averageClosingTime.toFixed(0)}
+              </div>
+              <div className="text-xs font-semibold text-foreground mt-1">Fase Cierre (AE)</div>
+              <p className="text-[10px] text-muted-foreground mt-1">Primer contacto a firma de contrato</p>
             </div>
           </div>
         </CardContent>
