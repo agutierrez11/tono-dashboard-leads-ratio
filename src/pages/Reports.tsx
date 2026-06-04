@@ -1,37 +1,84 @@
-
 import { useState } from "react";
-import { Download, TrendingUp, Clock } from "lucide-react";
+import { Download, ArrowLeft, TrendingUp, Calendar } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { PerformanceAnalytics } from "@/components/dashboard/PerformanceAnalytics";
 import { LeadChart } from "@/components/dashboard/LeadChart";
 import { ChannelMetrics } from "@/components/dashboard/ChannelMetrics";
-import { useLeads, useLeadStats } from "@/hooks/useLeads";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Timeframe } from "@/utils/types";
+import { useSalesFunnelMetrics, useSalesFunnelTrend } from "@/hooks/useSalesFunnelMetrics";
+import { useLeads, useLeadStats } from "@/hooks/useLeads";
+import { Link } from "react-router-dom";
+import * as XLSX from "xlsx";
 import { ResponsiveContainer, PieChart, Pie, Cell, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
-import { toast } from "sonner";
 
 const Reports = () => {
-  const [timeframe, setTimeframe] = useState<Timeframe>("monthly");
+  const { metrics, isLoading: metricsLoading } = useSalesFunnelMetrics();
+  const trend30 = useSalesFunnelTrend(30);
+  const trend90 = useSalesFunnelTrend(90);
   const { data: leads = [], isLoading } = useLeads();
   const { stats } = useLeadStats();
+  const [selectedPeriod, setSelectedPeriod] = useState<"30" | "90" | "all">("30");
 
-  // Calculate channel distribution
+  const exportToExcel = () => {
+    const data = [
+      ["REPORTE DE DESEMPEÑO COMERCIAL"],
+      [`Generado: ${new Date().toLocaleDateString("es-ES")}`],
+      [],
+      ["EMBUDO DE VENTAS"],
+      ["Etapa", "Cantidad", "Porcentaje", "Conversión desde anterior"],
+      ...metrics.stages.map(stage => [
+        stage.name,
+        stage.count,
+        `${stage.percentage.toFixed(1)}%`,
+        `${stage.conversionFromPrevious.toFixed(1)}%`,
+      ]),
+      [],
+      ["TASAS DE CONVERSIÓN POR CANAL"],
+      ["Canal", "Tasa de Conversión"],
+      ...Object.entries(metrics.conversionRateByChannel).map(([channel, rate]) => [
+        channel.toUpperCase(),
+        `${rate.toFixed(1)}%`,
+      ]),
+      [],
+      ["MÉTRICAS CLAVE"],
+      ["Métrica", "Valor"],
+      ["Ciclo de Venta Promedio", `${metrics.averageCycleTime.toFixed(1)} días`],
+      ["Total de Leads", metrics.totalLeads],
+      [],
+      ["PROYECCIONES (Si tuvieras 100 contactos)"],
+      ["Etapa", "Cantidad Proyectada"],
+      ["Contactos", metrics.projections.if100Contacts],
+      ["Contactados", metrics.projections.if100Contacted],
+      ["Relevantes", metrics.projections.if100Relevant],
+      ["Oportunidades", metrics.projections.if100Opportunities],
+      ["Clientes", metrics.projections.if100Customers],
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Reporte");
+    XLSX.writeFile(wb, `reporte_desempeño_${new Date().toISOString().split("T")[0]}.xlsx`);
+  };
+
+  const selectedTrend = selectedPeriod === "30" ? trend30 : selectedPeriod === "90" ? trend90 : null;
+
+  // Datos para gráficos originales
   const channelData = [
     { name: "LinkedIn", value: stats.byChannel.linkedin, color: "#0A66C2" },
     { name: "Teléfono", value: stats.byChannel.phone, color: "#34D399" },
     { name: "Email", value: stats.byChannel.email, color: "#F59E0B" },
   ];
 
-  // Calculate status distribution
   const statusLabels: Record<string, string> = {
     new: "Nuevo",
     contacted: "Contactado",
     qualified: "Calificado",
     proposal: "Propuesta",
-    closed: "Cerrado",
+    won: "Ganado",
     lost: "Perdido"
   };
 
@@ -40,7 +87,7 @@ const Reports = () => {
     contacted: "#38BDF8",
     qualified: "#818CF8",
     proposal: "#F97316",
-    closed: "#22C55E",
+    won: "#22C55E",
     lost: "#EF4444"
   };
 
@@ -55,28 +102,7 @@ const Reports = () => {
     color: statusColors[status] || "#94A3B8"
   }));
 
-  // Prepare conversion rate and sales cycle data for charts
-  const conversionChartData = stats.conversionRates.map(item => ({
-    name: item.channel === "linkedin" ? "LinkedIn" : 
-          item.channel === "phone" ? "Teléfono" : "Email",
-    value: item.rate,
-    color: item.channel === "linkedin" ? "#0A66C2" :
-           item.channel === "phone" ? "#34D399" : "#F59E0B"
-  }));
-
-  const cycleTimeChartData = stats.salesCycleTimes.map(item => ({
-    name: item.channel === "linkedin" ? "LinkedIn" : 
-          item.channel === "phone" ? "Teléfono" : "Email",
-    value: item.avgDays,
-    color: item.channel === "linkedin" ? "#0A66C2" :
-           item.channel === "phone" ? "#34D399" : "#F59E0B"
-  }));
-
-  const handleDownloadReport = () => {
-    toast.success("Reporte descargado exitosamente");
-  };
-
-  if (isLoading) {
+  if (isLoading || metricsLoading) {
     return (
       <DashboardLayout>
         <div className="flex flex-col gap-8">
@@ -93,168 +119,200 @@ const Reports = () => {
   return (
     <DashboardLayout>
       <div className="flex flex-col gap-8">
+        {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Reportes</h1>
-            <p className="text-muted-foreground mt-1">
-              Análisis detallado del desempeño de leads en diferentes períodos.
-            </p>
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" asChild>
+              <Link to="/">
+                <ArrowLeft className="h-4 w-4" />
+              </Link>
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+                <TrendingUp className="h-8 w-8" />
+                Reportes de Desempeño
+              </h1>
+              <p className="text-muted-foreground mt-1">
+                Análisis profundo de tu proceso comercial
+              </p>
+            </div>
           </div>
-          <Button onClick={handleDownloadReport} size="sm" className="animate-fade-in">
-            <Download className="h-4 w-4 mr-2" />
-            Descargar Reporte
+          <Button onClick={exportToExcel} className="gap-2">
+            <Download className="h-4 w-4" />
+            Exportar Excel
           </Button>
         </div>
 
-        <Tabs value={timeframe} onValueChange={(v) => setTimeframe(v as Timeframe)}>
-          <TabsList className="grid grid-cols-3 w-full sm:w-[400px] mb-6">
-            <TabsTrigger value="daily">Diario</TabsTrigger>
-            <TabsTrigger value="weekly">Semanal</TabsTrigger>
-            <TabsTrigger value="monthly">Mensual</TabsTrigger>
+        {/* Tabs */}
+        <Tabs defaultValue="performance" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="performance">Análisis de Desempeño</TabsTrigger>
+            <TabsTrigger value="trends">Tendencias</TabsTrigger>
+            <TabsTrigger value="charts">Gráficos</TabsTrigger>
           </TabsList>
+
+          {/* Tab 1: Performance Analytics */}
+          <TabsContent value="performance" className="space-y-6">
+            <PerformanceAnalytics />
+          </TabsContent>
+
+          {/* Tab 2: Trends */}
+          <TabsContent value="trends" className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {[
+                { label: "Últimos 30 días", value: "30" },
+                { label: "Últimos 90 días", value: "90" },
+                { label: "Todo el tiempo", value: "all" },
+              ].map(period => (
+                <Button
+                  key={period.value}
+                  variant={selectedPeriod === period.value ? "default" : "outline"}
+                  onClick={() => setSelectedPeriod(period.value as "30" | "90" | "all")}
+                  className="w-full"
+                >
+                  {period.label}
+                </Button>
+              ))}
+            </div>
+
+            {selectedTrend && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Leads en Período</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{selectedTrend.totalLeads}</div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {selectedPeriod === "30"
+                        ? "Últimos 30 días"
+                        : selectedPeriod === "90"
+                        ? "Últimos 90 días"
+                        : "Total"}
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Tasa de Conversión</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {selectedTrend.conversionRate.toFixed(1)}%
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {selectedTrend.conversionRate > 20
+                        ? "✅ Excelente"
+                        : selectedTrend.conversionRate > 10
+                        ? "⚠️ Promedio"
+                        : "❌ Bajo"}
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Ciclo Promedio</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {selectedTrend.averageCycleTime.toFixed(0)}d
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">días</p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Mejor Canal</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Badge className="mt-2">
+                      {selectedTrend.topChannel?.toUpperCase() || "N/A"}
+                    </Badge>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Tab 3: Charts */}
+          <TabsContent value="charts" className="space-y-6">
+            <LeadChart />
+            <ChannelMetrics />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card className="glass-card">
+                <CardHeader>
+                  <CardTitle>Distribución por Canal</CardTitle>
+                </CardHeader>
+                <CardContent className="p-1 h-[300px]">
+                  {stats.total === 0 ? (
+                    <div className="flex items-center justify-center h-full text-muted-foreground">
+                      No hay datos disponibles
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={channelData}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="value"
+                          animationDuration={800}
+                        >
+                          {channelData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="glass-card">
+                <CardHeader>
+                  <CardTitle>Distribución por Estado</CardTitle>
+                </CardHeader>
+                <CardContent className="p-1 h-[300px]">
+                  {statusData.length === 0 ? (
+                    <div className="flex items-center justify-center h-full text-muted-foreground">
+                      No hay datos disponibles
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={statusData}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="value"
+                          animationDuration={800}
+                        >
+                          {statusData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
         </Tabs>
-
-        <LeadChart />
-        
-        <ChannelMetrics />
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-          <Card className="glass-card animate-slide-up">
-            <CardHeader>
-              <CardTitle>Distribución por Canal</CardTitle>
-            </CardHeader>
-            <CardContent className="p-1 h-[300px]">
-              {stats.total === 0 ? (
-                <div className="flex items-center justify-center h-full text-muted-foreground">
-                  No hay datos disponibles
-                </div>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={channelData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                      animationDuration={800}
-                      className="animate-fade-in"
-                    >
-                      {channelData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Legend 
-                      verticalAlign="bottom"
-                      height={36}
-                      iconType="circle"
-                      formatter={(value) => <span className="text-sm">{value}</span>}
-                    />
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="glass-card animate-slide-up delay-75">
-            <CardHeader>
-              <CardTitle>Distribución por Estado</CardTitle>
-            </CardHeader>
-            <CardContent className="p-1 h-[300px]">
-              {statusData.length === 0 ? (
-                <div className="flex items-center justify-center h-full text-muted-foreground">
-                  No hay datos disponibles
-                </div>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={statusData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                      animationDuration={800}
-                      className="animate-fade-in"
-                    >
-                      {statusData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Legend 
-                      verticalAlign="bottom"
-                      height={36}
-                      iconType="circle"
-                      formatter={(value) => <span className="text-sm">{value}</span>}
-                    />
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card className="glass-card animate-slide-up">
-            <CardHeader className="flex flex-row items-center space-y-0 pb-2">
-              <div className="flex flex-1 items-center">
-                <CardTitle className="text-base font-medium">Tasa de Conversión por Canal</CardTitle>
-                <TrendingUp className="ml-2 h-4 w-4 text-muted-foreground" />
-              </div>
-            </CardHeader>
-            <CardContent className="p-1 h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={conversionChartData}
-                  margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="name" />
-                  <YAxis label={{ value: '%', position: 'insideLeft', angle: -90, dy: 30 }} />
-                  <Tooltip formatter={(value) => [`${value}%`, 'Tasa de Conversión']} />
-                  <Bar dataKey="value" name="Conversión" radius={[4, 4, 0, 0]}>
-                    {conversionChartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          <Card className="glass-card animate-slide-up delay-75">
-            <CardHeader className="flex flex-row items-center space-y-0 pb-2">
-              <div className="flex flex-1 items-center">
-                <CardTitle className="text-base font-medium">Tiempo de Ciclo de Venta por Canal</CardTitle>
-                <Clock className="ml-2 h-4 w-4 text-muted-foreground" />
-              </div>
-            </CardHeader>
-            <CardContent className="p-1 h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={cycleTimeChartData}
-                  margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="name" />
-                  <YAxis label={{ value: 'días', position: 'insideLeft', angle: -90, dy: 40 }} />
-                  <Tooltip formatter={(value) => [`${value} días`, 'Tiempo de Ciclo']} />
-                  <Bar dataKey="value" name="Días" radius={[4, 4, 0, 0]}>
-                    {cycleTimeChartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </div>
       </div>
     </DashboardLayout>
   );

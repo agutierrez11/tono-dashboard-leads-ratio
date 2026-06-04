@@ -7,6 +7,8 @@ import { ChannelComparison } from "@/components/dashboard/ChannelComparison";
 import { MetricsInstructions } from "@/components/dashboard/MetricsInstructions";
 import { DataActions } from "@/components/dashboard/DataActions";
 import { DealsTimeline } from "@/components/dashboard/DealsTimeline";
+import { PerformanceAnalytics } from "@/components/dashboard/PerformanceAnalytics";
+import { FunnelCalculator } from "@/components/dashboard/FunnelCalculator";
 import { SalesCompanion } from "@/components/gamification/SalesCompanion";
 import { DailyGoalTracker } from "@/components/gamification/DailyGoalTracker";
 import { ActivityHistory } from "@/components/gamification/ActivityHistory";
@@ -16,6 +18,7 @@ import { useLeadStats, useCreateLead } from "@/hooks/useLeads";
 import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Index = () => {
   const { stats, isLoading } = useLeadStats();
@@ -35,7 +38,6 @@ const Index = () => {
     
     for (const item of data) {
       try {
-        // El parser ya normaliza los campos a: name, company, channel, status, email, phone
         const leadData = {
           name: item.name || "Sin nombre",
           email: item.email || null,
@@ -179,6 +181,22 @@ const Index = () => {
         </div>
 
         <DealsTimeline />
+
+        {/* Tabs para análisis y calculadora */}
+        <Tabs defaultValue="performance" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="performance">Análisis de Desempeño</TabsTrigger>
+            <TabsTrigger value="calculator">Calculadora de Escenarios</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="performance" className="space-y-6">
+            <PerformanceAnalytics />
+          </TabsContent>
+
+          <TabsContent value="calculator" className="space-y-6">
+            <FunnelCalculator />
+          </TabsContent>
+        </Tabs>
 
         <LeadChart />
         
