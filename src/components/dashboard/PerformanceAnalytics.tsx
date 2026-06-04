@@ -252,7 +252,7 @@ export const PerformanceAnalytics = () => {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-secondary/20 p-3 rounded-lg text-center border border-border/30">
-              <div className="text-2xl font-bold text-yellow-600">
+              <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
                 {metrics.averageProspectingTime.toFixed(0)}
               </div>
               <div className="text-xs font-semibold text-foreground mt-1">Fase Prospección (SDR)</div>

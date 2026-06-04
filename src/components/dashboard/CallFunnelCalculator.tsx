@@ -96,7 +96,7 @@ export const CallFunnelCalculator = () => {
 
   const getStatusIcon = (val: number, benchmark: { min: number; max: number; avg: number }) => {
     if (val >= benchmark.avg) return <TrendingUp className="h-4 w-4 text-green-500" />;
-    if (val >= benchmark.min) return <span className="text-yellow-500 font-semibold text-xs">─</span>;
+    if (val >= benchmark.min) return <span className="text-amber-600 dark:text-amber-400 font-semibold text-xs">─</span>;
     return <TrendingDown className="h-4 w-4 text-red-500" />;
   };
 
@@ -104,14 +104,14 @@ export const CallFunnelCalculator = () => {
     <TooltipProvider>
       <div className="space-y-6 pt-4">
         {/* Toggle Real Data vs Simulation */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-muted/40 p-4 rounded-xl border border-border">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-amber-50/40 dark:bg-amber-950/15 p-4 rounded-xl border border-amber-100/80 dark:border-amber-900/30">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold">Usar Conversión de Llamadas Real (Supabase)</span>
               {dbRates.hasData ? (
                 <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">Conectado</Badge>
               ) : (
-                <Badge variant="outline" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20">Sin Historial (Benchmarks)</Badge>
+                <Badge variant="outline" className="bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/35 font-semibold">Sin Historial (Benchmarks)</Badge>
               )}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -172,7 +172,7 @@ export const CallFunnelCalculator = () => {
                 { key: "conversationRate" as const, label: "Tasa de Conversación Calificada", desc: "Leads calificados que muestran interés / contestadas", min: benchmarks.conversacionesConectadas.min, max: benchmarks.conversacionesConectadas.max, bench: benchmarks.conversacionesConectadas },
                 { key: "meetingRate" as const, label: "Tasa de Agendamiento de Reunión", desc: "Reuniones agendadas / conversaciones", min: benchmarks.reunionesConversaciones.min, max: benchmarks.reunionesConversaciones.max, bench: benchmarks.reunionesConversaciones },
               ].map(({ key, label, desc, min, max, bench }) => (
-                <div key={key} className="space-y-2 p-3 bg-muted/30 rounded-lg border border-border/50">
+                <div key={key} className="space-y-2 p-3 bg-amber-50/30 dark:bg-amber-950/10 rounded-lg border border-amber-100/40 dark:border-amber-900/20">
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-1.5">
                       <Label className="text-xs font-medium">{label}</Label>
@@ -230,7 +230,8 @@ export const CallFunnelCalculator = () => {
                 2. Actividad Requerida (Predicción)
               </h3>
               
-              <div className="space-y-4 bg-muted/20 p-4 rounded-xl border border-border">
+              <div className="space-y-4 bg-amber-50/20 dark:bg-amber-950/5 p-4 rounded-xl border border-amber-100/30 dark:border-amber-900/10">
+
                 {[
                   { label: "Llamadas a Realizar", val: projections.llamadas, color: FUNNEL_COLORS.llamadas, desc: "Llamadas totales a marcar" },
                   { label: "Llamadas Contestadas", val: projections.contestadas, color: FUNNEL_COLORS.conectadas, desc: "Llamadas que contestarán", pct: rates.connectRate },

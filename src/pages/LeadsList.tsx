@@ -34,7 +34,7 @@ import { toast } from "sonner";
 
 const statusOptions = [
   { value: "new", label: "🆕 Nuevo", color: "bg-blue-500/10 text-blue-600 border-blue-500/20" },
-  { value: "contacted", label: "📞 Contactado", color: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20" },
+  { value: "contacted", label: "📞 Contactado", color: "bg-amber-100 text-amber-900 border-amber-200/60 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20" },
   { value: "qualified", label: "✅ Calificado", color: "bg-purple-500/10 text-purple-600 border-purple-500/20" },
   { value: "proposal", label: "📋 Propuesta", color: "bg-orange-500/10 text-orange-600 border-orange-500/20" },
   { value: "won", label: "🎉 Ganado", color: "bg-green-500/10 text-green-600 border-green-500/20" },

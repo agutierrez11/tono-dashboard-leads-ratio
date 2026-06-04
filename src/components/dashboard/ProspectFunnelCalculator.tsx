@@ -115,7 +115,7 @@ export const ProspectFunnelCalculator = () => {
 
   const getStatusIcon = (val: number, benchmark: { min: number; max: number; avg: number }) => {
     if (val >= benchmark.avg) return <TrendingUp className="h-4 w-4 text-green-500" />;
-    if (val >= benchmark.min) return <span className="text-yellow-500 font-semibold text-xs">─</span>;
+    if (val >= benchmark.min) return <span className="text-amber-600 dark:text-amber-400 font-semibold text-xs">─</span>;
     return <TrendingDown className="h-4 w-4 text-red-500" />;
   };
 
@@ -123,14 +123,14 @@ export const ProspectFunnelCalculator = () => {
     <TooltipProvider>
       <div className="space-y-6 pt-4">
         {/* Toggle Real Data vs Simulation */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-muted/40 p-4 rounded-xl border border-border">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-blue-50/40 dark:bg-blue-950/15 p-4 rounded-xl border border-blue-100/80 dark:border-blue-900/30">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold">Usar Conversión de LinkedIn Real (Supabase)</span>
               {dbRates.hasData ? (
                 <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">Conectado</Badge>
               ) : (
-                <Badge variant="outline" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20">Sin Historial (Benchmarks)</Badge>
+                <Badge variant="outline" className="bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/35 font-semibold">Sin Historial (Benchmarks)</Badge>
               )}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -203,7 +203,7 @@ export const ProspectFunnelCalculator = () => {
                 { key: "showRate" as const, label: "Tasa de Asistencia (Show Rate)", desc: "Reuniones realizadas / reuniones agendadas", min: benchmarks.realizadasAgendadas.min, max: benchmarks.realizadasAgendadas.max, bench: benchmarks.realizadasAgendadas },
                 { key: "closeRate" as const, label: "Tasa de Cierre", desc: "Ventas cerradas / reuniones realizadas", min: benchmarks.ventasRealizadas.min, max: benchmarks.ventasRealizadas.max, bench: benchmarks.ventasRealizadas },
               ].map(({ key, label, desc, min, max, bench }) => (
-                <div key={key} className="space-y-2 p-3 bg-muted/30 rounded-lg border border-border/50">
+                <div key={key} className="space-y-2 p-3 bg-blue-50/30 dark:bg-blue-950/10 rounded-lg border border-blue-100/40 dark:border-blue-900/20">
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-1.5">
                       <Label className="text-xs font-medium">{label}</Label>
@@ -261,7 +261,7 @@ export const ProspectFunnelCalculator = () => {
                 2. Actividad Requerida (Predicción)
               </h3>
               
-              <div className="space-y-4 bg-muted/20 p-4 rounded-xl border border-border">
+              <div className="space-y-4 bg-blue-50/20 dark:bg-blue-950/5 p-4 rounded-xl border border-blue-100/30 dark:border-blue-900/10">
                 {[
                   { label: "Invitaciones a Enviar", val: projections.prospectos, color: FUNNEL_COLORS.prospectos, desc: "Invitaciones totales a mandar" },
                   { label: "Contactos Aceptados", val: projections.conectados, color: FUNNEL_COLORS.conectados, desc: "Contactos que aceptarán conectar", pct: rates.connectRate },

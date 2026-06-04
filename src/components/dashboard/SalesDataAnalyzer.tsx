@@ -271,7 +271,7 @@ export const SalesDataAnalyzer = () => {
               variant="outline" 
               className={
                 isSimulationMode 
-                  ? "bg-amber-500/10 text-amber-500 border-amber-500/20" 
+                  ? "bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/35 font-semibold" 
                   : dbData.hasData 
                     ? "bg-green-500/10 text-green-500 border-green-500/20" 
                     : "bg-indigo-500/10 text-indigo-500 border-indigo-500/20"
@@ -357,7 +357,7 @@ export const SalesDataAnalyzer = () => {
                 </li>
               </ul>
 
-              <div className="p-3.5 bg-muted/40 rounded-xl border border-border/50 text-xs leading-relaxed text-muted-foreground mt-2">
+              <div className="p-3.5 bg-indigo-50/20 dark:bg-indigo-950/5 rounded-xl border border-indigo-100/30 dark:border-indigo-900/10 text-xs leading-relaxed text-muted-foreground mt-2">
                 <span className="font-bold text-foreground block mb-1">Análisis general:</span>
                 {formatText(report.generalAnalysis)}
               </div>

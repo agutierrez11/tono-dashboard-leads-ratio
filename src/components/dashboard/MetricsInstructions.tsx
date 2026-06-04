@@ -48,7 +48,7 @@ export const MetricsInstructions = ({ className }: MetricsInstructionsProps) => 
                 </p>
                 <ul className="list-disc list-inside space-y-1 ml-2">
                   <li><span className="text-green-500">Alta ({">"} 25%)</span>: Excelente rendimiento del canal</li>
-                  <li><span className="text-yellow-500">Media (10-25%)</span>: Rendimiento aceptable</li>
+                  <li><span className="text-amber-600 dark:text-amber-400 font-semibold">Media (10-25%)</span>: Rendimiento aceptable</li>
                   <li><span className="text-red-500">Baja ({"<"} 10%)</span>: Revisar estrategia del canal</li>
                 </ul>
                 <div className="bg-muted p-3 rounded-lg mt-3">
@@ -83,7 +83,7 @@ export const MetricsInstructions = ({ className }: MetricsInstructionsProps) => 
                 </p>
                 <ul className="list-disc list-inside space-y-1 ml-2">
                   <li><span className="text-green-500">Corto ({"<"} 15 días)</span>: Proceso de venta ágil</li>
-                  <li><span className="text-yellow-500">Medio (15-30 días)</span>: Tiempo normal para B2B</li>
+                  <li><span className="text-amber-600 dark:text-amber-400 font-semibold">Medio (15-30 días)</span>: Tiempo normal para B2B</li>
                   <li><span className="text-red-500">Largo ({">"} 30 días)</span>: Considerar optimizar proceso</li>
                 </ul>
                 <div className="bg-muted p-3 rounded-lg mt-3">

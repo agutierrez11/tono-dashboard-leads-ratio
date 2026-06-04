@@ -79,8 +79,8 @@ export const TimeBlockingStrategy: React.FC = () => {
         activity: "Seguimiento por Email",
         category: "emails",
         priority: "medium",
-        icon: <Mail className="w-4 h-4 text-yellow-500" />,
-        color: "bg-yellow-500/10 border-yellow-500/30",
+        icon: <Mail className="w-4 h-4 text-amber-500" />,
+        color: "bg-amber-500/10 border-amber-500/30",
         notes: "Envía correos personalizados a quienes no te contestaron la llamada.",
       });
     } else if (dayIndex === 1 || dayIndex === 4) {
@@ -101,8 +101,8 @@ export const TimeBlockingStrategy: React.FC = () => {
         activity: "Campaña de Email Outreach",
         category: "emails",
         priority: needsEmails ? "high" : "medium",
-        icon: <Mail className="w-4 h-4 text-yellow-500" />,
-        color: "bg-yellow-500/10 border-yellow-500/30",
+        icon: <Mail className="w-4 h-4 text-amber-500" />,
+        color: "bg-amber-500/10 border-amber-500/30",
         notes: "Envía 30 correos personalizados o secuencias automáticas.",
       });
       blocks.push({
@@ -372,7 +372,7 @@ export const TimeBlockingStrategy: React.FC = () => {
     switch (category) {
       case "prospecting": return "bg-orange-500/20 text-orange-700 border-orange-500/30";
       case "calls": return "bg-[#3b82f6]/20 text-blue-700 border-blue-500/30";
-      case "emails": return "bg-[#eab308]/20 text-yellow-700 border-yellow-500/30";
+      case "emails": return "bg-amber-100/50 text-amber-800 border-amber-300 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/35";
       case "meetings": return "bg-[#22c55e]/20 text-green-700 border-green-500/30";
       case "admin": return "bg-purple-500/20 text-purple-700 border-purple-500/30";
       case "break": return "bg-pink-500/10 text-pink-700 border-pink-500/20";

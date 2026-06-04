@@ -188,14 +188,14 @@ export const SalesCalculator = () => {
     <TooltipProvider>
       <div className="space-y-6 pt-4">
         {/* Toggle Real Data vs Simulation */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-muted/40 p-4 rounded-xl border border-border">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-indigo-50/40 dark:bg-indigo-950/15 p-4 rounded-xl border border-indigo-100/80 dark:border-indigo-900/30">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold">Usar Desempeño Real (Supabase)</span>
               {dbValues ? (
                 <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">Conectado</Badge>
               ) : (
-                <Badge variant="outline" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20">Sin Historial (Benchmarks)</Badge>
+                <Badge variant="outline" className="bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/35 font-semibold">Sin Historial (Benchmarks)</Badge>
               )}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -204,6 +204,7 @@ export const SalesCalculator = () => {
                 : "Modo Simulación activo. Estás prediciendo escenarios hipotéticos."}
             </p>
           </div>
+
           <div className="flex items-center gap-3">
             {!useRealData && dbValues && (
               <Button 
@@ -265,7 +266,7 @@ export const SalesCalculator = () => {
                 { key: "reunionOportunidad" as const, label: "Tasa de Oportunidades", desc: "% de reuniones que pasan a propuesta", min: benchmarks.reunionOportunidad.min, max: benchmarks.reunionOportunidad.max },
                 { key: "oportunidadCierre" as const, label: "Tasa de Cierre (AE)", desc: "% de propuestas enviadas que se firman", min: benchmarks.oportunidadCierre.min, max: benchmarks.oportunidadCierre.max },
               ].map(({ key, label, desc, min, max }) => (
-                <div key={key} className="space-y-2 p-3 bg-muted/30 rounded-lg border border-border/50">
+                <div key={key} className="space-y-2 p-3 bg-indigo-50/30 dark:bg-indigo-950/10 rounded-lg border border-indigo-100/40 dark:border-indigo-900/20">
                   <div className="flex justify-between items-center">
                     <div className="space-y-0.5">
                       <div className="flex items-center gap-1.5">
@@ -325,7 +326,7 @@ export const SalesCalculator = () => {
               </h3>
               
               {/* Funnel Progress Bars */}
-              <div className="space-y-4 bg-muted/20 p-4 rounded-xl border border-border">
+              <div className="space-y-4 bg-indigo-50/20 dark:bg-indigo-950/5 p-4 rounded-xl border border-indigo-100/30 dark:border-indigo-900/10">
                 {[
                   { label: "Leads Totales", val: results.leads, color: FUNNEL_COLORS.leads, desc: "Leads iniciales requeridos" },
                   { label: "Reuniones Agendadas", val: results.reunionesAgendadas, color: FUNNEL_COLORS.reunionesAgendadas, desc: "Reuniones que debes agendar", pct: inputs.leadContacto * inputs.contactoReunion / 100 },
@@ -382,7 +383,8 @@ export const SalesCalculator = () => {
             </div>
 
             {/* Pacing Operational Block */}
-            <div className="bg-muted/30 border border-border rounded-xl p-4 space-y-3">
+            <div className="bg-indigo-50/40 dark:bg-indigo-950/15 border border-indigo-100/60 dark:border-indigo-900/20 rounded-xl p-4 space-y-3">
+
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-primary" />
                 <span className="text-xs font-bold uppercase tracking-wider">Ritmo de Actividad Sugerido (Pacing)</span>
