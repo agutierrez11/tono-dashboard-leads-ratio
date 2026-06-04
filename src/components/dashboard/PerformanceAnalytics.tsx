@@ -15,7 +15,7 @@ import {
   Line,
   Legend,
 } from "recharts";
-import { AlertCircle, TrendingUp, Target, Zap } from "lucide-react";
+import { AlertCircle, TrendingUp, Target, Zap, CalendarRange } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PacingAdvisor } from "./PacingAdvisor";
 import { WeeklyPerformanceTimeline } from "./WeeklyPerformanceTimeline";
@@ -71,6 +71,93 @@ export const PerformanceAnalytics = () => {
     <div className="space-y-6">
       {/* Pacing Advisor at the top */}
       <PacingAdvisor />
+
+      {/* Month-over-Month (MoM) Performance Comparison */}
+      <Card className="glass-card border-primary/20 bg-gradient-to-br from-card to-primary/5">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-lg font-bold tracking-tight">
+            <CalendarRange className="h-5 w-5 text-primary" />
+            Comparativa Mensual (Mes Actual vs. Mes Anterior)
+          </CardTitle>
+          <CardDescription>
+            Comparación de actividad, reuniones, ventas e ingresos del mes en curso vs el mes previo
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              {
+                title: "Esfuerzo Prospección",
+                current: metrics.mom.currentMonth.effort,
+                prev: metrics.mom.prevMonth.effort,
+                delta: metrics.mom.deltas.effort,
+                desc: "Llamadas + emails + LinkedIn",
+                formatVal: (v: number) => v.toString(),
+              },
+              {
+                title: "Reuniones Agendadas",
+                current: metrics.mom.currentMonth.meetings,
+                prev: metrics.mom.prevMonth.meetings,
+                delta: metrics.mom.deltas.meetings,
+                desc: "Reuniones registradas",
+                formatVal: (v: number) => v.toString(),
+              },
+              {
+                title: "Ventas Cerradas",
+                current: metrics.mom.currentMonth.sales,
+                prev: metrics.mom.prevMonth.sales,
+                delta: metrics.mom.deltas.sales,
+                desc: "Cierres totales",
+                formatVal: (v: number) => v.toString(),
+              },
+              {
+                title: "Ingresos Generados",
+                current: metrics.mom.currentMonth.revenue,
+                prev: metrics.mom.prevMonth.revenue,
+                delta: metrics.mom.deltas.revenue,
+                desc: "Suma de ventas",
+                formatVal: (v: number) => `$${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`,
+              },
+            ].map((item) => {
+              const isPositive = item.delta > 0;
+              const isZero = item.delta === 0;
+              
+              return (
+                <div
+                  key={item.title}
+                  className="p-4 rounded-xl border border-border bg-card/40 hover:bg-muted/30 transition-all duration-300 shadow-sm flex flex-col justify-between"
+                >
+                  <div>
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
+                      {item.title}
+                    </span>
+                    <div className="flex items-baseline gap-2 mt-2">
+                      <span className="text-2xl font-bold text-foreground">
+                        {item.formatVal(item.current)}
+                      </span>
+                      <Badge
+                        variant={isZero ? "secondary" : isPositive ? "default" : "destructive"}
+                        className={cn(
+                          "text-xs flex items-center gap-0.5 font-bold",
+                          isPositive && "bg-green-500/20 text-green-500 hover:bg-green-500/30 border-green-500/30",
+                          !isPositive && !isZero && "bg-red-500/20 text-red-500 hover:bg-red-500/30 border-red-500/30",
+                          isZero && "bg-muted text-muted-foreground"
+                        )}
+                      >
+                        {isZero ? "" : isPositive ? "+" : ""}{item.delta}%
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-border/30 flex justify-between items-center text-xs text-muted-foreground">
+                    <span>Mes ant: {item.formatVal(item.prev)}</span>
+                    <span className="text-[10px] text-muted-foreground/60 italic">{item.desc}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Embudo de Ventas Principal */}
       <Card className="glass-card">

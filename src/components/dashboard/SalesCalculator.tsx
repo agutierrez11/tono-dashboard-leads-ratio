@@ -1,6 +1,3 @@
-import { useState, useEffect } from "react";
-import { useSalesFunnelMetrics } from "@/hooks/useSalesFunnelMetrics";
-import { useSavedScenarios } from "@/hooks/useSavedScenarios";
 import { Target, TrendingUp, Calendar, Info, RefreshCw, Save } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,175 +11,29 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-
-interface CalculatorInputs {
-  metaCierres: number;
-  ticketPromedio: number;
-  leadContacto: number;         // % Lead a Contacto Calificado (SDR)
-  contactoReunion: number;      // % Contacto Calificado a Reunión Agendada
-  reunionAsistencia: number;    // % Show Rate (Tasa de Asistencia)
-  reunionOportunidad: number;   // % Reunión Realizada a Oportunidad
-  oportunidadCierre: number;    // % Oportunidad a Cierre (AE)
-}
-
-interface CalculatorResults {
-  cierres: number;
-  oportunidades: number;
-  reuniones: number; // Reuniones Realizadas (attended)
-  reunionesAgendadas: number; // Reuniones Agendadas (scheduled)
-  leads: number;
-  ingresos: number;
-  conversionTotal: number;
-}
-
-const benchmarks = {
-  leadContacto: { min: 30, max: 60, avg: 35 },
-  contactoReunion: { min: 20, max: 40, avg: 30 },
-  reunionAsistencia: { min: 60, max: 80, avg: 75 },
-  reunionOportunidad: { min: 25, max: 50, avg: 40 },
-  oportunidadCierre: { min: 20, max: 30, avg: 25 },
-};
+import { useSalesCalculator, benchmarks, CalculatorInputs } from "@/hooks/useSalesCalculator";
 
 const FUNNEL_COLORS = {
-  leads: "bg-[#475569]", // Slate 600
-  reunionesAgendadas: "bg-[#eab308]", // Yellow 500
-  reunionesRealizadas: "bg-[#a855f7]", // Purple 500
-  oportunidades: "bg-[#3b82f6]", // Blue 500
-  cierres: "bg-[#22c55e]", // Green 500
+  leads: "bg-slate-600 dark:bg-slate-500",
+  reunionesAgendadas: "bg-yellow-500",
+  reunionesRealizadas: "bg-purple-500",
+  oportunidades: "bg-blue-500",
+  cierres: "bg-green-500",
 };
 
 export const SalesCalculator = () => {
-  const { metrics, isLoading } = useSalesFunnelMetrics(0); // All time metrics for baseline
-  const { saveScenario } = useSavedScenarios();
-
-  const [useRealData, setUseRealData] = useState(true);
-  const [scenarioName, setScenarioName] = useState("");
-  
-  const [inputs, setInputs] = useState<CalculatorInputs>({
-    metaCierres: 10,
-    ticketPromedio: 15000,
-    leadContacto: benchmarks.leadContacto.avg,
-    contactoReunion: benchmarks.contactoReunion.avg,
-    reunionAsistencia: benchmarks.reunionAsistencia.avg,
-    reunionOportunidad: benchmarks.reunionOportunidad.avg,
-    oportunidadCierre: benchmarks.oportunidadCierre.avg,
-  });
-
-  const [results, setResults] = useState<CalculatorResults>({
-    cierres: 0,
-    oportunidades: 0,
-    reuniones: 0,
-    reunionesAgendadas: 0,
-    leads: 0,
-    ingresos: 0,
-    conversionTotal: 0,
-  });
-
-  // Extract database values if available
-  const dbValues = useMemo(() => {
-    if (!metrics || isLoading || metrics.totalLeads === 0) return null;
-    
-    // Map funnel stages to rates
-    // stage 0 = Total, stage 1 = Contacted, stage 2 = Relevant, stage 3 = Opps, stage 4 = Won
-    const leadContacto = metrics.stages[1]?.conversionFromPrevious || benchmarks.leadContacto.avg;
-    const contactoReunion = metrics.stages[2]?.conversionFromPrevious || benchmarks.contactoReunion.avg;
-    const reunionAsistencia = benchmarks.reunionAsistencia.avg; // No direct mapping, keep default
-    const reunionOportunidad = metrics.stages[3]?.conversionFromPrevious || benchmarks.reunionOportunidad.avg;
-    const oportunidadCierre = metrics.stages[4]?.conversionFromPrevious || benchmarks.oportunidadCierre.avg;
-    
-    // Average ticket
-    const ticketPromedio = metrics.stages[4]?.count > 0 ? (metrics.weeklySummaries.reduce((sum, w) => sum + w.revenue, 0) / (metrics.stages[4].count || 1)) : 15000;
-
-    return {
-      leadContacto: Math.round(leadContacto),
-      contactoReunion: Math.round(contactoReunion),
-      reunionAsistencia: Math.round(reunionAsistencia),
-      reunionOportunidad: Math.round(reunionOportunidad),
-      oportunidadCierre: Math.round(oportunidadCierre),
-      ticketPromedio: Math.round(ticketPromedio > 0 ? ticketPromedio : 15000)
-    };
-  }, [metrics, isLoading]);
-
-  // Load database values if "useRealData" is active
-  useEffect(() => {
-    if (useRealData && dbValues) {
-      setInputs((prev) => ({
-        ...prev,
-        leadContacto: dbValues.leadContacto,
-        contactoReunion: dbValues.contactoReunion,
-        reunionAsistencia: dbValues.reunionAsistencia,
-        reunionOportunidad: dbValues.reunionOportunidad,
-        oportunidadCierre: dbValues.oportunidadCierre,
-        ticketPromedio: dbValues.ticketPromedio,
-      }));
-    }
-  }, [useRealData, dbValues]);
-
-  // Calculate results on input change
-  useEffect(() => {
-    const {
-      metaCierres,
-      ticketPromedio,
-      leadContacto,
-      contactoReunion,
-      reunionAsistencia,
-      reunionOportunidad,
-      oportunidadCierre,
-    } = inputs;
-
-    if (
-      oportunidadCierre <= 0 ||
-      reunionOportunidad <= 0 ||
-      reunionAsistencia <= 0 ||
-      contactoReunion <= 0 ||
-      leadContacto <= 0
-    ) {
-      return;
-    }
-
-    // Reverse funnel calculations: from closures to initial leads
-    const oportunidades = Math.ceil(metaCierres / (oportunidadCierre / 100));
-    const reuniones = Math.ceil(oportunidades / (reunionOportunidad / 100)); // Attended
-    const reunionesAgendadas = Math.ceil(reuniones / (reunionAsistencia / 100)); // Scheduled
-    const leadReunionRate = (leadContacto / 100) * (contactoReunion / 100);
-    const leads = Math.ceil(reunionesAgendadas / (leadReunionRate || 0.1));
-    const ingresos = metaCierres * ticketPromedio;
-    const conversionTotal = leads > 0 ? (metaCierres / leads) * 100 : 0;
-
-    setResults({
-      cierres: metaCierres,
-      oportunidades,
-      reuniones,
-      reunionesAgendadas,
-      leads,
-      ingresos,
-      conversionTotal,
-    });
-  }, [inputs]);
-
-  const handleSliderChange = (key: keyof CalculatorInputs, val: number) => {
-    setUseRealData(false); // Switch to simulation mode if they drag sliders
-    setInputs((prev) => ({ ...prev, [key]: val }));
-  };
-
-  const handleMetaChange = (key: "metaCierres" | "ticketPromedio", val: number) => {
-    setInputs((prev) => ({ ...prev, [key]: val }));
-  };
-
-  const handleSave = () => {
-    if (!scenarioName.trim()) {
-      toast.error("Ingresa un nombre para el escenario");
-      return;
-    }
-    saveScenario(scenarioName, "sales", inputs);
-    setScenarioName("");
-  };
-
-  const getPacingClass = (val: number, benchmark: { min: number; max: number }) => {
-    if (val < benchmark.min) return "text-red-500 font-semibold";
-    if (val > benchmark.max) return "text-green-500 font-semibold";
-    return "text-foreground";
-  };
+  const {
+    useRealData,
+    setUseRealData,
+    scenarioName,
+    setScenarioName,
+    inputs,
+    results,
+    dbValues,
+    handleSliderChange,
+    handleMetaChange,
+    handleSave,
+  } = useSalesCalculator();
 
   return (
     <TooltipProvider>
@@ -193,7 +44,7 @@ export const SalesCalculator = () => {
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold">Usar Desempeño Real (Supabase)</span>
               {dbValues ? (
-                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">Conectado</Badge>
+                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 font-bold">Conectado</Badge>
               ) : (
                 <Badge variant="outline" className="bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/35 font-semibold">Sin Historial (Benchmarks)</Badge>
               )}
@@ -211,9 +62,9 @@ export const SalesCalculator = () => {
                 variant="outline" 
                 size="sm" 
                 onClick={() => setUseRealData(true)}
-                className="h-8 gap-1.5"
+                className="h-8 gap-1.5 hover:bg-accent transition-colors"
               >
-                <RefreshCw className="h-3.5 w-3.5" />
+                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
                 Restablecer Real
               </Button>
             )}
@@ -260,13 +111,13 @@ export const SalesCalculator = () => {
               <h3 className="text-xs font-semibold text-muted-foreground">Conversiones del Embudo</h3>
               
               {[
-                { key: "leadContacto" as const, label: "Tasa de Contacto Calificado (SDR)", desc: "% de leads que logras calificar inicialmente", min: benchmarks.leadContacto.min, max: benchmarks.leadContacto.max },
-                { key: "contactoReunion" as const, label: "Tasa de Agendamiento", desc: "% de contactos calificados que agendan reunión", min: benchmarks.contactoReunion.min, max: benchmarks.contactoReunion.max },
-                { key: "reunionAsistencia" as const, label: "Tasa de Asistencia (Show Rate)", desc: "% de reuniones agendadas que se realizan", min: benchmarks.reunionAsistencia.min, max: benchmarks.reunionAsistencia.max },
-                { key: "reunionOportunidad" as const, label: "Tasa de Oportunidades", desc: "% de reuniones que pasan a propuesta", min: benchmarks.reunionOportunidad.min, max: benchmarks.reunionOportunidad.max },
-                { key: "oportunidadCierre" as const, label: "Tasa de Cierre (AE)", desc: "% de propuestas enviadas que se firman", min: benchmarks.oportunidadCierre.min, max: benchmarks.oportunidadCierre.max },
+                { key: "leadContacto" as keyof CalculatorInputs, label: "Tasa de Contacto Calificado (SDR)", desc: "% de leads que logras calificar inicialmente", min: benchmarks.leadContacto.min, max: benchmarks.leadContacto.max },
+                { key: "contactoReunion" as keyof CalculatorInputs, label: "Tasa de Agendamiento", desc: "% de contactos calificados que agendan reunión", min: benchmarks.contactoReunion.min, max: benchmarks.contactoReunion.max },
+                { key: "reunionAsistencia" as keyof CalculatorInputs, label: "Tasa de Asistencia (Show Rate)", desc: "% de reuniones agendadas que se realizan", min: benchmarks.reunionAsistencia.min, max: benchmarks.reunionAsistencia.max },
+                { key: "reunionOportunidad" as keyof CalculatorInputs, label: "Tasa de Oportunidades", desc: "% de reuniones que pasan a propuesta", min: benchmarks.reunionOportunidad.min, max: benchmarks.reunionOportunidad.max },
+                { key: "oportunidadCierre" as keyof CalculatorInputs, label: "Tasa de Cierre (AE)", desc: "% de propuestas enviadas que se firman", min: benchmarks.oportunidadCierre.min, max: benchmarks.oportunidadCierre.max },
               ].map(({ key, label, desc, min, max }) => (
-                <div key={key} className="space-y-2 p-3 bg-indigo-50/30 dark:bg-indigo-950/10 rounded-lg border border-indigo-100/40 dark:border-indigo-900/20">
+                <div key={key} className="space-y-2 p-3 bg-muted/20 rounded-xl border border-border">
                   <div className="flex justify-between items-center">
                     <div className="space-y-0.5">
                       <div className="flex items-center gap-1.5">
@@ -275,22 +126,22 @@ export const SalesCalculator = () => {
                           <TooltipTrigger asChild>
                             <Info className="h-3 w-3 text-muted-foreground cursor-pointer" />
                           </TooltipTrigger>
-                          <TooltipContent className="max-w-xs p-2">
+                          <TooltipContent className="max-w-xs p-2 bg-popover text-popover-foreground border shadow-xl">
                             <p className="text-xs">{desc}</p>
-                            <p className="text-[10px] text-muted-foreground mt-1">Benchmark SaaS: {min}% - {max}%</p>
+                            <p className="text-[10px] text-muted-foreground mt-1">Benchmark B2B: {min}% - {max}%</p>
                           </TooltipContent>
                         </Tooltip>
                       </div>
                     </div>
-                    <Badge variant="secondary" className="font-semibold text-xs">
+                    <Badge variant="secondary" className="font-bold text-xs">
                       {inputs[key]}%
                     </Badge>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-[10px] text-muted-foreground w-6">{min}%</span>
+                    <span className="text-[10px] text-muted-foreground w-6 text-right">{min}%</span>
                     <Slider
                       value={[inputs[key]]}
-                      onValueChange={([val]) => handleSliderChange(key, val)}
+                      onValueChange={([val]) => handleSliderChange(key, val ?? 0)}
                       min={1}
                       max={100}
                       step={1}
@@ -326,10 +177,10 @@ export const SalesCalculator = () => {
               </h3>
               
               {/* Funnel Progress Bars */}
-              <div className="space-y-4 bg-indigo-50/20 dark:bg-indigo-950/5 p-4 rounded-xl border border-indigo-100/30 dark:border-indigo-900/10">
+              <div className="space-y-4 bg-muted/10 p-4 rounded-xl border border-border">
                 {[
                   { label: "Leads Totales", val: results.leads, color: FUNNEL_COLORS.leads, desc: "Leads iniciales requeridos" },
-                  { label: "Reuniones Agendadas", val: results.reunionesAgendadas, color: FUNNEL_COLORS.reunionesAgendadas, desc: "Reuniones que debes agendar", pct: inputs.leadContacto * inputs.contactoReunion / 100 },
+                  { label: "Reuniones Agendadas", val: results.reunionesAgendadas, color: FUNNEL_COLORS.reunionesAgendadas, desc: "Reuniones que debes agendar", pct: (inputs.leadContacto * inputs.contactoReunion) / 100 },
                   { label: "Reuniones Realizadas", val: results.reuniones, color: FUNNEL_COLORS.reunionesRealizadas, desc: "Reuniones que deben asistir", pct: inputs.reunionAsistencia },
                   { label: "Oportunidades", val: results.oportunidades, color: FUNNEL_COLORS.oportunidades, desc: "Propuestas a enviar", pct: inputs.reunionOportunidad },
                   { label: "Cierres (Ventas)", val: results.cierres, color: FUNNEL_COLORS.cierres, desc: "Ventas ganadas logradas", pct: inputs.oportunidadCierre },
@@ -341,7 +192,7 @@ export const SalesCalculator = () => {
                         <span className="font-semibold text-foreground">{stage.label}</span>
                         <div className="flex items-center gap-1.5">
                           {stage.pct !== undefined && (
-                            <span className="text-[10px] bg-primary/10 text-primary px-1 rounded">
+                            <span className="text-[10px] bg-primary/10 text-primary px-1 rounded font-bold">
                               {stage.pct.toFixed(0)}%
                             </span>
                           )}
@@ -362,7 +213,7 @@ export const SalesCalculator = () => {
             </div>
 
             {/* Income Projections Summary */}
-            <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-3">
+            <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-3 shadow-sm">
               <div className="flex justify-between items-center border-b border-border/50 pb-2">
                 <div>
                   <p className="text-[10px] text-muted-foreground uppercase">Proyección de Ingresos</p>
@@ -383,8 +234,7 @@ export const SalesCalculator = () => {
             </div>
 
             {/* Pacing Operational Block */}
-            <div className="bg-indigo-50/40 dark:bg-indigo-950/15 border border-indigo-100/60 dark:border-indigo-900/20 rounded-xl p-4 space-y-3">
-
+            <div className="bg-indigo-50/40 dark:bg-indigo-950/15 border border-indigo-100/60 dark:border-indigo-900/20 rounded-xl p-4 space-y-3 shadow-sm">
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-primary" />
                 <span className="text-xs font-bold uppercase tracking-wider">Ritmo de Actividad Sugerido (Pacing)</span>
@@ -404,14 +254,14 @@ export const SalesCalculator = () => {
                   <p className="text-[9px] text-muted-foreground mb-0.5">Reuniones Agendadas</p>
                   <p className="text-sm font-bold text-foreground">
                     {(results.reunionesAgendadas / 4).toFixed(1)}
-                    <span className="text-[9px] text-muted-foreground font-normal block">/semana</span>
+                    <span className="text-[9px] text-muted-foreground font-normal block">/sem</span>
                   </p>
                 </div>
                 <div className="bg-background rounded p-2 text-center border border-border/40">
                   <p className="text-[9px] text-muted-foreground mb-0.5">Reuniones Realizadas</p>
                   <p className="text-sm font-bold text-foreground">
                     {(results.reuniones / 4).toFixed(1)}
-                    <span className="text-[9px] text-muted-foreground font-normal block">/semana</span>
+                    <span className="text-[9px] text-muted-foreground font-normal block">/sem</span>
                   </p>
                 </div>
               </div>
@@ -422,6 +272,3 @@ export const SalesCalculator = () => {
     </TooltipProvider>
   );
 };
-
-// Helper hook
-import { useMemo } from "react";

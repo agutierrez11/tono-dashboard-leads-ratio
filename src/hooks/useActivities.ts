@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { SOLO_USER_ID } from "@/lib/soloUser";
 import { toast } from "sonner";
 
 export interface DailyActivity {
@@ -11,6 +10,9 @@ export interface DailyActivity {
   calls_connected: number;
   emails_sent: number;
   linkedin_contacts: number;
+  meetings_booked: number;
+  sales_won: number;
+  revenue_won: number;
   created_at: string;
   updated_at: string;
 }
@@ -59,10 +61,12 @@ export const useIncrementActivity = () => {
     mutationFn: async ({ 
       activityType 
     }: { 
-      activityType: "calls_made" | "calls_connected" | "emails_sent" | "linkedin_contacts" 
+      activityType: "calls_made" | "calls_connected" | "emails_sent" | "linkedin_contacts" | "meetings_booked" | "sales_won"
     }) => {
       const today = new Date().toISOString().split("T")[0];
-      const userId = SOLO_USER_ID;
+      const { data: { user } } = await supabase.auth.getUser();
+      const userId = user?.id;
+      if (!userId) throw new Error("No authenticated user");
 
       // First, try to get existing record for today
       const { data: existing } = await supabase
@@ -91,6 +95,9 @@ export const useIncrementActivity = () => {
           calls_connected: 0,
           emails_sent: 0,
           linkedin_contacts: 0,
+          meetings_booked: 0,
+          sales_won: 0,
+          revenue_won: 0,
           [activityType]: 1,
         };
 
@@ -109,6 +116,74 @@ export const useIncrementActivity = () => {
     },
     onError: (error) => {
       toast.error("Error al registrar actividad: " + error.message);
+    },
+  });
+};
+
+export const useUpdateActivityValue = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      activityType,
+      value,
+    }: {
+      activityType: "calls_made" | "calls_connected" | "emails_sent" | "linkedin_contacts" | "meetings_booked" | "sales_won" | "revenue_won";
+      value: number;
+    }) => {
+      const today = new Date().toISOString().split("T")[0];
+      const { data: { user } } = await supabase.auth.getUser();
+      const userId = user?.id;
+      if (!userId) throw new Error("No authenticated user");
+
+      // First, try to get existing record for today
+      const { data: existing } = await supabase
+        .from("daily_activities")
+        .select("*")
+        .eq("activity_date", today)
+        .maybeSingle();
+
+      if (existing) {
+        // Update existing record
+        const { data, error } = await supabase
+          .from("daily_activities")
+          .update({ [activityType]: value })
+          .eq("id", existing.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        return data;
+      } else {
+        // Create new record for today
+        const newRecord = {
+          user_id: userId,
+          activity_date: today,
+          calls_made: 0,
+          calls_connected: 0,
+          emails_sent: 0,
+          linkedin_contacts: 0,
+          meetings_booked: 0,
+          sales_won: 0,
+          revenue_won: 0,
+          [activityType]: value,
+        };
+
+        const { data, error } = await supabase
+          .from("daily_activities")
+          .insert(newRecord)
+          .select()
+          .single();
+
+        if (error) throw error;
+        return data;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["daily-activities"] });
+    },
+    onError: (error) => {
+      toast.error("Error al actualizar métrica: " + error.message);
     },
   });
 };

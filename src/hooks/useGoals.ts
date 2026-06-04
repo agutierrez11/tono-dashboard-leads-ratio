@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { SOLO_USER_ID } from "@/lib/soloUser";
 import { toast } from "sonner";
 
 export interface ChannelGoal {
@@ -43,7 +42,9 @@ export const useSetMonthlyGoal = () => {
 
   return useMutation({
     mutationFn: async ({ targetValue }: { targetValue: number }) => {
-      const userId = SOLO_USER_ID;
+      const { data: { user } } = await supabase.auth.getUser();
+      const userId = user?.id;
+      if (!userId) throw new Error("No authenticated user");
 
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];

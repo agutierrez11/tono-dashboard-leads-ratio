@@ -1,19 +1,35 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { User, Session } from "@supabase/supabase-js";
+import { User } from "@supabase/supabase-js";
 
 export const useAuth = () => {
-  const user = {
-    id: "00000000-0000-0000-0000-000000000001",
-    email: "solo@dashboard.com",
-  } as any;
-  
-  const session = { user } as any;
-  const loading = false;
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Check initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const signOut = async () => {
-    // No-op since login is disabled
+    await supabase.auth.signOut();
   };
 
-  return { user, session, loading, signOut };
+  return { 
+    user, 
+    session: user ? { user } : null, 
+    loading, 
+    signOut 
+  };
 };

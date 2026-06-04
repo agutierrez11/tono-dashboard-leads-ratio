@@ -1,8 +1,31 @@
 import { useMemo } from "react";
 import { useLeads, DatabaseLead } from "./useLeads";
 import { useRecentActivities } from "./useActivities";
-import { startOfWeek, endOfWeek, subWeeks, format, isWithinInterval } from "date-fns";
+import { startOfWeek, endOfWeek, subWeeks, format, isWithinInterval, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { es } from "date-fns/locale";
+
+export interface ProjectionRates {
+  contactedRate: number;
+  relevantRate: number;
+  opportunityRate: number;
+  customerRate: number;
+}
+
+export function computeProjections({
+  contactedRate,
+  relevantRate,
+  opportunityRate,
+  customerRate,
+}: ProjectionRates) {
+  const rate = (n: number) => n / 100;
+  return {
+    if100Contacts: 100,
+    if100Contacted: Math.round(rate(contactedRate) * 100),
+    if100Relevant: Math.round(rate(contactedRate) * rate(relevantRate) * 100),
+    if100Opportunities: Math.round(rate(contactedRate) * rate(relevantRate) * rate(opportunityRate) * 100),
+    if100Customers: Math.round(rate(contactedRate) * rate(relevantRate) * rate(opportunityRate) * rate(customerRate) * 100),
+  };
+}
 
 export interface FunnelStage {
   name: string;
@@ -40,6 +63,27 @@ export interface ChannelROI {
   bestChannel: "linkedin" | "phone" | "email";
 }
 
+export interface MoMMetrics {
+  currentMonth: {
+    effort: number;
+    meetings: number;
+    sales: number;
+    revenue: number;
+  };
+  prevMonth: {
+    effort: number;
+    meetings: number;
+    sales: number;
+    revenue: number;
+  };
+  deltas: {
+    effort: number;
+    meetings: number;
+    sales: number;
+    revenue: number;
+  };
+}
+
 export interface FunnelMetrics {
   stages: FunnelStage[];
   totalLeads: number;
@@ -54,9 +98,11 @@ export interface FunnelMetrics {
     if100Contacted: number;
     if100Relevant: number;
     if100Opportunities: number;
+    if100Customers: number;
   };
   weeklySummaries: WeeklySummary[];
   roi: ChannelROI;
+  mom: MoMMetrics;
 }
 
 export const useSalesFunnelMetrics = (daysRange: number = 30) => {
@@ -81,9 +127,15 @@ export const useSalesFunnelMetrics = (daysRange: number = 30) => {
           if100Contacted: 0,
           if100Relevant: 0,
           if100Opportunities: 0,
+          if100Customers: 0,
         },
         weeklySummaries: [],
         roi: { phone: 0, email: 0, linkedin: 0, bestChannel: "linkedin" },
+        mom: {
+          currentMonth: { effort: 0, meetings: 0, sales: 0, revenue: 0 },
+          prevMonth: { effort: 0, meetings: 0, sales: 0, revenue: 0 },
+          deltas: { effort: 0, meetings: 0, sales: 0, revenue: 0 }
+        }
       };
     }
 
@@ -98,18 +150,31 @@ export const useSalesFunnelMetrics = (daysRange: number = 30) => {
       ? leads.filter(l => new Date(l.created_at) >= cutoffDate)
       : leads;
 
-    // Embudo de ventas estándar (usando datos del periodo seleccionado)
-    const totalContacts = filteredLeads.length;
+    // Embudo de ventas estándar (usando datos del periodo seleccionado + fallback de actividades diarias)
+    const totalCalls = activities.reduce((sum, act) => sum + act.calls_made, 0);
+    const totalEmails = activities.reduce((sum, act) => sum + act.emails_sent, 0);
+    const totalLinkedin = activities.reduce((sum, act) => sum + act.linkedin_contacts, 0);
+    const activityTotalEffort = totalCalls + totalEmails + totalLinkedin;
+
+    const totalContacts = Math.max(filteredLeads.length, activityTotalEffort);
+
+    const activityMeetings = activities.reduce((sum, act) => sum + (act.meetings_booked || 0), 0);
+    const activitySales = activities.reduce((sum, act) => sum + (act.sales_won || 0), 0);
+    const activityRevenue = activities.reduce((sum, act) => sum + (act.revenue_won || 0), 0);
+
     const contacted = filteredLeads.filter(l => 
       ["contacted", "qualified", "proposal", "won", "lost"].includes(l.status)
-    ).length;
+    ).length + activities.reduce((sum, act) => sum + act.calls_connected, 0);
+
     const relevant = filteredLeads.filter(l => 
       ["qualified", "proposal", "won", "lost"].includes(l.status)
-    ).length;
+    ).length + activityMeetings;
+
     const opportunities = filteredLeads.filter(l => 
       ["proposal", "won", "lost"].includes(l.status)
-    ).length;
-    const customers = filteredLeads.filter(l => l.status === "won").length;
+    ).length + activityMeetings;
+
+    const customers = filteredLeads.filter(l => l.status === "won").length + activitySales;
 
     const contactedRate = totalContacts > 0 ? (contacted / totalContacts) * 100 : 0;
     const relevantRate = contacted > 0 ? (relevant / contacted) * 100 : 0;
@@ -223,13 +288,12 @@ export const useSalesFunnelMetrics = (daysRange: number = 30) => {
     }
 
     // Proyecciones
-    const projections = {
-      if100Contacts: 100,
-      if100Contacted: Math.round((contactedRate / 100) * 100),
-      if100Relevant: Math.round((contactedRate / 100) * (relevantRate / 100) * 100),
-      if100Opportunities: Math.round((contactedRate / 100) * (relevantRate / 100) * (opportunityRate / 100) * 100),
-      if100Customers: Math.round((contactedRate / 100) * (relevantRate / 100) * (opportunityRate / 100) * (customerRate / 100) * 100),
-    };
+    const projections = computeProjections({
+      contactedRate,
+      relevantRate,
+      opportunityRate,
+      customerRate,
+    });
 
     // 12 Weeks Historical Calculation (Weekly Summaries)
     const weeklySummaries: WeeklySummary[] = [];
@@ -259,10 +323,14 @@ export const useSalesFunnelMetrics = (daysRange: number = 30) => {
       const emailLeadsCount = weekLeads.filter(l => l.channel === "email").length;
       const linkedinLeadsCount = weekLeads.filter(l => l.channel === "linkedin").length;
       
-      const meetingsScheduled = weekLeads.filter(l => ["proposal", "won", "lost"].includes(l.status)).length;
+      const weekMeetingsBooked = weekActivities.reduce((sum, act) => sum + (act.meetings_booked || 0), 0);
+      const weekSalesWon = weekActivities.reduce((sum, act) => sum + (act.sales_won || 0), 0);
+      const weekRevenueWon = weekActivities.reduce((sum, act) => sum + (act.revenue_won || 0), 0);
+
+      const meetingsScheduled = weekLeads.filter(l => ["proposal", "won", "lost"].includes(l.status)).length + weekMeetingsBooked;
       const meetingsHeld = meetingsScheduled; // Estimación directa
-      const salesCount = weekLeads.filter(l => l.status === "won").length;
-      const revenue = weekLeads.filter(l => l.status === "won").reduce((sum, l) => sum + (l.sale_value || 0), 0);
+      const salesCount = weekLeads.filter(l => l.status === "won").length + weekSalesWon;
+      const revenue = weekLeads.filter(l => l.status === "won").reduce((sum, l) => sum + (l.sale_value || 0), 0) + weekRevenueWon;
       
       const rates = {
         phoneConnection: callsMade > 0 ? (callsConnected / callsMade) * 100 : 0,
@@ -273,9 +341,9 @@ export const useSalesFunnelMetrics = (daysRange: number = 30) => {
       
       let starChannel: "linkedin" | "phone" | "email" | null = null;
       const leadsByChannel = [
-        { channel: "phone" as const, count: phoneLeadsCount },
-        { channel: "email" as const, count: emailLeadsCount },
-        { channel: "linkedin" as const, count: linkedinLeadsCount }
+        { channel: "phone" as const, count: phoneLeadsCount + callsMade },
+        { channel: "email" as const, count: emailLeadsCount + emailsSent },
+        { channel: "linkedin" as const, count: linkedinLeadsCount + linkedinContacts }
       ];
       leadsByChannel.sort((a, b) => b.count - a.count);
       if (leadsByChannel[0].count > 0) {
@@ -306,7 +374,6 @@ export const useSalesFunnelMetrics = (daysRange: number = 30) => {
       : 15000;
 
     // Phone ROI
-    const totalCalls = activities.reduce((sum, a) => sum + a.calls_made, 0);
     const totalConnects = activities.reduce((sum, a) => sum + a.calls_connected, 0);
     const phoneLeadsTotal = leads.filter(l => l.channel === "phone").length;
     const phoneSalesTotal = leads.filter(l => l.channel === "phone" && l.status === "won").length;
@@ -318,7 +385,6 @@ export const useSalesFunnelMetrics = (daysRange: number = 30) => {
     const phoneValuePerDial = connRate * leadRate * dealCloseRate * averageTicket;
 
     // Email ROI
-    const totalEmails = activities.reduce((sum, a) => sum + a.emails_sent, 0);
     const emailLeadsTotal = leads.filter(l => l.channel === "email").length;
     const emailSalesTotal = leads.filter(l => l.channel === "email" && l.status === "won").length;
     
@@ -342,6 +408,68 @@ export const useSalesFunnelMetrics = (daysRange: number = 30) => {
     ];
     roiValues.sort((a, b) => b.val - a.val);
 
+    // Month-over-Month (MoM) calculations
+    const currentMonthStart = startOfMonth(now);
+    const currentMonthEnd = endOfMonth(now);
+    
+    const prevMonthStart = startOfMonth(subMonths(now, 1));
+    const prevMonthEnd = endOfMonth(subMonths(now, 1));
+
+    // Current Month Filter
+    const currentActivities = activities.filter(act => {
+      const actDate = new Date(act.activity_date + "T00:00:00");
+      return isWithinInterval(actDate, { start: currentMonthStart, end: currentMonthEnd });
+    });
+    const currentLeads = leads.filter(lead => {
+      const leadDate = new Date(lead.created_at);
+      return isWithinInterval(leadDate, { start: currentMonthStart, end: currentMonthEnd });
+    });
+
+    // Previous Month Filter
+    const prevActivities = activities.filter(act => {
+      const actDate = new Date(act.activity_date + "T00:00:00");
+      return isWithinInterval(actDate, { start: prevMonthStart, end: prevMonthEnd });
+    });
+    const prevLeads = leads.filter(lead => {
+      const leadDate = new Date(lead.created_at);
+      return isWithinInterval(leadDate, { start: prevMonthStart, end: prevMonthEnd });
+    });
+
+    // Metrics for Current Month
+    const currentEffort = currentActivities.reduce((sum, act) => sum + act.calls_made + act.emails_sent + act.linkedin_contacts, 0);
+    const currentMeetings = currentActivities.reduce((sum, act) => sum + (act.meetings_booked || 0), 0) + 
+                            currentLeads.filter(l => ["qualified", "proposal", "won", "lost"].includes(l.status)).length;
+    const currentSales = currentActivities.reduce((sum, act) => sum + (act.sales_won || 0), 0) + 
+                         currentLeads.filter(l => l.status === "won").length;
+    const currentRevenue = currentActivities.reduce((sum, act) => sum + (act.revenue_won || 0), 0) + 
+                           currentLeads.filter(l => l.status === "won").reduce((sum, l) => sum + (l.sale_value || 0), 0);
+
+    // Metrics for Previous Month
+    const prevEffort = prevActivities.reduce((sum, act) => sum + act.calls_made + act.emails_sent + act.linkedin_contacts, 0);
+    const prevMeetings = prevActivities.reduce((sum, act) => sum + (act.meetings_booked || 0), 0) + 
+                         prevLeads.filter(l => ["qualified", "proposal", "won", "lost"].includes(l.status)).length;
+    const prevSales = prevActivities.reduce((sum, act) => sum + (act.sales_won || 0), 0) + 
+                      prevLeads.filter(l => l.status === "won").length;
+    const prevRevenue = prevActivities.reduce((sum, act) => sum + (act.revenue_won || 0), 0) + 
+                        prevLeads.filter(l => l.status === "won").reduce((sum, l) => sum + (l.sale_value || 0), 0);
+
+    // Delta Percentage helper
+    const calcDelta = (cur: number, prev: number) => {
+      if (prev === 0) return cur > 0 ? 100 : 0;
+      return parseFloat((((cur - prev) / prev) * 100).toFixed(1));
+    };
+
+    const mom = {
+      currentMonth: { effort: currentEffort, meetings: currentMeetings, sales: currentSales, revenue: currentRevenue },
+      prevMonth: { effort: prevEffort, meetings: prevMeetings, sales: prevSales, revenue: prevRevenue },
+      deltas: {
+        effort: calcDelta(currentEffort, prevEffort),
+        meetings: calcDelta(currentMeetings, prevMeetings),
+        sales: calcDelta(currentSales, prevSales),
+        revenue: calcDelta(currentRevenue, prevRevenue),
+      }
+    };
+
     return {
       stages,
       totalLeads: totalContacts,
@@ -358,7 +486,8 @@ export const useSalesFunnelMetrics = (daysRange: number = 30) => {
         email: parseFloat(emailValuePerSent.toFixed(1)),
         linkedin: parseFloat(linkedinValuePerInvite.toFixed(1)),
         bestChannel: roiValues[0].channel
-      }
+      },
+      mom
     };
   }, [leads, activities, daysRange]);
 

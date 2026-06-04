@@ -26,9 +26,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { toast } from "sonner";
-import { useLeads, useLeadStats, useDeleteAllLeads } from "@/hooks/useLeads";
-import * as XLSX from "xlsx";
+import { useDataImportExport } from "@/hooks/useDataImportExport";
 
 interface DataActionsProps {
   onImportData?: (data: any[]) => void;
@@ -36,387 +34,24 @@ interface DataActionsProps {
 
 export const DataActions = ({ onImportData }: DataActionsProps) => {
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
-  const { data: leads = [] } = useLeads();
-  const { stats } = useLeadStats();
-  const deleteAllLeads = useDeleteAllLeads();
 
-  const handleClearData = async () => {
-    try {
-      await deleteAllLeads.mutateAsync();
-    } catch (error) {
-      // Error already handled in the hook
-    }
-  };
-
-  const generateCSV = () => {
-    const headers = ["ID", "Nombre", "Empresa", "Canal", "Estado", "Fecha", "Fecha Cierre"];
-    const rows = leads.map(lead => [
-      lead.id,
-      lead.name,
-      lead.company || "",
-      lead.channel,
-      lead.status,
-      new Date(lead.created_at).toISOString().split('T')[0],
-      lead.closed_at ? new Date(lead.closed_at).toISOString().split('T')[0] : ""
-    ]);
-    
-    const csvContent = [headers, ...rows].map(row => row.join(",")).join("\n");
-    return csvContent;
-  };
-
-  const generateExcelCSV = () => {
-    const bom = "\uFEFF";
-    return bom + generateCSV();
-  };
-
-  const downloadFile = (content: string, filename: string, mimeType: string) => {
-    const blob = new Blob([content], { type: mimeType });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
-  const handleDownloadCSV = () => {
-    const csv = generateCSV();
-    downloadFile(csv, "leads_report.csv", "text/csv;charset=utf-8");
-    toast.success("Reporte CSV descargado");
-  };
-
-  const handleDownloadExcel = () => {
-    const csv = generateExcelCSV();
-    downloadFile(csv, "leads_report.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    toast.success("Reporte Excel descargado");
-  };
-
-  const handleDownloadPDF = () => {
-    const reportHTML = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Reporte de Leads</title>
-        <style>
-          body { font-family: Arial, sans-serif; padding: 20px; }
-          h1 { color: #333; }
-          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-          th { background-color: #f4f4f4; }
-          .metrics { margin-top: 30px; }
-          .metric-card { background: #f9f9f9; padding: 15px; margin: 10px 0; border-radius: 8px; }
-        </style>
-      </head>
-      <body>
-        <h1>Reporte de Leads</h1>
-        <p>Generado: ${new Date().toLocaleDateString('es-ES')}</p>
-        
-        <div class="metrics">
-          <h2>Métricas por Canal</h2>
-          ${stats.conversionRates.map(cr => `
-            <div class="metric-card">
-              <strong>${cr.channel.toUpperCase()}</strong>
-              <p>Tasa de Conversión: ${cr.rate}%</p>
-              <p>Leads: ${cr.leads} | Cerrados: ${cr.closed}</p>
-            </div>
-          `).join('')}
-        </div>
-
-        <div class="metrics">
-          <h2>Ciclo de Venta por Canal</h2>
-          ${stats.salesCycleTimes.map(sc => `
-            <div class="metric-card">
-              <strong>${sc.channel.toUpperCase()}</strong>
-              <p>Tiempo Promedio: ${sc.avgDays} días</p>
-              <p>Cantidad: ${sc.count} leads</p>
-            </div>
-          `).join('')}
-        </div>
-
-        <h2>Lista de Leads</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Nombre</th>
-              <th>Empresa</th>
-              <th>Canal</th>
-              <th>Estado</th>
-              <th>Fecha</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${leads.map(lead => `
-              <tr>
-                <td>${lead.name}</td>
-                <td>${lead.company || ""}</td>
-                <td>${lead.channel}</td>
-                <td>${lead.status}</td>
-                <td>${new Date(lead.created_at).toLocaleDateString('es-ES')}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </body>
-      </html>
-    `;
-    
-    const blob = new Blob([reportHTML], { type: "text/html" });
-    const url = URL.createObjectURL(blob);
-    const printWindow = window.open(url, '_blank');
-    if (printWindow) {
-      printWindow.onload = () => {
-        printWindow.print();
-      };
-    }
-    toast.success("Abriendo reporte para imprimir/guardar como PDF");
-  };
-
-  const generateTemplate = () => {
-    const headers = ["nombre", "empresa", "canal", "estado", "email", "telefono"];
-    const exampleRow = ["Juan Pérez", "Empresa ABC", "linkedin", "new", "juan@email.com", "5551234567"];
-    const instructions = [
-      "# INSTRUCCIONES DE USO",
-      "# Canal: linkedin | phone | email",
-      "# Estado: new | contacted | qualified | proposal | won | lost",
-      "# IMPORTANTE: No uses comas dentro de los valores",
-      ""
-    ];
-    
-    const csvContent = [...instructions, headers.join(","), exampleRow.join(",")].join("\n");
-    return csvContent;
-  };
-
-  const handleDownloadTemplate = () => {
-    const template = "\uFEFF" + generateTemplate();
-    downloadFile(template, "plantilla_leads.csv", "text/csv;charset=utf-8");
-    toast.success("Plantilla descargada");
-  };
-
-  // Detectar el delimitador usado en el CSV (coma o punto y coma)
-  const detectDelimiter = (text: string): string => {
-    const firstDataLine = text.split("\n").find(line => !line.startsWith("#") && line.trim());
-    if (!firstDataLine) return ",";
-    
-    const commaCount = (firstDataLine.match(/,/g) || []).length;
-    const semicolonCount = (firstDataLine.match(/;/g) || []).length;
-    
-    return semicolonCount > commaCount ? ";" : ",";
-  };
-
-  // Parsear una línea CSV respetando comillas
-  const parseCSVLine = (line: string, delimiter: string): string[] => {
-    const result: string[] = [];
-    let current = "";
-    let inQuotes = false;
-    
-    for (let i = 0; i < line.length; i++) {
-      const char = line[i];
-      
-      if (char === '"') {
-        inQuotes = !inQuotes;
-      } else if (char === delimiter && !inQuotes) {
-        result.push(current.trim().replace(/^"|"$/g, ""));
-        current = "";
-      } else {
-        current += char;
-      }
-    }
-    
-    result.push(current.trim().replace(/^"|"$/g, ""));
-    return result;
-  };
-
-  const normalizeHeader = (header: string): string => {
-    // Remove BOM, trim, lowercase, and strip surrounding quotes
-    return header
-      .replace(/^\uFEFF/, "")
-      .trim()
-      .replace(/^"|"$/g, "")
-      .toLowerCase();
-  };
-
-  const getIndexByHeader = (headers: string[], candidates: string[]) => {
-    for (const c of candidates) {
-      const idx = headers.indexOf(c);
-      if (idx >= 0) return idx;
-    }
-    return -1;
-  };
-
-  // Mapear el valor del canal al formato correcto
-  const normalizeChannel = (value: string): string => {
-    const normalized = value.toLowerCase().trim();
-    if (normalized.includes("linkedin") || normalized === "li") return "linkedin";
-    if (normalized.includes("phone") || normalized.includes("telefono") || normalized.includes("tel") || normalized.includes("llamada")) return "phone";
-    if (normalized.includes("email") || normalized.includes("correo") || normalized.includes("mail")) return "email";
-    return "email"; // default
-  };
-
-  // Mapear el valor del estado al formato correcto
-  const normalizeStatus = (value: string): string => {
-    const normalized = value.toLowerCase().trim();
-    if (normalized === "new" || normalized === "nuevo") return "new";
-    if (normalized === "contacted" || normalized === "contactado") return "contacted";
-    if (normalized === "qualified" || normalized === "calificado") return "qualified";
-    if (normalized === "proposal" || normalized === "propuesta") return "proposal";
-    if (normalized === "won" || normalized === "ganado" || normalized === "closed" || normalized === "cerrado") return "won";
-    if (normalized === "lost" || normalized === "perdido") return "lost";
-    return "new"; // default
-  };
-
-  // Procesar datos desde filas (tanto CSV como XLSX)
-  const processRowsData = (rows: string[][]): Record<string, any>[] => {
-    if (rows.length < 2) return [];
-
-    const headers = rows[0].map(normalizeHeader);
-    console.log("Headers encontrados:", headers);
-
-    const idxName = getIndexByHeader(headers, ["nombre", "name"]);
-    const idxCompany = getIndexByHeader(headers, ["empresa", "company"]);
-    const idxChannel = getIndexByHeader(headers, ["canal", "channel"]);
-    const idxStatus = getIndexByHeader(headers, ["estado", "status"]);
-    const idxEmail = getIndexByHeader(headers, ["email", "correo"]);
-    const idxPhone = getIndexByHeader(headers, ["telefono", "teléfono", "phone", "tel"]);
-
-    const hasRecognizedHeaders = idxName !== -1 || idxCompany !== -1 || idxChannel !== -1 || idxStatus !== -1;
-
-    return rows.slice(1).map((values, index) => {
-      console.log(`Fila ${index + 1}:`, values);
-      
-      const lead: Record<string, any> = { id: `imported-${index + 1}` };
-
-      if (hasRecognizedHeaders) {
-        if (idxName >= 0) lead.name = values[idxName] || "";
-        if (idxCompany >= 0) lead.company = values[idxCompany] || "";
-        if (idxChannel >= 0) lead.channel = normalizeChannel(values[idxChannel] || "");
-        if (idxStatus >= 0) lead.status = normalizeStatus(values[idxStatus] || "");
-        if (idxEmail >= 0) lead.email = values[idxEmail] || "";
-        if (idxPhone >= 0) lead.phone = values[idxPhone] || "";
-      } else {
-        // Fallback por posición: A nombre | B empresa | C canal | D estado | E email | F telefono
-        lead.name = values[0] || "";
-        lead.company = values[1] || "";
-        lead.channel = normalizeChannel(values[2] || "");
-        lead.status = normalizeStatus(values[3] || "");
-        lead.email = values[4] || "";
-        lead.phone = values[5] || "";
-      }
-
-      if (!lead.channel) lead.channel = "email";
-      if (!lead.status) lead.status = "new";
-      if (!lead.name || !String(lead.name).trim()) lead.name = "Sin nombre";
-
-      return lead;
-    });
-  };
-
-  // Procesar archivo XLSX
-  const processXLSX = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: "array" });
-        
-        // Usar la primera hoja
-        const sheetName = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[sheetName];
-        
-        // Convertir a array de arrays, leyendo columnas A-F
-        const rows: string[][] = XLSX.utils.sheet_to_json(sheet, { 
-          header: 1,
-          defval: "",
-          range: "A:F"
-        });
-
-        console.log("Filas XLSX:", rows);
-
-        // Filtrar filas vacías y comentarios
-        const validRows = rows.filter(row => 
-          row.some(cell => cell && String(cell).trim() && !String(cell).startsWith("#"))
-        );
-
-        if (validRows.length < 2) {
-          toast.error("El archivo no contiene datos válidos");
-          return;
-        }
-
-        const leads = processRowsData(validRows);
-        console.log("Datos parseados XLSX:", leads);
-
-        if (leads.length === 0) {
-          toast.error("No se encontraron leads válidos en el archivo");
-          return;
-        }
-
-        toast.success(`${leads.length} leads listos para importar`);
-        onImportData?.(leads);
-        setIsUploadDialogOpen(false);
-      } catch (error) {
-        console.error("Error al procesar archivo XLSX:", error);
-        toast.error("Error al procesar el archivo Excel");
-      }
-    };
-    reader.readAsArrayBuffer(file);
-  };
-
-  // Procesar archivo CSV
-  const processCSV = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const text = e.target?.result as string;
-        const lines = text.split(/\r?\n/).filter(line => !line.startsWith("#") && line.trim());
-        
-        if (lines.length < 2) {
-          toast.error("El archivo no contiene datos válidos");
-          return;
-        }
-
-        const delimiter = detectDelimiter(text);
-        console.log("Delimitador detectado:", delimiter);
-        
-        const rows = lines.map(line => parseCSVLine(line, delimiter));
-        const leads = processRowsData(rows);
-
-        console.log("Datos parseados CSV:", leads);
-        
-        if (leads.length === 0) {
-          toast.error("No se encontraron leads válidos en el archivo");
-          return;
-        }
-
-        toast.success(`${leads.length} leads listos para importar`);
-        onImportData?.(leads);
-        setIsUploadDialogOpen(false);
-      } catch (error) {
-        console.error("Error al procesar archivo CSV:", error);
-        toast.error("Error al procesar el archivo");
-      }
-    };
-    reader.readAsText(file);
-  };
-
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const fileName = file.name.toLowerCase();
-    
-    if (fileName.endsWith(".xlsx") || fileName.endsWith(".xls")) {
-      processXLSX(file);
-    } else {
-      processCSV(file);
-    }
-  };
+  const {
+    handleClearData,
+    handleDownloadCSV,
+    handleDownloadExcel,
+    handleDownloadPDF,
+    handleDownloadTemplate,
+    handleFileUpload,
+  } = useDataImportExport({
+    onImportData,
+    onCloseUploadDialog: () => setIsUploadDialogOpen(false),
+  });
 
   return (
     <div className="flex flex-wrap gap-2">
       <AlertDialog>
         <AlertDialogTrigger asChild>
-          <Button variant="destructive" size="sm">
+          <Button variant="destructive" size="sm" className="hover:bg-destructive/90 transition-colors">
             <Trash2 className="h-4 w-4 mr-2" />
             Borrar Datos
           </Button>
@@ -430,7 +65,7 @@ export const DataActions = ({ onImportData }: DataActionsProps) => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleClearData} className="bg-destructive text-destructive-foreground">
+            <AlertDialogAction onClick={handleClearData} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Eliminar
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -439,22 +74,22 @@ export const DataActions = ({ onImportData }: DataActionsProps) => {
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" className="transition-colors">
             <Download className="h-4 w-4 mr-2" />
             Descargar Reporte
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="bg-popover border shadow-lg">
-          <DropdownMenuItem onClick={handleDownloadPDF} className="cursor-pointer">
-            <FileText className="h-4 w-4 mr-2" />
+        <DropdownMenuContent className="bg-popover border shadow-xl rounded-lg">
+          <DropdownMenuItem onClick={handleDownloadPDF} className="cursor-pointer hover:bg-accent transition-colors">
+            <FileText className="h-4 w-4 mr-2 text-red-500" />
             PDF (Imprimir)
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleDownloadExcel} className="cursor-pointer">
-            <FileSpreadsheet className="h-4 w-4 mr-2" />
+          <DropdownMenuItem onClick={handleDownloadExcel} className="cursor-pointer hover:bg-accent transition-colors">
+            <FileSpreadsheet className="h-4 w-4 mr-2 text-emerald-500" />
             Excel (.xlsx)
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleDownloadCSV} className="cursor-pointer">
-            <FileDown className="h-4 w-4 mr-2" />
+          <DropdownMenuItem onClick={handleDownloadCSV} className="cursor-pointer hover:bg-accent transition-colors">
+            <FileDown className="h-4 w-4 mr-2 text-blue-500" />
             CSV
           </DropdownMenuItem>
         </DropdownMenuContent>
@@ -462,24 +97,24 @@ export const DataActions = ({ onImportData }: DataActionsProps) => {
 
       <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
         <DialogTrigger asChild>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" className="transition-colors">
             <Upload className="h-4 w-4 mr-2" />
             Subir Datos
           </Button>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md bg-card border shadow-2xl rounded-xl">
           <DialogHeader>
-            <DialogTitle>Importar Leads</DialogTitle>
+            <DialogTitle className="text-lg font-bold">Importar Leads</DialogTitle>
             <DialogDescription>
               Sube un archivo Excel (.xlsx) o CSV con tus leads. Usa la plantilla para el formato correcto.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <Button variant="outline" onClick={handleDownloadTemplate} className="w-full">
+            <Button variant="outline" onClick={handleDownloadTemplate} className="w-full hover:bg-accent transition-colors">
               <FileDown className="h-4 w-4 mr-2" />
               Descargar Plantilla CSV
             </Button>
-            <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
+            <div className="border-2 border-dashed border-primary/20 hover:border-primary/40 rounded-xl p-8 text-center transition-all duration-300 bg-muted/20">
               <input
                 type="file"
                 accept=".csv,.xlsx,.xls"
@@ -487,9 +122,9 @@ export const DataActions = ({ onImportData }: DataActionsProps) => {
                 className="hidden"
                 id="file-upload"
               />
-              <label htmlFor="file-upload" className="cursor-pointer">
-                <FileSpreadsheet className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">
+              <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center">
+                <FileSpreadsheet className="h-10 w-10 mb-2 text-primary animate-bounce" />
+                <p className="text-sm font-medium text-foreground">
                   Haz clic para seleccionar un archivo
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">

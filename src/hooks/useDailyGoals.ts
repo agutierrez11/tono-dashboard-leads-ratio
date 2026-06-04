@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { SOLO_USER_ID } from "@/lib/soloUser";
 import { toast } from "sonner";
 
 export interface DailyGoal {
@@ -12,13 +11,15 @@ export interface DailyGoal {
   updated_at: string;
 }
 
-export type ActivityType = "calls_made" | "calls_connected" | "emails_sent" | "linkedin_contacts";
+export type ActivityType = "calls_made" | "calls_connected" | "emails_sent" | "linkedin_contacts" | "meetings_booked" | "sales_won";
 
 export const useDailyGoals = () => {
   return useQuery({
     queryKey: ["daily-goals"],
     queryFn: async () => {
-      const userId = SOLO_USER_ID;
+      const { data: { user } } = await supabase.auth.getUser();
+      const userId = user?.id;
+      if (!userId) throw new Error("No authenticated user");
       console.log("Fetching daily goals for user:", userId);
 
       const { data, error } = await supabase
@@ -42,7 +43,9 @@ export const useSetDailyGoal = () => {
 
   return useMutation({
     mutationFn: async ({ goalType, targetValue }: { goalType: ActivityType; targetValue: number }) => {
-      const userId = SOLO_USER_ID;
+      const { data: { user } } = await supabase.auth.getUser();
+      const userId = user?.id;
+      if (!userId) throw new Error("No authenticated user");
       console.log(`Setting daily goal for ${goalType} to ${targetValue}`);
 
       // Check if goal already exists for this type
@@ -112,7 +115,9 @@ export const useResetTodayActivities = () => {
   return useMutation({
     mutationFn: async () => {
       const today = new Date().toISOString().split("T")[0];
-      const userId = SOLO_USER_ID;
+      const { data: { user } } = await supabase.auth.getUser();
+      const userId = user?.id;
+      if (!userId) throw new Error("No authenticated user");
 
       const { error } = await supabase
         .from("daily_activities")
@@ -120,7 +125,10 @@ export const useResetTodayActivities = () => {
           calls_made: 0, 
           calls_connected: 0, 
           emails_sent: 0, 
-          linkedin_contacts: 0 
+          linkedin_contacts: 0,
+          meetings_booked: 0,
+          sales_won: 0,
+          revenue_won: 0
         })
         .eq("activity_date", today)
         .eq("user_id", userId);
