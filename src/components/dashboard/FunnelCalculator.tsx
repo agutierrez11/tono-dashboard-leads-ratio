@@ -6,6 +6,7 @@ import { CallFunnelCalculator } from "./CallFunnelCalculator";
 import { EmailFunnelCalculator } from "./EmailFunnelCalculator";
 import { ProspectFunnelCalculator } from "./ProspectFunnelCalculator";
 import { TimeBlockingStrategy } from "./TimeBlockingStrategy";
+import { SalesDataAnalyzer } from "./SalesDataAnalyzer";
 import { Calculator, Phone, Mail, Linkedin, Calendar, Sparkles } from "lucide-react";
 
 export const FunnelCalculator: React.FC = () => {
@@ -29,9 +30,13 @@ export const FunnelCalculator: React.FC = () => {
         </CardHeader>
       </Card>
 
+      {/* Sales Data Analyzer - IA Real Baseline */}
+      <SalesDataAnalyzer />
+
       {/* Accordion Stack of Calculators */}
       <div className="border border-border rounded-xl bg-card shadow-sm overflow-hidden">
         <Accordion type="single" collapsible defaultValue="sales" className="w-full">
+
           {/* 1. General Sales Funnel */}
           <AccordionItem value="sales" className="border-b border-border px-6 hover:bg-muted/10">
             <AccordionTrigger className="hover:no-underline py-4 text-foreground hover:text-primary transition-colors">

@@ -19,6 +19,7 @@ export const useDailyGoals = () => {
     queryKey: ["daily-goals"],
     queryFn: async () => {
       const userId = SOLO_USER_ID;
+      console.log("Fetching daily goals for user:", userId);
 
       const { data, error } = await supabase
         .from("daily_goals")
@@ -26,7 +27,11 @@ export const useDailyGoals = () => {
         .eq("user_id", userId)
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching daily goals:", error);
+        throw error;
+      }
+      console.log("Daily goals fetched successfully:", data);
       return (data as DailyGoal[]) || [];
     },
   });
@@ -38,16 +43,25 @@ export const useSetDailyGoal = () => {
   return useMutation({
     mutationFn: async ({ goalType, targetValue }: { goalType: ActivityType; targetValue: number }) => {
       const userId = SOLO_USER_ID;
+      console.log(`Setting daily goal for ${goalType} to ${targetValue}`);
 
       // Check if goal already exists for this type
-      const { data: existing } = await supabase
+      const { data: existing, error: selectError } = await supabase
         .from("daily_goals")
         .select("*")
         .eq("goal_type", goalType)
         .eq("user_id", userId)
         .maybeSingle();
 
+      if (selectError) {
+        console.error("Error checking existing goal:", selectError);
+        throw selectError;
+      }
+
+      console.log("Existing goal check result:", existing);
+
       if (existing) {
+        console.log("Updating existing goal ID:", existing.id);
         const { data, error } = await supabase
           .from("daily_goals")
           .update({ target_value: targetValue })
@@ -56,9 +70,13 @@ export const useSetDailyGoal = () => {
           .select()
           .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error("Error updating goal:", error);
+          throw error;
+        }
         return data;
       } else {
+        console.log("Inserting new goal");
         const { data, error } = await supabase
           .from("daily_goals")
           .insert({
@@ -69,7 +87,10 @@ export const useSetDailyGoal = () => {
           .select()
           .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error("Error inserting goal:", error);
+          throw error;
+        }
         return data;
       }
     },
@@ -78,10 +99,12 @@ export const useSetDailyGoal = () => {
       toast.success("Meta guardada");
     },
     onError: (error) => {
+      console.error("Mutation onError triggered for daily goal:", error);
       toast.error("Error al guardar meta: " + error.message);
     },
   });
 };
+
 
 export const useResetTodayActivities = () => {
   const queryClient = useQueryClient();
