@@ -14,26 +14,30 @@ import EmailPage from "./pages/EmailPage";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
+import { FunnelMetricsProvider } from "@/contexts/FunnelMetricsContext";
+
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-          <Route path="/leads" element={<ProtectedRoute><Leads /></ProtectedRoute>} />
-          <Route path="/leads-list" element={<ProtectedRoute><LeadsList /></ProtectedRoute>} />
-          <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-          <Route path="/linkedin" element={<ProtectedRoute><LinkedinPage /></ProtectedRoute>} />
-          <Route path="/phone" element={<ProtectedRoute><PhonePage /></ProtectedRoute>} />
-          <Route path="/email" element={<ProtectedRoute><EmailPage /></ProtectedRoute>} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+      <FunnelMetricsProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+            <Route path="/leads" element={<ProtectedRoute><Leads /></ProtectedRoute>} />
+            <Route path="/leads-list" element={<ProtectedRoute><LeadsList /></ProtectedRoute>} />
+            <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+            <Route path="/linkedin" element={<ProtectedRoute><LinkedinPage /></ProtectedRoute>} />
+            <Route path="/phone" element={<ProtectedRoute><PhonePage /></ProtectedRoute>} />
+            <Route path="/email" element={<ProtectedRoute><EmailPage /></ProtectedRoute>} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </FunnelMetricsProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

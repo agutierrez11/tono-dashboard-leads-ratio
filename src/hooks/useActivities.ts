@@ -113,3 +113,24 @@ export const useIncrementActivity = () => {
     },
   });
 };
+
+export const useRecentActivities = (days: number = 90) => {
+  return useQuery({
+    queryKey: ["daily-activities", "recent", days],
+    queryFn: async () => {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - days);
+      const cutoffStr = cutoffDate.toISOString().split("T")[0];
+      
+      const { data, error } = await supabase
+        .from("daily_activities")
+        .select("*")
+        .gte("activity_date", cutoffStr)
+        .order("activity_date", { ascending: true });
+
+      if (error) throw error;
+      return (data as DailyActivity[]) || [];
+    },
+  });
+};
+

@@ -17,6 +17,8 @@ import {
 } from "recharts";
 import { AlertCircle, TrendingUp, Target, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PacingAdvisor } from "./PacingAdvisor";
+import { WeeklyPerformanceTimeline } from "./WeeklyPerformanceTimeline";
 
 export const PerformanceAnalytics = () => {
   const { metrics, isLoading } = useSalesFunnelMetrics();
@@ -67,6 +69,9 @@ export const PerformanceAnalytics = () => {
 
   return (
     <div className="space-y-6">
+      {/* Pacing Advisor at the top */}
+      <PacingAdvisor />
+
       {/* Embudo de Ventas Principal */}
       <Card className="glass-card">
         <CardHeader>
@@ -310,6 +315,9 @@ export const PerformanceAnalytics = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Historial y Bitácora Semanal al final */}
+      <WeeklyPerformanceTimeline />
     </div>
   );
 };
