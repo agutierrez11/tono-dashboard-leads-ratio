@@ -1,7 +1,12 @@
--- SQL Schema Setup for Tono Sales Dashboard (New Supabase Project)
--- Copy and run this script in the Supabase SQL Editor.
+-- ============================================================
+-- SQL Schema Setup para Tono Sales Dashboard (Sin Login)
+-- ============================================================
+-- Instrucciones: Copia y ejecuta este script en el SQL Editor
+-- de tu proyecto Supabase. Configura todo para uso de un solo
+-- usuario sin pantalla de login.
+-- ============================================================
 
--- 1. Helper Functions
+-- 1. Helper: trigger para updated_at automático
 CREATE OR REPLACE FUNCTION public.update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -10,27 +15,16 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- 2. User Profiles Table
-CREATE TABLE IF NOT EXISTS public.user_profiles (
-  id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID NOT NULL UNIQUE,
-  display_name TEXT,
-  avatar_type TEXT DEFAULT 'male',
-  avatar_style TEXT DEFAULT 'default',
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
-);
-
--- 3. Leads Table
+-- 2. Tabla: leads (CRM)
 CREATE TABLE IF NOT EXISTS public.leads (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID NOT NULL,
+  user_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001',
   name TEXT NOT NULL,
   email TEXT,
   phone TEXT,
   company TEXT,
   channel TEXT CHECK (channel IN ('linkedin', 'phone', 'email')) NOT NULL,
-  status TEXT NOT NULL DEFAULT 'new', -- 'new', 'contacted', 'qualified', 'proposal', 'won', 'lost'
+  status TEXT NOT NULL DEFAULT 'new',
   source TEXT,
   contacted_at TIMESTAMP WITH TIME ZONE,
   closed_at TIMESTAMP WITH TIME ZONE,
@@ -41,10 +35,10 @@ CREATE TABLE IF NOT EXISTS public.leads (
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
--- 4. Daily Activities Table
+-- 3. Tabla: daily_activities (contadores diarios)
 CREATE TABLE IF NOT EXISTS public.daily_activities (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID NOT NULL,
+  user_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001',
   activity_date DATE NOT NULL DEFAULT CURRENT_DATE,
   calls_made INTEGER NOT NULL DEFAULT 0,
   calls_connected INTEGER NOT NULL DEFAULT 0,
@@ -55,21 +49,21 @@ CREATE TABLE IF NOT EXISTS public.daily_activities (
   UNIQUE(user_id, activity_date)
 );
 
--- 5. Daily Goals Table
+-- 4. Tabla: daily_goals (metas de actividad)
 CREATE TABLE IF NOT EXISTS public.daily_goals (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID NOT NULL,
-  goal_type TEXT NOT NULL, -- 'calls_made', 'calls_connected', 'emails_sent', 'linkedin_contacts'
+  user_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001',
+  goal_type TEXT NOT NULL,
   target_value INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   UNIQUE(user_id, goal_type)
 );
 
--- 6. Weekly Notes Table (New feature for weekly experiment logging)
+-- 5. Tabla: weekly_notes (bitácora semanal)
 CREATE TABLE IF NOT EXISTS public.weekly_notes (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID NOT NULL,
+  user_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001',
   week_start_date DATE NOT NULL,
   notes TEXT,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
@@ -77,46 +71,65 @@ CREATE TABLE IF NOT EXISTS public.weekly_notes (
   UNIQUE(user_id, week_start_date)
 );
 
--- 7. Enable Row Level Security (RLS) on all tables
-ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
+-- 6. Habilitar RLS en todas las tablas
 ALTER TABLE public.leads ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.daily_activities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.daily_goals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.weekly_notes ENABLE ROW LEVEL SECURITY;
 
--- 8. RLS Policies Setup
--- User Profiles
-CREATE POLICY "Users can view their own profile" ON public.user_profiles FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can create their own profile" ON public.user_profiles FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update their own profile" ON public.user_profiles FOR UPDATE TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can delete their own profile" ON public.user_profiles FOR DELETE TO authenticated USING (auth.uid() = user_id);
+-- 7. Políticas RLS para rol "anon" (sin login)
+-- Permiten acceso COMPLETO al rol anon filtrado al usuario estático
 
 -- Leads
-CREATE POLICY "Users can view their own leads" ON public.leads FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can create their own leads" ON public.leads FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update their own leads" ON public.leads FOR UPDATE TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can delete their own leads" ON public.leads FOR DELETE TO authenticated USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "anon_leads_select" ON public.leads;
+DROP POLICY IF EXISTS "anon_leads_insert" ON public.leads;
+DROP POLICY IF EXISTS "anon_leads_update" ON public.leads;
+DROP POLICY IF EXISTS "anon_leads_delete" ON public.leads;
+
+CREATE POLICY "anon_leads_select" ON public.leads FOR SELECT TO anon USING (user_id = '00000000-0000-0000-0000-000000000001');
+CREATE POLICY "anon_leads_insert" ON public.leads FOR INSERT TO anon WITH CHECK (user_id = '00000000-0000-0000-0000-000000000001');
+CREATE POLICY "anon_leads_update" ON public.leads FOR UPDATE TO anon USING (user_id = '00000000-0000-0000-0000-000000000001');
+CREATE POLICY "anon_leads_delete" ON public.leads FOR DELETE TO anon USING (user_id = '00000000-0000-0000-0000-000000000001');
 
 -- Daily Activities
-CREATE POLICY "Users can view their own activities" ON public.daily_activities FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can create their own activities" ON public.daily_activities FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update their own activities" ON public.daily_activities FOR UPDATE TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can delete their own activities" ON public.daily_activities FOR DELETE TO authenticated USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "anon_activities_select" ON public.daily_activities;
+DROP POLICY IF EXISTS "anon_activities_insert" ON public.daily_activities;
+DROP POLICY IF EXISTS "anon_activities_update" ON public.daily_activities;
+DROP POLICY IF EXISTS "anon_activities_delete" ON public.daily_activities;
+
+CREATE POLICY "anon_activities_select" ON public.daily_activities FOR SELECT TO anon USING (user_id = '00000000-0000-0000-0000-000000000001');
+CREATE POLICY "anon_activities_insert" ON public.daily_activities FOR INSERT TO anon WITH CHECK (user_id = '00000000-0000-0000-0000-000000000001');
+CREATE POLICY "anon_activities_update" ON public.daily_activities FOR UPDATE TO anon USING (user_id = '00000000-0000-0000-0000-000000000001');
+CREATE POLICY "anon_activities_delete" ON public.daily_activities FOR DELETE TO anon USING (user_id = '00000000-0000-0000-0000-000000000001');
 
 -- Daily Goals
-CREATE POLICY "Users can view their own goals" ON public.daily_goals FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can create their own goals" ON public.daily_goals FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update their own goals" ON public.daily_goals FOR UPDATE TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can delete their own goals" ON public.daily_goals FOR DELETE TO authenticated USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "anon_goals_select" ON public.daily_goals;
+DROP POLICY IF EXISTS "anon_goals_insert" ON public.daily_goals;
+DROP POLICY IF EXISTS "anon_goals_update" ON public.daily_goals;
+DROP POLICY IF EXISTS "anon_goals_delete" ON public.daily_goals;
+
+CREATE POLICY "anon_goals_select" ON public.daily_goals FOR SELECT TO anon USING (user_id = '00000000-0000-0000-0000-000000000001');
+CREATE POLICY "anon_goals_insert" ON public.daily_goals FOR INSERT TO anon WITH CHECK (user_id = '00000000-0000-0000-0000-000000000001');
+CREATE POLICY "anon_goals_update" ON public.daily_goals FOR UPDATE TO anon USING (user_id = '00000000-0000-0000-0000-000000000001');
+CREATE POLICY "anon_goals_delete" ON public.daily_goals FOR DELETE TO anon USING (user_id = '00000000-0000-0000-0000-000000000001');
 
 -- Weekly Notes
-CREATE POLICY "Users can view their own weekly notes" ON public.weekly_notes FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can create their own weekly notes" ON public.weekly_notes FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update their own weekly notes" ON public.weekly_notes FOR UPDATE TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can delete their own weekly notes" ON public.weekly_notes FOR DELETE TO authenticated USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "anon_notes_select" ON public.weekly_notes;
+DROP POLICY IF EXISTS "anon_notes_insert" ON public.weekly_notes;
+DROP POLICY IF EXISTS "anon_notes_update" ON public.weekly_notes;
+DROP POLICY IF EXISTS "anon_notes_delete" ON public.weekly_notes;
 
--- 9. Setup Timestamps Triggers
-CREATE TRIGGER update_user_profiles_updated_at BEFORE UPDATE ON public.user_profiles FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE POLICY "anon_notes_select" ON public.weekly_notes FOR SELECT TO anon USING (user_id = '00000000-0000-0000-0000-000000000001');
+CREATE POLICY "anon_notes_insert" ON public.weekly_notes FOR INSERT TO anon WITH CHECK (user_id = '00000000-0000-0000-0000-000000000001');
+CREATE POLICY "anon_notes_update" ON public.weekly_notes FOR UPDATE TO anon USING (user_id = '00000000-0000-0000-0000-000000000001');
+CREATE POLICY "anon_notes_delete" ON public.weekly_notes FOR DELETE TO anon USING (user_id = '00000000-0000-0000-0000-000000000001');
+
+-- 8. Triggers para updated_at automático
+DROP TRIGGER IF EXISTS update_leads_updated_at ON public.leads;
+DROP TRIGGER IF EXISTS update_daily_activities_updated_at ON public.daily_activities;
+DROP TRIGGER IF EXISTS update_daily_goals_updated_at ON public.daily_goals;
+DROP TRIGGER IF EXISTS update_weekly_notes_updated_at ON public.weekly_notes;
+
 CREATE TRIGGER update_leads_updated_at BEFORE UPDATE ON public.leads FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 CREATE TRIGGER update_daily_activities_updated_at BEFORE UPDATE ON public.daily_activities FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 CREATE TRIGGER update_daily_goals_updated_at BEFORE UPDATE ON public.daily_goals FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();

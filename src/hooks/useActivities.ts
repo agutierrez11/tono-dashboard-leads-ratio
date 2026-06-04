@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { SOLO_USER_ID } from "@/lib/soloUser";
 import { toast } from "sonner";
 
 export interface DailyActivity {
@@ -61,9 +62,7 @@ export const useIncrementActivity = () => {
       activityType: "calls_made" | "calls_connected" | "emails_sent" | "linkedin_contacts" 
     }) => {
       const today = new Date().toISOString().split("T")[0];
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) throw new Error("No authenticated user");
+      const userId = SOLO_USER_ID;
 
       // First, try to get existing record for today
       const { data: existing } = await supabase
@@ -86,7 +85,7 @@ export const useIncrementActivity = () => {
       } else {
         // Create new record for today
         const newRecord = {
-          user_id: user.id,
+          user_id: userId,
           activity_date: today,
           calls_made: 0,
           calls_connected: 0,

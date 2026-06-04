@@ -11,9 +11,7 @@ import Reports from "./pages/Reports";
 import LinkedinPage from "./pages/LinkedinPage";
 import PhonePage from "./pages/PhonePage";
 import EmailPage from "./pages/EmailPage";
-import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
-
 import { FunnelMetricsProvider } from "@/contexts/FunnelMetricsContext";
 
 const queryClient = new QueryClient();
@@ -26,14 +24,13 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-            <Route path="/leads" element={<ProtectedRoute><Leads /></ProtectedRoute>} />
-            <Route path="/leads-list" element={<ProtectedRoute><LeadsList /></ProtectedRoute>} />
-            <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-            <Route path="/linkedin" element={<ProtectedRoute><LinkedinPage /></ProtectedRoute>} />
-            <Route path="/phone" element={<ProtectedRoute><PhonePage /></ProtectedRoute>} />
-            <Route path="/email" element={<ProtectedRoute><EmailPage /></ProtectedRoute>} />
+            <Route path="/" element={<Index />} />
+            <Route path="/leads" element={<Leads />} />
+            <Route path="/leads-list" element={<LeadsList />} />
+            <Route path="/reports" element={<Reports />} />
+            <Route path="/linkedin" element={<LinkedinPage />} />
+            <Route path="/phone" element={<PhonePage />} />
+            <Route path="/email" element={<EmailPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

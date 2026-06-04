@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { SOLO_USER_ID } from "@/lib/soloUser";
 import { toast } from "sonner";
 
 export interface WeeklyNote {
@@ -87,11 +88,7 @@ export const useSaveWeeklyNote = () => {
       weekStartDate: string; 
       notes: string 
     }) => {
-      let userId = "00000000-0000-0000-0000-000000000001"; // Default demo id
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) userId = user.id;
-      } catch (_) {}
+      let userId = SOLO_USER_ID;
 
       try {
         // Try to find if a record already exists for this week

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { SOLO_USER_ID } from "@/lib/soloUser";
 import { toast } from "sonner";
 
 export interface DailyGoal {
@@ -17,13 +18,12 @@ export const useDailyGoals = () => {
   return useQuery({
     queryKey: ["daily-goals"],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No authenticated user");
+      const userId = SOLO_USER_ID;
 
       const { data, error } = await supabase
         .from("daily_goals")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("user_id", userId)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -37,15 +37,14 @@ export const useSetDailyGoal = () => {
 
   return useMutation({
     mutationFn: async ({ goalType, targetValue }: { goalType: ActivityType; targetValue: number }) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No authenticated user");
+      const userId = SOLO_USER_ID;
 
       // Check if goal already exists for this type
       const { data: existing } = await supabase
         .from("daily_goals")
         .select("*")
         .eq("goal_type", goalType)
-        .eq("user_id", user.id)
+        .eq("user_id", userId)
         .maybeSingle();
 
       if (existing) {
@@ -53,7 +52,7 @@ export const useSetDailyGoal = () => {
           .from("daily_goals")
           .update({ target_value: targetValue })
           .eq("id", existing.id)
-          .eq("user_id", user.id)
+          .eq("user_id", userId)
           .select()
           .single();
 
@@ -63,7 +62,7 @@ export const useSetDailyGoal = () => {
         const { data, error } = await supabase
           .from("daily_goals")
           .insert({
-            user_id: user.id,
+            user_id: userId,
             goal_type: goalType,
             target_value: targetValue,
           })
@@ -90,9 +89,7 @@ export const useResetTodayActivities = () => {
   return useMutation({
     mutationFn: async () => {
       const today = new Date().toISOString().split("T")[0];
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) throw new Error("No authenticated user");
+      const userId = SOLO_USER_ID;
 
       const { error } = await supabase
         .from("daily_activities")
@@ -103,7 +100,7 @@ export const useResetTodayActivities = () => {
           linkedin_contacts: 0 
         })
         .eq("activity_date", today)
-        .eq("user_id", user.id);
+        .eq("user_id", userId);
 
       if (error) throw error;
     },
