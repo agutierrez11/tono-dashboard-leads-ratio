@@ -75,7 +75,7 @@ export const useSalesDataAnalyzer = () => {
     const overallConversion = l > 0 ? parseFloat(((s / l) * 100).toFixed(1)) : 0;
 
     // 1. Diagnóstico del Embudo - Contact Rate (Llamadas / Leads)
-    let contactStatus: AnalysisReport["contactStatus"] = {
+    const contactStatus: AnalysisReport["contactStatus"] = {
       label: "Tasa de contacto",
       text: "",
       status: "good"
@@ -92,7 +92,7 @@ export const useSalesDataAnalyzer = () => {
     }
 
     // 2. Booking Rate (Reuniones / Llamadas)
-    let bookingStatus: AnalysisReport["bookingStatus"] = {
+    const bookingStatus: AnalysisReport["bookingStatus"] = {
       label: "Tasa de conversión a reuniones",
       text: "",
       status: "good"
@@ -109,7 +109,7 @@ export const useSalesDataAnalyzer = () => {
     }
 
     // 3. Close Rate (Ventas / Reuniones)
-    let closeStatus: AnalysisReport["closeStatus"] = {
+    const closeStatus: AnalysisReport["closeStatus"] = {
       label: "Tasa de cierre",
       text: "",
       status: "good"
