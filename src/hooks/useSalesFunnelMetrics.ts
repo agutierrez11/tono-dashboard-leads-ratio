@@ -1,6 +1,34 @@
 import { useMemo } from "react";
 import { useLeads, DatabaseLead } from "./useLeads";
-import { useRecentActivities } from "./useActivities";
+import { useRecentActivities, DailyActivity } from "./useActivities";
+
+// Helper functions for working days
+const getWorkingDaysInMonth = (date: Date) => {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const start = new Date(year, month, 1);
+  const end = new Date(year, month + 1, 0);
+  let count = 0;
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const day = d.getDay();
+    if (day !== 0 && day !== 6) count++;
+  }
+  return count;
+};
+
+const getWorkingDaysElapsed = (date: Date) => {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const start = new Date(year, month, 1);
+  const today = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  let count = 0;
+  for (let d = new Date(start); d <= today; d.setDate(d.getDate() + 1)) {
+    const day = d.getDay();
+    if (day !== 0 && day !== 6) count++;
+  }
+  return count;
+};
+
 import { startOfWeek, endOfWeek, subWeeks, format, isWithinInterval, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -84,6 +112,13 @@ export interface MoMMetrics {
   };
 }
 
+export interface Anomaly {
+  activityDate: string;
+  meetingsBooked: number;
+  zScore: number;
+  note: string | null;
+}
+
 export interface FunnelMetrics {
   stages: FunnelStage[];
   totalLeads: number;
@@ -103,6 +138,17 @@ export interface FunnelMetrics {
   weeklySummaries: WeeklySummary[];
   roi: ChannelROI;
   mom: MoMMetrics;
+  remainingWorkDaysOfWeek: number;
+  remainingWorkDaysOfMonth: number;
+  monthlyActuals: {
+    callsMade: number;
+    emailsSent: number;
+    linkedinContacts: number;
+    meetingsBooked: number;
+    salesWon: number;
+    revenueWon: number;
+  };
+  anomalies: Anomaly[];
 }
 
 export const useSalesFunnelMetrics = (daysRange: number = 30) => {
@@ -135,7 +181,18 @@ export const useSalesFunnelMetrics = (daysRange: number = 30) => {
           currentMonth: { effort: 0, meetings: 0, sales: 0, revenue: 0 },
           prevMonth: { effort: 0, meetings: 0, sales: 0, revenue: 0 },
           deltas: { effort: 0, meetings: 0, sales: 0, revenue: 0 }
-        }
+        },
+        remainingWorkDaysOfWeek: 5,
+        remainingWorkDaysOfMonth: 20,
+        monthlyActuals: {
+          callsMade: 0,
+          emailsSent: 0,
+          linkedinContacts: 0,
+          meetingsBooked: 0,
+          salesWon: 0,
+          revenueWon: 0
+        },
+        anomalies: []
       };
     }
 
@@ -470,6 +527,56 @@ export const useSalesFunnelMetrics = (daysRange: number = 30) => {
       }
     };
 
+    // Remaining days in the week (from tomorrow onwards)
+    let dayOfWeek = today.getDay(); // 0 = Sun, 1 = Mon, ...
+    if (dayOfWeek === 0) dayOfWeek = 7;
+    const workDay = Math.min(dayOfWeek, 5);
+    const remainingWorkDaysOfWeek = Math.max(0, 5 - workDay);
+
+    // Remaining days in the month (from tomorrow onwards)
+    const totalWorkingDays = getWorkingDaysInMonth(today);
+    const elapsedWorkingDays = getWorkingDaysElapsed(today);
+    const remainingWorkDaysOfMonth = Math.max(0, totalWorkingDays - elapsedWorkingDays);
+
+    // Monthly actuals from daily activities
+    const monthlyActuals = {
+      callsMade: currentActivities.reduce((sum, act) => sum + act.calls_made, 0),
+      emailsSent: currentActivities.reduce((sum, act) => sum + act.emails_sent, 0),
+      linkedinContacts: currentActivities.reduce((sum, act) => sum + act.linkedin_contacts, 0),
+      meetingsBooked: currentActivities.reduce((sum, act) => sum + (act.meetings_booked || 0), 0),
+      salesWon: currentActivities.reduce((sum, act) => sum + (act.sales_won || 0), 0),
+      revenueWon: currentActivities.reduce((sum, act) => sum + (act.revenue_won || 0), 0),
+    };
+
+    // Anomaly detection based on standard deviation
+    const recentActivities = activities.slice(-30);
+    const dailyMeetings = recentActivities.map(act => act.meetings_booked || 0);
+    const meanMeetings = dailyMeetings.length > 0 ? dailyMeetings.reduce((a, b) => a + b, 0) / dailyMeetings.length : 0;
+    const varianceMeetings = dailyMeetings.length > 0 
+      ? dailyMeetings.reduce((sum, v) => sum + Math.pow(v - meanMeetings, 2), 0) / dailyMeetings.length 
+      : 0;
+    const stdDevMeetings = Math.sqrt(varianceMeetings);
+
+    const anomalies: Anomaly[] = [];
+    recentActivities.forEach(act => {
+      const meetings = act.meetings_booked || 0;
+      const diff = meetings - meanMeetings;
+      const zScore = stdDevMeetings > 0 ? diff / stdDevMeetings : 0;
+
+      // An anomaly is flagged if meetings >= 2 (to avoid noise) and zScore >= 1.5
+      if (zScore >= 1.5 && meetings >= 2) {
+        anomalies.push({
+          activityDate: act.activity_date,
+          meetingsBooked: meetings,
+          zScore: parseFloat(zScore.toFixed(2)),
+          note: act.anomaly_notes || null
+        });
+      }
+    });
+
+    // Sort anomalies by date descending
+    anomalies.sort((a, b) => new Date(b.activityDate).getTime() - new Date(a.activityDate).getTime());
+
     return {
       stages,
       totalLeads: totalContacts,
@@ -487,7 +594,11 @@ export const useSalesFunnelMetrics = (daysRange: number = 30) => {
         linkedin: parseFloat(linkedinValuePerInvite.toFixed(1)),
         bestChannel: roiValues[0].channel
       },
-      mom
+      mom,
+      remainingWorkDaysOfWeek,
+      remainingWorkDaysOfMonth,
+      monthlyActuals,
+      anomalies
     };
   }, [leads, activities, daysRange]);
 

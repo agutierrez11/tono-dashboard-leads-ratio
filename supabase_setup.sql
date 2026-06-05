@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS public.daily_activities (
   meetings_booked INTEGER NOT NULL DEFAULT 0,
   sales_won INTEGER NOT NULL DEFAULT 0,
   revenue_won NUMERIC NOT NULL DEFAULT 0,
+  anomaly_notes TEXT,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   UNIQUE(user_id, activity_date)

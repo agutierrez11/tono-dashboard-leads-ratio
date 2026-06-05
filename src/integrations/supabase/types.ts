@@ -59,6 +59,10 @@ export type Database = {
           emails_sent: number
           id: string
           linkedin_contacts: number
+          meetings_booked: number
+          sales_won: number
+          revenue_won: number
+          anomaly_notes: string | null
           updated_at: string
           user_id: string
         }
@@ -70,6 +74,10 @@ export type Database = {
           emails_sent?: number
           id?: string
           linkedin_contacts?: number
+          meetings_booked?: number
+          sales_won?: number
+          revenue_won?: number
+          anomaly_notes?: string | null
           updated_at?: string
           user_id: string
         }
@@ -81,6 +89,10 @@ export type Database = {
           emails_sent?: number
           id?: string
           linkedin_contacts?: number
+          meetings_booked?: number
+          sales_won?: number
+          revenue_won?: number
+          anomaly_notes?: string | null
           updated_at?: string
           user_id?: string
         }

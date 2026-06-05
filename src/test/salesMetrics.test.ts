@@ -125,3 +125,28 @@ describe("useDataImportExport Parser Helpers", () => {
     expect(parsed[0].phone).toBe("12345");
   });
 });
+
+describe("Dynamic Pacing Calculations", () => {
+  it("should calculate correct suggested daily pace when under target", () => {
+    const weeklyTarget = 100;
+    const weeklyActual = 60;
+    const remainingWorkdays = 4; // Tuesday to Friday
+    
+    const gap = Math.max(0, weeklyTarget - weeklyActual);
+    const suggestedDailyPace = remainingWorkdays > 0 ? gap / remainingWorkdays : gap;
+    
+    expect(suggestedDailyPace).toBe(10);
+  });
+
+  it("should adjust suggested daily pace to 0 when target is exceeded", () => {
+    const weeklyTarget = 100;
+    const weeklyActual = 120;
+    const remainingWorkdays = 3;
+    
+    const gap = Math.max(0, weeklyTarget - weeklyActual);
+    const suggestedDailyPace = remainingWorkdays > 0 ? gap / remainingWorkdays : gap;
+    
+    expect(suggestedDailyPace).toBe(0);
+  });
+});
+

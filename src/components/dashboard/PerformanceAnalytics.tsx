@@ -19,6 +19,7 @@ import { AlertCircle, TrendingUp, Target, Zap, CalendarRange } from "lucide-reac
 import { cn } from "@/lib/utils";
 import { PacingAdvisor } from "./PacingAdvisor";
 import { WeeklyPerformanceTimeline } from "./WeeklyPerformanceTimeline";
+import { AnomalyTracker } from "./AnomalyTracker";
 
 export const PerformanceAnalytics = () => {
   const { metrics, isLoading } = useSalesFunnelMetrics();
@@ -378,6 +379,9 @@ export const PerformanceAnalytics = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Registro de Anomalías y Hitos */}
+      <AnomalyTracker />
 
       {/* Recomendaciones */}
       {metrics.recommendations.length > 0 && (

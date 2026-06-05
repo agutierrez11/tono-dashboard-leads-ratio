@@ -13,6 +13,7 @@ export interface DailyActivity {
   meetings_booked: number;
   sales_won: number;
   revenue_won: number;
+  anomaly_notes?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -204,6 +205,74 @@ export const useRecentActivities = (days: number = 90) => {
 
       if (error) throw error;
       return (data as DailyActivity[]) || [];
+    },
+  });
+};
+
+export const useUpdateAnomalyNotes = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      activityDate,
+      notes,
+    }: {
+      activityDate: string;
+      notes: string;
+    }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const userId = user?.id;
+      if (!userId) throw new Error("No authenticated user");
+
+      // First, try to get existing record for today
+      const { data: existing } = await supabase
+        .from("daily_activities")
+        .select("*")
+        .eq("activity_date", activityDate)
+        .maybeSingle();
+
+      if (existing) {
+        // Update existing record
+        const { data, error } = await supabase
+          .from("daily_activities")
+          .update({ anomaly_notes: notes })
+          .eq("id", existing.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        return data;
+      } else {
+        // Create new record for today
+        const newRecord = {
+          user_id: userId,
+          activity_date: activityDate,
+          calls_made: 0,
+          calls_connected: 0,
+          emails_sent: 0,
+          linkedin_contacts: 0,
+          meetings_booked: 0,
+          sales_won: 0,
+          revenue_won: 0,
+          anomaly_notes: notes,
+        };
+
+        const { data, error } = await supabase
+          .from("daily_activities")
+          .insert(newRecord)
+          .select()
+          .single();
+
+        if (error) throw error;
+        return data;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["daily-activities"] });
+      toast.success("Comentario guardado");
+    },
+    onError: (error) => {
+      toast.error("Error al guardar comentario: " + error.message);
     },
   });
 };
