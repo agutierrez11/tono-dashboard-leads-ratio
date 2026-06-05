@@ -6,7 +6,7 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-  throw new Error(
+  console.warn(
     "[Supabase] Variables faltantes. Define VITE_SUPABASE_URL y " +
     "VITE_SUPABASE_PUBLISHABLE_KEY en tu archivo .env o en el entorno."
   );
