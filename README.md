@@ -1,69 +1,46 @@
-# Welcome to your Lovable project
+# Sales Pipeline & Lead Ratio Dashboard 📊
 
-## Project info
+<p align="center">
+  <a href="#-english">🇺🇸 English</a> | 
+  <a href="#-español">🇪🇸 Español</a>
+</p>
 
-**URL**: https://lovable.dev/projects/41bc2645-1920-482a-857f-137b8bbee0b3
+---
 
-## How can I edit this code?
+## 🇺🇸 English
 
-There are several ways of editing your application.
+### What is this?
+This project is an advanced Sales Pipeline and Lead Ratio Dashboard designed to track outbound sales metrics, lead conversion ratios, and multi-channel prospecting activities. It connects directly with Supabase to persist leads and generate real-time performance analytics.
 
-**Use Lovable**
+### Key Features
+* **Lead Management (`LeadsList.tsx` / `Leads.tsx`):** Complete pipeline tracking with status updates, value tracking, and company profiles.
+* **Conversion Analytics (`Reports.tsx`):** Real-time reports showing outreach efficiency, deal value distribution, and conversion ratios across channels.
+* **Multi-channel Logs:** Dedicated modules for tracking outreach performance via **Email**, **LinkedIn**, and **Phone calls**.
+* **Database Integration:** Pre-configured Supabase schemas (`supabase_setup.sql`) for secure, relational storage of contacts and sales history.
+* **Secure Access (`Auth.tsx`):** User authentication flow powered by Supabase Auth.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/41bc2645-1920-482a-857f-137b8bbee0b3) and start prompting.
+### Tech Stack
+* **Framework:** React + Vite (TypeScript)
+* **Styling:** Tailwind CSS, shadcn-ui
+* **Database & Auth:** Supabase (PostgreSQL)
+* **Deployment:** Vercel
 
-Changes made via Lovable will be committed automatically to this repo.
+---
 
-**Use your preferred IDE**
+## 🇪🇸 Español
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### ¿Qué es esto?
+Este proyecto es un Panel de Control Avanzado de Ventas y Ratios de Conversión diseñado para dar seguimiento a métricas de prospección saliente (outbound), ratios de conversión de prospectos y actividades comerciales multicanal. Se conecta directamente con Supabase para la persistencia de leads y la generación de analíticas de rendimiento en tiempo real.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Características Clave
+* **Gestión de Prospectos (`LeadsList.tsx` / `Leads.tsx`):** Seguimiento completo del embudo de ventas con actualizaciones de estado, valor de negocios y perfiles de empresas.
+* **Analítica de Conversiones (`Reports.tsx`):** Informes en tiempo real que muestran la eficiencia del contacto inicial, distribución de valor de negocios y ratios de conversión por canal.
+* **Registro Multicanal:** Módulos dedicados para rastrear el desempeño de la prospección a través de **Correo electrónico**, **LinkedIn** y **Llamadas telefónicas**.
+* **Integración de Base de Datos:** Esquemas de Supabase preconfigurados (`supabase_setup.sql`) para un almacenamiento seguro y relacional de contactos e historial de ventas.
+* **Acceso Seguro (`Auth.tsx`):** Flujo de autenticación de usuarios administrado por Supabase Auth.
 
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with .
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/41bc2645-1920-482a-857f-137b8bbee0b3) and click on Share -> Publish.
-
-## I want to use a custom domain - is that possible?
-
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+### Stack Tecnológico
+* **Framework:** React + Vite (TypeScript)
+* **Estilos:** Tailwind CSS, shadcn-ui
+* **Base de Datos y Autenticación:** Supabase (PostgreSQL)
+* **Despliegue:** Vercel
