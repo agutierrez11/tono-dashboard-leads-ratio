@@ -18,6 +18,25 @@ export const useMonthlyGoal = () => {
   return useQuery({
     queryKey: ["channel-goals", "monthly-deals"],
     queryFn: async () => {
+      const isMock = !import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL.includes("dummy-url");
+      if (isMock) {
+        const local = localStorage.getItem("monthly-goal");
+        if (local) return JSON.parse(local);
+        const defaultGoal = {
+          id: "default-goal",
+          user_id: "mock-user-id",
+          channel: "all",
+          goal_type: "deals",
+          target_value: 10,
+          period: "monthly",
+          start_date: new Date().toISOString(),
+          end_date: new Date().toISOString(),
+          created_at: new Date().toISOString()
+        } as ChannelGoal;
+        localStorage.setItem("monthly-goal", JSON.stringify(defaultGoal));
+        return defaultGoal;
+      }
+
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
       const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
@@ -42,6 +61,23 @@ export const useSetMonthlyGoal = () => {
 
   return useMutation({
     mutationFn: async ({ targetValue }: { targetValue: number }) => {
+      const isMock = !import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL.includes("dummy-url");
+      if (isMock) {
+        const newGoal = {
+          id: "goal-id",
+          user_id: "mock-user-id",
+          channel: "all",
+          goal_type: "deals",
+          target_value: targetValue,
+          period: "monthly",
+          start_date: new Date().toISOString(),
+          end_date: new Date().toISOString(),
+          created_at: new Date().toISOString()
+        } as ChannelGoal;
+        localStorage.setItem("monthly-goal", JSON.stringify(newGoal));
+        return newGoal;
+      }
+
       const { data: { user } } = await supabase.auth.getUser();
       const userId = user?.id;
       if (!userId) throw new Error("No authenticated user");

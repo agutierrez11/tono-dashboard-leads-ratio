@@ -39,9 +39,12 @@ interface FunnelMetricsContextType {
 
 const FunnelMetricsContext = createContext<FunnelMetricsContextType | undefined>(undefined);
 
+const EMPTY_LEADS: any[] = [];
+
 export const FunnelMetricsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { metrics, isLoading } = useSalesFunnelMetrics(0); // Fetch all-time baseline
-  const { data: leads = [] } = useLeads();
+  const { data: leadsData } = useLeads();
+  const leads = leadsData || EMPTY_LEADS;
   const [isRealDataActive, setIsRealDataActive] = useState(true);
 
   const [callMetrics, setCallMetrics] = useState<CallFunnelMetrics>({

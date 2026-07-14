@@ -7,6 +7,20 @@ export const useAuth = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Check if we are in mock mode
+    const isMock = !import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL.includes("dummy-url");
+    if (isMock) {
+      setUser({
+        id: "mock-user-id",
+        email: "demo@incode.com",
+        aud: "authenticated",
+        role: "authenticated",
+        created_at: new Date().toISOString(),
+      } as User);
+      setLoading(false);
+      return;
+    }
+
     // Check initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);

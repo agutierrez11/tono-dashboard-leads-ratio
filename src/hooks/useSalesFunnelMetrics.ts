@@ -151,9 +151,15 @@ export interface FunnelMetrics {
   anomalies: Anomaly[];
 }
 
+const EMPTY_LEADS: DatabaseLead[] = [];
+const EMPTY_ACTIVITIES: DailyActivity[] = [];
+
 export const useSalesFunnelMetrics = (daysRange: number = 30) => {
-  const { data: leads = [], isLoading: leadsLoading } = useLeads();
-  const { data: activities = [], isLoading: activitiesLoading } = useRecentActivities(90);
+  const { data: leadsData, isLoading: leadsLoading } = useLeads();
+  const { data: activitiesData, isLoading: activitiesLoading } = useRecentActivities(90);
+
+  const leads = leadsData || EMPTY_LEADS;
+  const activities = activitiesData || EMPTY_ACTIVITIES;
 
   const isLoading = leadsLoading || activitiesLoading;
 
@@ -195,6 +201,8 @@ export const useSalesFunnelMetrics = (daysRange: number = 30) => {
         anomalies: []
       };
     }
+
+    const today = new Date();
 
     // Filter leads by date range if applicable
     const cutoffDate = daysRange > 0 ? (() => {

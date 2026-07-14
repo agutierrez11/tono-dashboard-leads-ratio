@@ -23,7 +23,7 @@ const App = () => (
       <FunnelMetricsProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
+        <BrowserRouter basename="/tono-dashboard-leads-ratio">
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />

@@ -12,6 +12,7 @@ import { FunnelCalculator } from "@/components/dashboard/FunnelCalculator";
 import { SalesCompanion } from "@/components/gamification/SalesCompanion";
 import { DailyGoalTracker } from "@/components/gamification/DailyGoalTracker";
 import { ActivityHistory } from "@/components/gamification/ActivityHistory";
+import { QuickOutreachLogger } from "@/components/dashboard/QuickOutreachLogger";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useLeadStats, useCreateLead } from "@/hooks/useLeads";
@@ -122,6 +123,9 @@ const Index = () => {
 
         {/* Sales Companion - Interactive Avatar */}
         <SalesCompanion />
+
+        {/* Quick Outreach Logger - KISS & Functional */}
+        <QuickOutreachLogger />
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard

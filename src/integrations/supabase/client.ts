@@ -2,13 +2,12 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://dummy-url-for-gh-pages.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "dummy-key";
 
-if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY) {
   console.warn(
-    "[Supabase] Variables faltantes. Define VITE_SUPABASE_URL y " +
-    "VITE_SUPABASE_PUBLISHABLE_KEY en tu archivo .env o en el entorno."
+    "[Supabase] Variables faltantes. Operando en Modo Demo Local."
   );
 }
 

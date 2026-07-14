@@ -16,6 +16,23 @@ export const useUserProfile = () => {
   return useQuery({
     queryKey: ["user-profile"],
     queryFn: async () => {
+      const isMock = !import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL.includes("dummy-url");
+      if (isMock) {
+        const local = localStorage.getItem("user-profile");
+        if (local) return JSON.parse(local);
+        const defaultProfile = {
+          id: "default-profile",
+          user_id: "mock-user-id",
+          display_name: "Antonio Gutiérrez",
+          avatar_type: "initials",
+          avatar_style: "avatar-initials",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        } as UserProfile;
+        localStorage.setItem("user-profile", JSON.stringify(defaultProfile));
+        return defaultProfile;
+      }
+
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
 
@@ -44,6 +61,21 @@ export const useCreateOrUpdateProfile = () => {
       avatarType: string; 
       avatarStyle: string;
     }) => {
+      const isMock = !import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL.includes("dummy-url");
+      if (isMock) {
+        const newProfile = {
+          id: "profile-id",
+          user_id: "mock-user-id",
+          display_name: displayName,
+          avatar_type: avatarType,
+          avatar_style: avatarStyle,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        } as UserProfile;
+        localStorage.setItem("user-profile", JSON.stringify(newProfile));
+        return newProfile;
+      }
+
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No authenticated user");
 
