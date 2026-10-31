@@ -1,11 +1,25 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { CrmLead, TouchLog, TouchType, LeadStage } from "@/types/crm";
 import { toast } from "sonner";
+import initialMasterLeads from "@/data/masterLeadsQROO.json";
 
 const ACTIVE_LEADS_KEY = "meli_cockpit_leads_nov2026";
 const STAGING_LEADS_KEY = "meli_staging_leads_nov2026";
 
 export const useMeliCockpit = () => {
+  // Purge legacy mock data if detected
+  useEffect(() => {
+    try {
+      const oldLeads = localStorage.getItem("leads");
+      if (oldLeads && (oldLeads.includes("Coppel") || oldLeads.includes("Nubank") || oldLeads.includes("Itaú"))) {
+        localStorage.removeItem("leads");
+        localStorage.removeItem("user-profile");
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
   const [activeLeads, setActiveLeads] = useState<CrmLead[]>(() => {
     try {
       const saved = localStorage.getItem(ACTIVE_LEADS_KEY);
@@ -18,9 +32,14 @@ export const useMeliCockpit = () => {
   const [stagingLeads, setStagingLeads] = useState<CrmLead[]>(() => {
     try {
       const saved = localStorage.getItem(STAGING_LEADS_KEY);
-      return saved ? JSON.parse(saved) : [];
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      // Default to 644 Quintana Roo master leads
+      return (initialMasterLeads as unknown as CrmLead[]) || [];
     } catch {
-      return [];
+      return (initialMasterLeads as unknown as CrmLead[]) || [];
     }
   });
 
@@ -42,8 +61,10 @@ export const useMeliCockpit = () => {
       const existsInActive = activeLeads.some((l) => {
         const lp = (l.phone || "").replace(/\D/g, "");
         const ln = (l.name || l.company || "").toLowerCase().trim();
-        return (cleanPhone && lp && (cleanPhone.endsWith(lp) || lp.endsWith(cleanPhone))) ||
-               (cleanName && ln === cleanName);
+        return (
+          (cleanPhone && lp && (cleanPhone.endsWith(lp) || lp.endsWith(cleanPhone))) ||
+          (cleanName && ln === cleanName)
+        );
       });
 
       return existsInActive;
@@ -67,7 +88,9 @@ export const useMeliCockpit = () => {
         contact_person: leadData.contact_person || "Director / Dueño",
         phone: leadData.phone || "",
         phone_intl: leadData.phone_intl || (leadData.phone ? `+52 ${leadData.phone}` : ""),
-        whatsapp_link: leadData.whatsapp_link || (leadData.phone ? `https://wa.me/52${leadData.phone.replace(/\D/g, "")}` : ""),
+        whatsapp_link:
+          leadData.whatsapp_link ||
+          (leadData.phone ? `https://wa.me/52${leadData.phone.replace(/\D/g, "")}` : ""),
         email: leadData.email || "",
         website_or_ig: leadData.website_or_ig || "",
         address_full: leadData.address_full || "",
@@ -85,7 +108,7 @@ export const useMeliCockpit = () => {
         opening_hook: leadData.opening_hook || "",
         stage: "new",
         status_mi_crm: "Activo en Mi CRM",
-        status_meli_crm: "Pendiente",
+        status_meli_crm: "Pendiente de Carga",
         fecha_carga_mi_crm: now,
         touches: [],
         created_at: now,
@@ -139,7 +162,44 @@ export const useMeliCockpit = () => {
     });
   }, []);
 
-  // Add Touch (WhatsApp, Call, Visit, Email)
+  // Activate Selected Leads (Selective Manual / Custom Batch)
+  const activateSelectedLeads = useCallback((leadIds: string[]) => {
+    if (leadIds.length === 0) {
+      toast.warning("Selecciona al menos un lead para enviar.");
+      return;
+    }
+
+    setStagingLeads((prevStaging) => {
+      const idSet = new Set(leadIds);
+      const toActivate = prevStaging.filter((l) => idSet.has(l.id) && l.status_mi_crm !== "Activo en Mi CRM");
+
+      if (toActivate.length === 0) {
+        toast.info("Los prospectos seleccionados ya están en tu CRM.");
+        return prevStaging;
+      }
+
+      const now = new Date().toISOString();
+      const activatedWithTimestamps = toActivate.map((l) => ({
+        ...l,
+        status_mi_crm: "Activo en Mi CRM" as const,
+        fecha_carga_mi_crm: now,
+        updated_at: now,
+      }));
+
+      setActiveLeads((prevActive) => [...activatedWithTimestamps, ...prevActive]);
+
+      const updatedStaging = prevStaging.map((l) =>
+        idSet.has(l.id)
+          ? { ...l, status_mi_crm: "Activo en Mi CRM" as const, fecha_carga_mi_crm: now }
+          : l
+      );
+
+      toast.success(`📥 ${toActivate.length} leads seleccionados enviados a Mi CRM.`);
+      return updatedStaging;
+    });
+  }, []);
+
+  // Add Touch (Cambaceo, WhatsApp, Call, Visit, Email, LinkedIn)
   const addTouch = useCallback((leadId: string, type: TouchType, note?: string) => {
     const now = new Date().toISOString();
     const touchObj: TouchLog = {
@@ -168,12 +228,14 @@ export const useMeliCockpit = () => {
     );
 
     const labels: Record<TouchType, string> = {
-      whatsapp: "WhatsApp enviado",
-      call: "Llamada registrada",
-      visit: "Visita presencial guardada",
-      email: "Correo registrado",
+      cambaceo: "📍 Visita de Cambaceo registrada",
+      visit: "📍 Visita presencial guardada",
+      whatsapp: "💬 WhatsApp enviado",
+      call: "📞 Llamada registrada",
+      email: "✉️ Correo registrado",
+      linkedin: "💼 Contacto LinkedIn registrado",
     };
-    toast.success(labels[type]);
+    toast.success(labels[type] || "Toque registrado");
   }, []);
 
   // Update Lead Stage
@@ -185,7 +247,7 @@ export const useMeliCockpit = () => {
         if (lead.id !== leadId) return lead;
 
         const isClosed = stage === "won" || stage === "lost";
-        const closedAt = isClosed ? (lead.closed_at || now) : undefined;
+        const closedAt = isClosed ? lead.closed_at || now : undefined;
         let daysInCycle = lead.days_in_cycle;
 
         if (isClosed && lead.created_at) {
@@ -206,7 +268,7 @@ export const useMeliCockpit = () => {
     toast.success(`Etapa actualizada a: ${stage}`);
   }, []);
 
-  // Mark uploaded to MELI CRM
+  // Mark uploaded to MELI CRM (Anti-duplicate bridge)
   const markUploadedToMeli = useCallback((leadId: string) => {
     const now = new Date().toISOString();
     setActiveLeads((prev) =>
@@ -220,16 +282,35 @@ export const useMeliCockpit = () => {
         };
       })
     );
+
+    setStagingLeads((prev) =>
+      prev.map((lead) => {
+        if (lead.id !== leadId) return lead;
+        return {
+          ...lead,
+          status_meli_crm: "Cargado en MELI CRM",
+          fecha_carga_meli: now,
+          updated_at: now,
+        };
+      })
+    );
+
     toast.success("✅ Marcado como cargado en CRM de Mercado Libre");
   }, []);
 
-  // Clear all data (Clean Slate)
+  // Reset / Clear Data
   const clearAllData = useCallback(() => {
     setActiveLeads([]);
-    setStagingLeads([]);
+    toast.info("Pipeline activo reiniciado en ceros.");
+  }, []);
+
+  const resetToMasterPool = useCallback(() => {
+    setActiveLeads([]);
+    const fresh = (initialMasterLeads as unknown as CrmLead[]) || [];
+    setStagingLeads(fresh);
     localStorage.removeItem(ACTIVE_LEADS_KEY);
-    localStorage.removeItem(STAGING_LEADS_KEY);
-    toast.info("Datos reiniciados en ceros para Noviembre 2026.");
+    localStorage.setItem(STAGING_LEADS_KEY, JSON.stringify(fresh));
+    toast.success("Banco maestro de 644 prospectos de Quintana Roo restablecido.");
   }, []);
 
   // Calculate Metrics & Analytics
@@ -242,10 +323,12 @@ export const useMeliCockpit = () => {
 
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
+    let cambaceoToday = 0;
     let callsToday = 0;
     let whatsappsToday = 0;
     let visitsToday = 0;
     let emailsToday = 0;
+    let linkedinToday = 0;
 
     let leadsToday = 0;
     let leadsThisWeek = 0;
@@ -254,9 +337,11 @@ export const useMeliCockpit = () => {
     const staleLeads: CrmLead[] = [];
     const wonLeads: CrmLead[] = [];
 
-    // Industry and Product buckets
-    const industryStats: Record<string, { count: number; won: number; totalDays: number; tpv: number }> = {};
-    const productStats: Record<string, { count: number; won: number; totalDays: number; tpv: number }> = {};
+    // Industry stats
+    const industryStats: Record<
+      string,
+      { count: number; won: number; totalDays: number; tpv: number }
+    > = {};
 
     activeLeads.forEach((lead) => {
       const createdDate = new Date(lead.created_at);
@@ -269,10 +354,14 @@ export const useMeliCockpit = () => {
       lead.touches.forEach((t) => {
         const touchDate = new Date(t.date);
         if (touchDate >= today) {
+          if (t.type === "cambaceo" || t.type === "visit") {
+            cambaceoToday++;
+            visitsToday++;
+          }
           if (t.type === "call") callsToday++;
           if (t.type === "whatsapp") whatsappsToday++;
-          if (t.type === "visit") visitsToday++;
           if (t.type === "email") emailsToday++;
+          if (t.type === "linkedin") linkedinToday++;
         }
       });
 
@@ -304,21 +393,10 @@ export const useMeliCockpit = () => {
         industryStats[ind].won++;
         industryStats[ind].totalDays += lead.days_in_cycle;
       }
-
-      // Product aggregations
-      const prod = lead.product_opportunity || "Point Smart";
-      if (!productStats[prod]) {
-        productStats[prod] = { count: 0, won: 0, totalDays: 0, tpv: 0 };
-      }
-      productStats[prod].count++;
-      productStats[prod].tpv += lead.tpv_monthly || 0;
-      if (lead.stage === "won" && lead.days_in_cycle) {
-        productStats[prod].won++;
-        productStats[prod].totalDays += lead.days_in_cycle;
-      }
     });
 
-    const totalTouchesToday = callsToday + whatsappsToday + visitsToday + emailsToday;
+    const totalTouchesToday =
+      cambaceoToday + callsToday + whatsappsToday + emailsToday + linkedinToday;
 
     // Sales Velocity (Hero Metric)
     const totalWonWithDays = wonLeads.filter((l) => l.days_in_cycle && l.days_in_cycle > 0);
@@ -359,20 +437,13 @@ export const useMeliCockpit = () => {
       avgDays: data.won > 0 ? Number((data.totalDays / data.won).toFixed(1)) : 0,
     }));
 
-    // Product breakdown data
-    const productBreakdown = Object.entries(productStats).map(([name, data]) => ({
-      name,
-      count: data.count,
-      won: data.won,
-      tpv: data.tpv,
-      avgDays: data.won > 0 ? Number((data.totalDays / data.won).toFixed(1)) : 0,
-    }));
-
     return {
+      cambaceoToday,
       callsToday,
       whatsappsToday,
       visitsToday,
       emailsToday,
+      linkedinToday,
       totalTouchesToday,
       leadsToday,
       leadsThisWeek,
@@ -383,8 +454,8 @@ export const useMeliCockpit = () => {
       avgDaysToClose,
       velocityBins,
       pieIndustryData,
-      productBreakdown,
       stagingCount: stagingLeads.filter((l) => l.status_mi_crm !== "Activo en Mi CRM").length,
+      totalStaging: stagingLeads.length,
     };
   }, [activeLeads, stagingLeads]);
 
@@ -394,10 +465,12 @@ export const useMeliCockpit = () => {
     metrics,
     addLeadManual,
     activateNextBatch,
+    activateSelectedLeads,
     setStagingBase,
     addTouch,
     updateStage,
     markUploadedToMeli,
     clearAllData,
+    resetToMasterPool,
   };
 };

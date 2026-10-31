@@ -121,11 +121,10 @@ export const Navbar = () => {
           </Sheet>
         ) : (
           <div className="flex items-center gap-2">
-            {user && (
-              <span className="text-sm text-muted-foreground hidden lg:inline">
-                {user.email}
-              </span>
-            )}
+            <span className="text-xs font-medium hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Antonio Gutiérrez • Quintana Roo
+            </span>
             <Button size="sm" variant="ghost" asChild>
               <Link to="/reports">Reportes</Link>
             </Button>

@@ -42,6 +42,9 @@ import {
   Clock,
   ArrowLeft,
   Plus,
+  MapPin,
+  Layers,
+  FileSpreadsheet,
 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { LeadStage, TouchType, CrmLead } from "@/types/crm";
@@ -59,7 +62,7 @@ const stageOptions: { value: LeadStage; label: string; color: string }[] = [
 ];
 
 const LeadsList = () => {
-  const { activeLeads, addTouch, updateStage, markUploadedToMeli } = useMeliCockpit();
+  const { activeLeads, stagingLeads, addTouch, updateStage, markUploadedToMeli } = useMeliCockpit();
   const [searchParams] = useSearchParams();
   const initialStaleFilter = searchParams.get("filter") === "stale";
 
@@ -158,6 +161,12 @@ Notas de Operación: ${lead.operational_pain || "Sin notas"}`;
           </div>
 
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="text-xs" asChild>
+              <Link to="/?tab=gsheet">
+                <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5 text-primary" />
+                Banco Google Sheets ({stagingLeads.length})
+              </Link>
+            </Button>
             <Button
               variant={showStaleOnly ? "destructive" : "outline"}
               size="sm"
@@ -342,7 +351,16 @@ Notas de Operación: ${lead.operational_pain || "Sin notas"}`;
                               <Button
                                 size="icon"
                                 variant="outline"
-                                className="h-7 w-7 text-emerald-600"
+                                className="h-7 w-7 text-purple-600 hover:bg-purple-50"
+                                title="Registrar Cambaceo / Visita en Calle"
+                                onClick={() => handleOpenTouch(lead, "cambaceo")}
+                              >
+                                <MapPin className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                className="h-7 w-7 text-emerald-600 hover:bg-emerald-50"
                                 title="Registrar WhatsApp"
                                 onClick={() => handleOpenTouch(lead, "whatsapp")}
                               >
@@ -351,20 +369,11 @@ Notas de Operación: ${lead.operational_pain || "Sin notas"}`;
                               <Button
                                 size="icon"
                                 variant="outline"
-                                className="h-7 w-7 text-blue-600"
+                                className="h-7 w-7 text-blue-600 hover:bg-blue-50"
                                 title="Registrar Llamada"
                                 onClick={() => handleOpenTouch(lead, "call")}
                               >
                                 <Phone className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="outline"
-                                className="h-7 w-7 text-purple-600"
-                                title="Registrar Visita"
-                                onClick={() => handleOpenTouch(lead, "visit")}
-                              >
-                                <Building2 className="h-3.5 w-3.5" />
                               </Button>
                               <Button
                                 size="sm"
@@ -397,13 +406,32 @@ Notas de Operación: ${lead.operational_pain || "Sin notas"}`;
                 Registrar Toque: {touchLead.company}
               </DialogTitle>
               <DialogDescription className="text-xs">
-                Canal: <strong className="capitalize">{touchType}</strong> • Registra el resultado del contacto.
+                Canal: <strong className="capitalize">{touchType === "cambaceo" ? "📍 Cambaceo (Visita en frío)" : touchType}</strong> • Registra el resultado del contacto.
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-3 pt-2">
+              <div className="flex gap-1.5">
+                {[
+                  { key: "cambaceo" as TouchType, label: "📍 Cambaceo" },
+                  { key: "whatsapp" as TouchType, label: "💬 Whats" },
+                  { key: "call" as TouchType, label: "📞 Llamada" },
+                  { key: "email" as TouchType, label: "✉️ Email" },
+                ].map((t) => (
+                  <Button
+                    key={t.key}
+                    type="button"
+                    variant={touchType === t.key ? "default" : "outline"}
+                    size="sm"
+                    className="text-xs h-7 flex-1"
+                    onClick={() => setTouchType(t.key)}
+                  >
+                    {t.label}
+                  </Button>
+                ))}
+              </div>
               <Textarea
-                placeholder="ej. Hablé con el encargado de compras. Le interesó la tasa del 2.49% y pidió cotización por WhatsApp..."
+                placeholder="ej. Visité el restaurante en Plaza Las Américas. Hablé con el dueño Don Ramón, le interesa terminal Point Smart para reducir comisión..."
                 value={touchNote}
                 onChange={(e) => setTouchNote(e.target.value)}
                 rows={3}

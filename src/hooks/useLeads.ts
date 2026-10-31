@@ -1,6 +1,4 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export interface DatabaseLead {
@@ -9,7 +7,7 @@ export interface DatabaseLead {
   email: string | null;
   phone: string | null;
   company: string | null;
-  channel: "linkedin" | "phone" | "email";
+  channel: "linkedin" | "phone" | "email" | "cambaceo" | "whatsapp";
   status: string;
   source: string | null;
   user_id: string;
@@ -22,26 +20,36 @@ export interface DatabaseLead {
   updated_at: string;
 }
 
+const STORAGE_KEY = "leads";
+
 export const useLeads = () => {
   return useQuery({
     queryKey: ["leads"],
     queryFn: async () => {
-      const isMock = !import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL.includes("dummy-url");
-      if (isMock) {
-        const local = localStorage.getItem("leads");
-        if (local) return JSON.parse(local);
-        const seedData = getSeedLeads();
-        localStorage.setItem("leads", JSON.stringify(seedData));
-        return seedData;
+      const local = localStorage.getItem(STORAGE_KEY);
+      if (local) {
+        try {
+          const parsed = JSON.parse(local);
+          // If legacy mock demo leads (Coppel, Nubank, Itaú) exist, purge them!
+          if (
+            Array.isArray(parsed) &&
+            parsed.some(
+              (l: any) =>
+                l.company === "Coppel" ||
+                l.company === "Nubank" ||
+                l.company === "Liverpool" ||
+                l.company === "Itaú"
+            )
+          ) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
+            return [];
+          }
+          return parsed as DatabaseLead[];
+        } catch {
+          return [];
+        }
       }
-
-      const { data, error } = await supabase
-        .from("leads")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      return (data as DatabaseLead[]) || [];
+      return [];
     },
   });
 };
@@ -55,6 +63,8 @@ export const useLeadStats = () => {
       linkedin: leads.filter((lead) => lead.channel === "linkedin").length,
       phone: leads.filter((lead) => lead.channel === "phone").length,
       email: leads.filter((lead) => lead.channel === "email").length,
+      whatsapp: leads.filter((lead) => lead.channel === "whatsapp").length,
+      cambaceo: leads.filter((lead) => (lead as any).channel === "cambaceo").length,
     },
     conversionRates: calculateConversionRates(leads),
     salesCycleTimes: calculateSalesCycleTimes(leads),
@@ -69,9 +79,7 @@ const calculateConversionRates = (leads: DatabaseLead[]) => {
   return channels.map((channel) => {
     const channelLeads = leads.filter((lead) => lead.channel === channel);
     const totalLeads = channelLeads.length;
-    const closedLeads = channelLeads.filter(
-      (lead) => lead.status === "won"
-    ).length;
+    const closedLeads = channelLeads.filter((lead) => lead.status === "won").length;
     const rate = totalLeads > 0 ? (closedLeads / totalLeads) * 100 : 0;
 
     return {
@@ -121,20 +129,13 @@ export const useDeleteAllLeads = () => {
 
   return useMutation({
     mutationFn: async () => {
-      const isMock = !import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL.includes("dummy-url");
-      if (isMock) {
-        localStorage.setItem("leads", JSON.stringify([]));
-        return;
-      }
-
-      const { error } = await supabase.from("leads").delete().gte("created_at", "1970-01-01");
-      if (error) throw error;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leads"] });
       toast.success("Todos los datos han sido eliminados");
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error("Error al eliminar datos: " + error.message);
     },
   });
@@ -145,29 +146,17 @@ export const useCreateLead = () => {
 
   return useMutation({
     mutationFn: async (lead: Omit<DatabaseLead, "id" | "created_at" | "updated_at">) => {
-      const isMock = !import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL.includes("dummy-url");
-      if (isMock) {
-        const local = localStorage.getItem("leads");
-        const leads = local ? JSON.parse(local) : [];
-        const newLead = {
-          ...lead,
-          id: "lead-" + Math.random().toString(36).substr(2, 9),
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        } as DatabaseLead;
-        leads.unshift(newLead);
-        localStorage.setItem("leads", JSON.stringify(leads));
-        return newLead;
-      }
-
-      const { data, error } = await supabase
-        .from("leads")
-        .insert(lead)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+      const local = localStorage.getItem(STORAGE_KEY);
+      const leads = local ? JSON.parse(local) : [];
+      const newLead = {
+        ...lead,
+        id: "lead-" + Math.random().toString(36).substr(2, 9),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      } as DatabaseLead;
+      leads.unshift(newLead);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(leads));
+      return newLead;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leads"] });
@@ -180,43 +169,33 @@ export const useUpdateLeadStatus = () => {
 
   return useMutation({
     mutationFn: async ({ leadId, status }: { leadId: string; status: string }) => {
-      const isMock = !import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL.includes("dummy-url");
-      if (isMock) {
-        const local = localStorage.getItem("leads");
-        const leads = local ? JSON.parse(local) : [];
-        const updatedLeads = leads.map((l: any) => 
-          l.id === leadId 
-            ? { 
-                ...l, 
-                status, 
-                updated_at: new Date().toISOString(),
-                closed_at: (status === 'won' || status === 'lost') ? new Date().toISOString() : null,
-                sale_cycle_days: (status === 'won' || status === 'lost') 
-                  ? Math.max(1, Math.floor((new Date().getTime() - new Date(l.created_at).getTime()) / (1000 * 60 * 60 * 24))) 
-                  : null
-              } 
-            : l
-        );
-        localStorage.setItem("leads", JSON.stringify(updatedLeads));
-        return updatedLeads.find((l: any) => l.id === leadId);
-      }
-
-      const { data, error } = await supabase
-        .from("leads")
-        .update({ status })
-        .eq("id", leadId)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+      const local = localStorage.getItem(STORAGE_KEY);
+      const leads = local ? JSON.parse(local) : [];
+      const updatedLeads = leads.map((l: any) =>
+        l.id === leadId
+          ? {
+              ...l,
+              status,
+              updated_at: new Date().toISOString(),
+              closed_at: status === "won" || status === "lost" ? new Date().toISOString() : null,
+              sale_cycle_days:
+                status === "won" || status === "lost"
+                  ? Math.max(
+                      1,
+                      Math.floor(
+                        (new Date().getTime() - new Date(l.created_at).getTime()) /
+                          (1000 * 60 * 60 * 24)
+                      )
+                    )
+                  : null,
+            }
+          : l
+      );
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedLeads));
+      return updatedLeads.find((l: any) => l.id === leadId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leads"] });
     },
   });
-};
-
-const getSeedLeads = (): DatabaseLead[] => {
-  return [];
 };

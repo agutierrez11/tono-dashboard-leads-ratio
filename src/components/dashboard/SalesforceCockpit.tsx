@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React from "react";
 import { useMeliCockpit } from "@/hooks/useMeliCockpit";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
+  MapPin,
   Phone,
   MessageSquare,
   Building2,
@@ -32,6 +33,7 @@ import {
   CartesianGrid,
 } from "recharts";
 import { Link } from "react-router-dom";
+import { QuickOutreachLogger } from "@/components/dashboard/QuickOutreachLogger";
 
 const PIE_COLORS = [
   "#3b82f6", // Blue
@@ -46,13 +48,18 @@ const PIE_COLORS = [
 
 export const SalesforceCockpit: React.FC = () => {
   const { metrics, activateNextBatch } = useMeliCockpit();
-  const [activeSubTab, setActiveSubTab] = useState<"industry" | "product">("industry");
 
   const dailyTouchGoal = 15;
-  const touchProgress = Math.min(100, Math.round((metrics.totalTouchesToday / dailyTouchGoal) * 100));
+  const touchProgress = Math.min(
+    100,
+    Math.round((metrics.totalTouchesToday / dailyTouchGoal) * 100)
+  );
 
   const dailyLeadGoal = 10;
-  const leadProgress = Math.min(100, Math.round((metrics.leadsToday / dailyLeadGoal) * 100));
+  const leadProgress = Math.min(
+    100,
+    Math.round((metrics.leadsToday / dailyLeadGoal) * 100)
+  );
 
   return (
     <div className="space-y-6">
@@ -66,7 +73,7 @@ export const SalesforceCockpit: React.FC = () => {
                 🚨 {metrics.staleLeads.length} cuentas con más de 7 días sin actividad
               </p>
               <p className="text-xs opacity-90">
-                Estas cuentas están en riesgo de enfriarse o perder tracción frente a Clip/bancos.
+                Estas cuentas están en riesgo de enfriarse o perder tracción en calle.
               </p>
             </div>
           </div>
@@ -88,7 +95,7 @@ export const SalesforceCockpit: React.FC = () => {
                   🎯 Disciplina Diaria MELI
                 </Badge>
                 <span className="text-xs text-muted-foreground">
-                  Banco de reserva: <strong>{metrics.stagingCount} leads listos</strong>
+                  Banco de reserva: <strong>{metrics.stagingCount} leads disponibles</strong>
                 </span>
               </div>
               <h3 className="text-lg font-bold">
@@ -126,8 +133,18 @@ export const SalesforceCockpit: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* 3. Panel de Acciones del Día (Salesforce Cadence Tracker) */}
+      {/* 3. Panel de Acciones del Día (Salesforce Cadence Tracker) con Cambaceo */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <Card className="p-3 text-center border-purple-500/20 bg-purple-500/5">
+          <div className="flex justify-center mb-1">
+            <MapPin className="h-5 w-5 text-purple-500" />
+          </div>
+          <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+            {metrics.cambaceoToday || metrics.visitsToday}
+          </div>
+          <div className="text-[11px] text-muted-foreground">Cambaceo en Campo</div>
+        </Card>
+
         <Card className="p-3 text-center border-emerald-500/20 bg-emerald-500/5">
           <div className="flex justify-center mb-1">
             <MessageSquare className="h-5 w-5 text-emerald-500" />
@@ -146,16 +163,6 @@ export const SalesforceCockpit: React.FC = () => {
             {metrics.callsToday}
           </div>
           <div className="text-[11px] text-muted-foreground">Llamadas Hoy</div>
-        </Card>
-
-        <Card className="p-3 text-center border-purple-500/20 bg-purple-500/5">
-          <div className="flex justify-center mb-1">
-            <Building2 className="h-5 w-5 text-purple-500" />
-          </div>
-          <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-            {metrics.visitsToday}
-          </div>
-          <div className="text-[11px] text-muted-foreground">Visitas en Campo</div>
         </Card>
 
         <Card className="p-3 text-center border-amber-500/20 bg-amber-500/5">
@@ -179,7 +186,10 @@ export const SalesforceCockpit: React.FC = () => {
         </Card>
       </div>
 
-      {/* 4. Métricas de Entrada: Día, Semana, Mes */}
+      {/* 4. Registro Rápido de Acciones en Campo (1-Clic, Local-First) */}
+      <QuickOutreachLogger />
+
+      {/* 5. Métricas de Entrada: Día, Semana, Mes */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="pb-2">
@@ -223,7 +233,7 @@ export const SalesforceCockpit: React.FC = () => {
         </Card>
       </div>
 
-      {/* 5. Métrica Reina: Velocidad de Cierre General & Distribución */}
+      {/* 6. Métrica Reina: Velocidad de Cierre General & Distribución */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="flex flex-col">
           <CardHeader>
@@ -251,40 +261,36 @@ export const SalesforceCockpit: React.FC = () => {
                 <BarChart data={metrics.velocityBins} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
                   <XAxis dataKey="range" tick={{ fontSize: 11 }} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} />
                   <Tooltip />
-                  <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Tratos" />
+                  <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Cuentas Cerradas" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
             <p className="text-[11px] text-muted-foreground text-center mt-2">
-              💡 La mayoría de tus cuentas de alto TPV deben cerrar entre 4 y 7 días para evitar fricción.
+              Distribución de días de ciclo de venta (frecuencia de cierres rápidos vs lentos).
             </p>
           </CardContent>
         </Card>
 
-        {/* 6. Gráfica de Pastel de Industrias (Salesforce Style) */}
+        {/* Gráfica de Pastel: Concentración de Pipeline por Industria */}
         <Card className="flex flex-col">
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-base font-semibold flex items-center gap-2">
-                  <PieIcon className="h-5 w-5 text-primary" />
-                  Distribución por Industria
-                </CardTitle>
-                <CardDescription className="text-xs">
-                  Porcentaje de cuentas en tu pipeline por vertical de negocio
-                </CardDescription>
-              </div>
-            </div>
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <PieIcon className="h-5 w-5 text-primary" />
+              Concentración de Pipeline por Industria
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Diversificación de tus cuentas en Quintana Roo
+            </CardDescription>
           </CardHeader>
           <CardContent className="flex-1 flex flex-col justify-center">
             {metrics.pieIndustryData.length === 0 ? (
-              <div className="h-[220px] flex items-center justify-center text-xs text-muted-foreground">
-                Activa tu primer lote de leads para visualizar la distribución por industria.
+              <div className="h-[220px] flex items-center justify-center text-muted-foreground text-xs">
+                Sin cuentas en el pipeline activo todavía. Activa un lote de 10 para comenzar.
               </div>
             ) : (
-              <div className="h-[220px] w-full flex items-center">
+              <div className="h-[220px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -293,9 +299,8 @@ export const SalesforceCockpit: React.FC = () => {
                       nameKey="name"
                       cx="50%"
                       cy="50%"
-                      innerRadius={50}
                       outerRadius={80}
-                      paddingAngle={2}
+                      label={({ name, percent }) => `${name.split(" ")[0]} ${(percent * 100).toFixed(0)}%`}
                     >
                       {metrics.pieIndustryData.map((_, index) => (
                         <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
@@ -321,112 +326,53 @@ export const SalesforceCockpit: React.FC = () => {
         </Card>
       </div>
 
-      {/* 7. Sub-productos: Análisis por Industria y Producto */}
+      {/* 7. Velocidad y Desempeño por Industria / Vertical (Solo Industria como solicitó el usuario) */}
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-base font-semibold">
-                Sub-productos de Velocidad: Industria vs Producto
-              </CardTitle>
-              <CardDescription className="text-xs">
-                Compara en qué sector cierras más rápido y qué solución tiene mayor tracción
-              </CardDescription>
-            </div>
-            <div className="flex gap-1 bg-muted p-1 rounded-lg">
-              <Button
-                variant={activeSubTab === "industry" ? "default" : "ghost"}
-                size="sm"
-                className="h-7 text-xs"
-                onClick={() => setActiveSubTab("industry")}
-              >
-                Por Industria
-              </Button>
-              <Button
-                variant={activeSubTab === "product" ? "default" : "ghost"}
-                size="sm"
-                className="h-7 text-xs"
-                onClick={() => setActiveSubTab("product")}
-              >
-                Por Producto
-              </Button>
-            </div>
-          </div>
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <Building2 className="h-5 w-5 text-primary" />
+            Velocidad y Desempeño por Industria / Vertical
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Compara en qué sector cierras más rápido y qué industrias generan mayor volumen de TPV
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          {activeSubTab === "industry" ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
-                <thead className="border-b bg-muted/30 text-muted-foreground">
-                  <tr>
-                    <th className="p-2 font-medium">Vertical / Industria</th>
-                    <th className="p-2 font-medium text-center">Cuentas Activas</th>
-                    <th className="p-2 font-medium text-center">Cierres Ganados</th>
-                    <th className="p-2 font-medium text-center">Velocidad Promedio</th>
-                    <th className="p-2 font-medium text-right">TPV Total</th>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs text-left">
+              <thead className="border-b bg-muted/30 text-muted-foreground">
+                <tr>
+                  <th className="p-2.5 font-medium">Vertical / Industria</th>
+                  <th className="p-2.5 font-medium text-center">Cuentas Activas</th>
+                  <th className="p-2.5 font-medium text-center">Cierres Ganados</th>
+                  <th className="p-2.5 font-medium text-center">Velocidad Promedio</th>
+                  <th className="p-2.5 font-medium text-right">TPV Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {metrics.pieIndustryData.map((ind) => (
+                  <tr key={ind.name} className="hover:bg-muted/10 transition-colors">
+                    <td className="p-2.5 font-medium">{ind.name}</td>
+                    <td className="p-2.5 text-center">{ind.value}</td>
+                    <td className="p-2.5 text-center text-emerald-600 font-semibold">{ind.won}</td>
+                    <td className="p-2.5 text-center">
+                      {ind.avgDays > 0 ? `${ind.avgDays} días` : "--"}
+                    </td>
+                    <td className="p-2.5 text-right font-medium">
+                      ${(ind.tpv / 1000).toLocaleString()}k
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {metrics.pieIndustryData.map((ind) => (
-                    <tr key={ind.name} className="hover:bg-muted/10">
-                      <td className="p-2 font-medium">{ind.name}</td>
-                      <td className="p-2 text-center">{ind.value}</td>
-                      <td className="p-2 text-center text-emerald-600 font-semibold">{ind.won}</td>
-                      <td className="p-2 text-center">
-                        {ind.avgDays > 0 ? `${ind.avgDays} días` : "--"}
-                      </td>
-                      <td className="p-2 text-right font-medium">
-                        ${(ind.tpv / 1000).toLocaleString()}k
-                      </td>
-                    </tr>
-                  ))}
-                  {metrics.pieIndustryData.length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="p-4 text-center text-muted-foreground">
-                        Sin datos en el pipeline.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
-                <thead className="border-b bg-muted/30 text-muted-foreground">
+                ))}
+                {metrics.pieIndustryData.length === 0 && (
                   <tr>
-                    <th className="p-2 font-medium">Solución / Producto</th>
-                    <th className="p-2 font-medium text-center">Cuentas</th>
-                    <th className="p-2 font-medium text-center">Ganados</th>
-                    <th className="p-2 font-medium text-center">Velocidad</th>
-                    <th className="p-2 font-medium text-right">TPV Total</th>
+                    <td colSpan={5} className="p-6 text-center text-muted-foreground">
+                      Sin datos en el pipeline activo. Usa el botón "Activar Siguiente Lote de 10" para empezar tu día.
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {metrics.productBreakdown.map((prod) => (
-                    <tr key={prod.name} className="hover:bg-muted/10">
-                      <td className="p-2 font-medium">{prod.name}</td>
-                      <td className="p-2 text-center">{prod.count}</td>
-                      <td className="p-2 text-center text-emerald-600 font-semibold">{prod.won}</td>
-                      <td className="p-2 text-center">
-                        {prod.avgDays > 0 ? `${prod.avgDays} días` : "--"}
-                      </td>
-                      <td className="p-2 text-right font-medium">
-                        ${(prod.tpv / 1000).toLocaleString()}k
-                      </td>
-                    </tr>
-                  ))}
-                  {metrics.productBreakdown.length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="p-4 text-center text-muted-foreground">
-                        Sin productos registrados.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
+                )}
+              </tbody>
+            </table>
+          </div>
         </CardContent>
       </Card>
     </div>

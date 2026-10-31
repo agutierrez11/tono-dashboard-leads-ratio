@@ -1,4 +1,4 @@
-export type TouchType = "whatsapp" | "call" | "visit" | "email";
+export type TouchType = "cambaceo" | "visit" | "whatsapp" | "call" | "email" | "linkedin";
 
 export interface TouchLog {
   id: string;
@@ -41,8 +41,8 @@ export interface CrmLead {
   opening_hook?: string;
   stage: LeadStage;
   // Tracking & Anti-duplicados
-  status_mi_crm: "En Espera" | "Activo en Mi CRM" | "Descartado";
-  status_meli_crm: "Pendiente" | "Cargado en MELI CRM";
+  status_mi_crm: "En Espera" | "En Espera / Banco" | "Activo en Mi CRM" | "Descartado";
+  status_meli_crm: "Pendiente" | "Pendiente de Carga" | "Cargado en MELI CRM";
   fecha_carga_mi_crm?: string;
   fecha_carga_meli?: string;
   // Toques y Actividad
@@ -55,10 +55,12 @@ export interface CrmLead {
 }
 
 export interface DailyActivityStats {
+  cambaceo_today: number;
   calls_today: number;
   whatsapps_today: number;
   visits_today: number;
   emails_today: number;
+  linkedin_today: number;
   total_touches_today: number;
   leads_created_today: number;
   leads_created_this_week: number;
