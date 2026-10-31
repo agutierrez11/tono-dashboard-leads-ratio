@@ -19,6 +19,8 @@ import {
   PieChart as PieIcon,
   CheckCircle2,
   ArrowRight,
+  Calculator,
+  Compass,
 } from "lucide-react";
 import {
   PieChart,
@@ -34,6 +36,8 @@ import {
 } from "recharts";
 import { Link } from "react-router-dom";
 import { QuickOutreachLogger } from "@/components/dashboard/QuickOutreachLogger";
+import { SalesforceGauge } from "@/components/dashboard/SalesforceGauge";
+import { FourStageFunnel } from "@/components/dashboard/FourStageFunnel";
 
 const PIE_COLORS = [
   "#3b82f6", // Blue
@@ -50,22 +54,27 @@ export const SalesforceCockpit: React.FC = () => {
   const { metrics, activateNextBatch } = useMeliCockpit();
 
   const dailyTouchGoal = 15;
-  const touchProgress = Math.min(
-    100,
-    Math.round((metrics.totalTouchesToday / dailyTouchGoal) * 100)
-  );
-
   const dailyLeadGoal = 10;
   const leadProgress = Math.min(
     100,
     Math.round((metrics.leadsToday / dailyLeadGoal) * 100)
   );
 
+  // Copiloto de Pacing Predictivo Automático (Sin calculadoras estáticas manuales)
+  const remainingWorkDays = 21; // Días laborales de Noviembre
+  const meliMonthlyGoal = 12; // Meta de 12 cierres de Mercado Pago
+  const currentPacingTouches = metrics.totalTouchesToday || 8;
+  const projectedMonthlyClosures = Math.max(
+    1,
+    Math.round(((currentPacingTouches * 0.04) * remainingWorkDays) + metrics.wonLeadsCount)
+  );
+  const requiredDailyTouches = Math.ceil((meliMonthlyGoal - metrics.wonLeadsCount) / (remainingWorkDays * 0.04));
+
   return (
     <div className="space-y-6">
       {/* 1. Alerta de Inactividad (+7 Días sin toques) */}
       {metrics.staleLeads.length > 0 && (
-        <div className="bg-destructive/10 border-2 border-destructive/30 rounded-xl p-4 flex items-center justify-between text-destructive">
+        <div className="bg-destructive/10 border-2 border-destructive/30 rounded-xl p-4 flex items-center justify-between text-destructive shadow-sm">
           <div className="flex items-center gap-3">
             <AlertTriangle className="h-6 w-6 animate-pulse text-destructive" />
             <div>
@@ -73,7 +82,7 @@ export const SalesforceCockpit: React.FC = () => {
                 🚨 {metrics.staleLeads.length} cuentas con más de 7 días sin actividad
               </p>
               <p className="text-xs opacity-90">
-                Estas cuentas están en riesgo de enfriarse o perder tracción en calle.
+                Estas cuentas están en riesgo de enfriarse o perder tracción en campo.
               </p>
             </div>
           </div>
@@ -85,161 +94,110 @@ export const SalesforceCockpit: React.FC = () => {
         </div>
       )}
 
-      {/* 2. Barra de Control de Pacing: Lotes de 10 vs Alta Manual */}
-      <Card className="border-primary/20 bg-gradient-to-r from-primary/5 via-background to-background">
-        <CardContent className="pt-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="space-y-1 text-center md:text-left">
-              <div className="flex items-center gap-2 justify-center md:justify-start">
-                <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
-                  🎯 Disciplina Diaria MELI
-                </Badge>
-                <span className="text-xs text-muted-foreground">
-                  Banco de reserva: <strong>{metrics.stagingCount} leads disponibles</strong>
-                </span>
+      {/* 2. Hero Section: Tacómetro de Adopción (Salesforce Style) + Cadencia de Canales + Copiloto Pacing */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        {/* Tacómetro / Gauge (4 columnas) */}
+        <div className="lg:col-span-4">
+          <SalesforceGauge
+            value={metrics.totalTouchesToday}
+            target={dailyTouchGoal}
+            label="Meta de Actividad Diaria"
+            sublabel="Mínimo 8 para ritmo base • 12-15 para alta conversión"
+          />
+        </div>
+
+        {/* Canales y Pacing Predictivo (8 columnas) */}
+        <div className="lg:col-span-8 flex flex-col justify-between gap-3">
+          {/* Contador de Canales de Hoy */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <Card className="p-3 text-center border-purple-500/20 bg-purple-500/5">
+              <div className="flex justify-center mb-1">
+                <MapPin className="h-4 w-4 text-purple-600" />
               </div>
-              <h3 className="text-lg font-bold">
-                Leads Activados Hoy: {metrics.leadsToday} / {dailyLeadGoal}
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                Sube de 10 en 10 para garantizar el seguimiento y no saturar tu tablero.
-              </p>
+              <div className="text-2xl font-extrabold text-purple-600 dark:text-purple-400">
+                {metrics.cambaceoToday || metrics.visitsToday}
+              </div>
+              <div className="text-[11px] text-muted-foreground font-medium">Cambaceo en Calle</div>
+            </Card>
+
+            <Card className="p-3 text-center border-emerald-500/20 bg-emerald-500/5">
+              <div className="flex justify-center mb-1">
+                <MessageSquare className="h-4 w-4 text-emerald-600" />
+              </div>
+              <div className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">
+                {metrics.whatsappsToday}
+              </div>
+              <div className="text-[11px] text-muted-foreground font-medium">WhatsApps Hoy</div>
+            </Card>
+
+            <Card className="p-3 text-center border-blue-500/20 bg-blue-500/5">
+              <div className="flex justify-center mb-1">
+                <Phone className="h-4 w-4 text-blue-600" />
+              </div>
+              <div className="text-2xl font-extrabold text-blue-600 dark:text-blue-400">
+                {metrics.callsToday}
+              </div>
+              <div className="text-[11px] text-muted-foreground font-medium">Llamadas Hoy</div>
+            </Card>
+
+            <Card className="p-3 text-center border-amber-500/20 bg-amber-500/5">
+              <div className="flex justify-center mb-1">
+                <Mail className="h-4 w-4 text-amber-600" />
+              </div>
+              <div className="text-2xl font-extrabold text-amber-600 dark:text-amber-400">
+                {metrics.emailsToday}
+              </div>
+              <div className="text-[11px] text-muted-foreground font-medium">Correos Hoy</div>
+            </Card>
+          </div>
+
+          {/* Copiloto de Pacing Predictivo (La calculadora convertida en inteligencia ejecutiva) */}
+          <div className="p-3.5 rounded-xl border bg-gradient-to-r from-blue-500/5 via-card to-card flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <Compass className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">
+                    Copiloto de Pacing • Meta Mensual MELI
+                  </h4>
+                  <Badge variant="outline" className="text-[10px] bg-primary/5 text-primary border-primary/20">
+                    Objetivo: 12 Cierres
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Proyección al ritmo actual: <strong className="text-foreground">{projectedMonthlyClosures} cierres ganados</strong> (~${((projectedMonthlyClosures * 450000) / 1000).toLocaleString()}k TPV). Cadencia recomendada: <strong>{requiredDailyTouches} toques diarios</strong>.
+                </p>
+              </div>
             </div>
 
-            <div className="flex items-center gap-3 w-full md:w-auto">
-              <Button
-                onClick={() => activateNextBatch(10)}
-                className="flex-1 md:flex-none bg-primary text-primary-foreground hover:bg-primary/90"
-              >
-                <Layers className="h-4 w-4 mr-2" />
-                Activar Siguiente Lote de 10
-              </Button>
-              <Link to="/leads" className="flex-1 md:flex-none">
-                <Button variant="outline" className="w-full">
-                  <PlusCircle className="h-4 w-4 mr-2" />
-                  Alta Manual en Calle
-                </Button>
-              </Link>
-            </div>
+            <Button
+              size="sm"
+              onClick={() => activateNextBatch(10)}
+              className="text-xs h-8 shrink-0 bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              <Layers className="h-3.5 w-3.5 mr-1.5" />
+              Activar Lote de 10
+            </Button>
           </div>
-
-          <div className="mt-4 space-y-1">
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>Ritmo de Prospección Diaria</span>
-              <span>{leadProgress}% de la meta (8-10 leads)</span>
-            </div>
-            <Progress value={leadProgress} className="h-2" />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 3. Panel de Acciones del Día (Salesforce Cadence Tracker) con Cambaceo */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <Card className="p-3 text-center border-purple-500/20 bg-purple-500/5">
-          <div className="flex justify-center mb-1">
-            <MapPin className="h-5 w-5 text-purple-500" />
-          </div>
-          <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-            {metrics.cambaceoToday || metrics.visitsToday}
-          </div>
-          <div className="text-[11px] text-muted-foreground">Cambaceo en Campo</div>
-        </Card>
-
-        <Card className="p-3 text-center border-emerald-500/20 bg-emerald-500/5">
-          <div className="flex justify-center mb-1">
-            <MessageSquare className="h-5 w-5 text-emerald-500" />
-          </div>
-          <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-            {metrics.whatsappsToday}
-          </div>
-          <div className="text-[11px] text-muted-foreground">WhatsApps Hoy</div>
-        </Card>
-
-        <Card className="p-3 text-center border-blue-500/20 bg-blue-500/5">
-          <div className="flex justify-center mb-1">
-            <Phone className="h-5 w-5 text-blue-500" />
-          </div>
-          <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-            {metrics.callsToday}
-          </div>
-          <div className="text-[11px] text-muted-foreground">Llamadas Hoy</div>
-        </Card>
-
-        <Card className="p-3 text-center border-amber-500/20 bg-amber-500/5">
-          <div className="flex justify-center mb-1">
-            <Mail className="h-5 w-5 text-amber-500" />
-          </div>
-          <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
-            {metrics.emailsToday}
-          </div>
-          <div className="text-[11px] text-muted-foreground">Correos Hoy</div>
-        </Card>
-
-        <Card className="p-3 text-center col-span-2 md:col-span-1 border-primary/20 bg-primary/5">
-          <div className="flex justify-center mb-1">
-            <Zap className="h-5 w-5 text-primary" />
-          </div>
-          <div className="text-2xl font-bold text-primary">
-            {metrics.totalTouchesToday} / {dailyTouchGoal}
-          </div>
-          <div className="text-[11px] text-muted-foreground">Toques Totales Hoy</div>
-        </Card>
+        </div>
       </div>
+
+      {/* 3. Embudo de Conversión de 4 Etapas (Al día, por semana y por mes) */}
+      <FourStageFunnel />
 
       {/* 4. Registro Rápido de Acciones en Campo (1-Clic, Local-First) */}
       <QuickOutreachLogger />
 
-      {/* 5. Métricas de Entrada: Día, Semana, Mes */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="text-xs">Leads Subidos Hoy</CardDescription>
-            <CardTitle className="text-2xl font-bold flex items-center justify-between">
-              {metrics.leadsToday}
-              <Badge variant="secondary" className="text-xs">Meta: 8-10</Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">Ritmo óptimo para alimentar tu embudo diario.</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="text-xs">Leads Esta Semana</CardDescription>
-            <CardTitle className="text-2xl font-bold flex items-center justify-between">
-              {metrics.leadsThisWeek}
-              <Badge variant="secondary" className="text-xs">Meta: 40-50</Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">Cuentas activas en proceso de contacto inicial.</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="text-xs">Cierres Ganados en Noviembre</CardDescription>
-            <CardTitle className="text-2xl font-bold flex items-center justify-between text-emerald-600 dark:text-emerald-400">
-              {metrics.wonLeadsCount} cuentas
-              <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30 text-xs">
-                ${(metrics.totalWonTpv / 1000).toFixed(0)}k TPV
-              </Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">Terminales colocadas y transaccionando.</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* 6. Métrica Reina: Velocidad de Cierre General & Distribución */}
+      {/* 5. Métrica Reina: Velocidad de Cierre General & Concentración por Industria */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="flex flex-col">
-          <CardHeader>
+        {/* Velocidad */}
+        <Card className="flex flex-col border shadow-sm">
+          <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <CardTitle className="text-base font-bold flex items-center gap-2">
                   <Clock className="h-5 w-5 text-primary" />
                   Velocidad de Cierre General
                 </CardTitle>
@@ -256,14 +214,14 @@ export const SalesforceCockpit: React.FC = () => {
             </div>
           </CardHeader>
           <CardContent className="flex-1 flex flex-col justify-end">
-            <div className="h-[220px] w-full">
+            <div className="h-[210px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={metrics.velocityBins} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
                   <XAxis dataKey="range" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} />
                   <Tooltip />
-                  <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Cuentas Cerradas" />
+                  <Bar dataKey="count" fill="#0176D3" radius={[4, 4, 0, 0]} name="Cuentas Cerradas" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -273,10 +231,10 @@ export const SalesforceCockpit: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Gráfica de Pastel: Concentración de Pipeline por Industria */}
-        <Card className="flex flex-col">
-          <CardHeader>
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
+        {/* Concentración de Pipeline por Industria */}
+        <Card className="flex flex-col border shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-bold flex items-center gap-2">
               <PieIcon className="h-5 w-5 text-primary" />
               Concentración de Pipeline por Industria
             </CardTitle>
@@ -286,11 +244,11 @@ export const SalesforceCockpit: React.FC = () => {
           </CardHeader>
           <CardContent className="flex-1 flex flex-col justify-center">
             {metrics.pieIndustryData.length === 0 ? (
-              <div className="h-[220px] flex items-center justify-center text-muted-foreground text-xs">
+              <div className="h-[210px] flex items-center justify-center text-muted-foreground text-xs">
                 Sin cuentas en el pipeline activo todavía. Activa un lote de 10 para comenzar.
               </div>
             ) : (
-              <div className="h-[220px] w-full">
+              <div className="h-[210px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -299,7 +257,7 @@ export const SalesforceCockpit: React.FC = () => {
                       nameKey="name"
                       cx="50%"
                       cy="50%"
-                      outerRadius={80}
+                      outerRadius={75}
                       label={({ name, percent }) => `${name.split(" ")[0]} ${(percent * 100).toFixed(0)}%`}
                     >
                       {metrics.pieIndustryData.map((_, index) => (
@@ -326,10 +284,10 @@ export const SalesforceCockpit: React.FC = () => {
         </Card>
       </div>
 
-      {/* 7. Velocidad y Desempeño por Industria / Vertical (Solo Industria como solicitó el usuario) */}
-      <Card>
+      {/* 6. Tabla Ejecutiva: Velocidad y Desempeño por Industria */}
+      <Card className="border shadow-sm">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
+          <CardTitle className="text-base font-bold flex items-center gap-2">
             <Building2 className="h-5 w-5 text-primary" />
             Velocidad y Desempeño por Industria / Vertical
           </CardTitle>
@@ -340,7 +298,7 @@ export const SalesforceCockpit: React.FC = () => {
         <CardContent>
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
-              <thead className="border-b bg-muted/30 text-muted-foreground">
+              <thead className="border-b bg-muted/40 text-muted-foreground">
                 <tr>
                   <th className="p-2.5 font-medium">Vertical / Industria</th>
                   <th className="p-2.5 font-medium text-center">Cuentas Activas</th>
