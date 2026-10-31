@@ -1,11 +1,10 @@
 import { useState, useMemo } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { useLeads, useUpdateLeadStatus } from "@/hooks/useLeads";
+import { useMeliCockpit } from "@/hooks/useMeliCockpit";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -22,132 +21,120 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Download, Search, Filter, Linkedin, Phone, Mail, Users, ArrowLeft } from "lucide-react";
-import { Link } from "react-router-dom";
-import { Channel } from "@/utils/types";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Download,
+  Search,
+  Filter,
+  Phone,
+  MessageSquare,
+  Building2,
+  Mail,
+  Copy,
+  CheckCircle2,
+  AlertTriangle,
+  Clock,
+  ArrowLeft,
+  Plus,
+} from "lucide-react";
+import { Link, useSearchParams } from "react-router-dom";
+import { LeadStage, TouchType, CrmLead } from "@/types/crm";
 import { toast } from "sonner";
+import { getIndustries } from "@/utils/industries";
 
-const statusOptions = [
+const stageOptions: { value: LeadStage; label: string; color: string }[] = [
   { value: "new", label: "🆕 Nuevo", color: "bg-blue-500/10 text-blue-600 border-blue-500/20" },
-  { value: "contacted", label: "📞 Contactado", color: "bg-amber-100 text-amber-900 border-amber-200/60 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20" },
-  { value: "qualified", label: "✅ Calificado", color: "bg-purple-500/10 text-purple-600 border-purple-500/20" },
-  { value: "proposal", label: "📋 Propuesta", color: "bg-orange-500/10 text-orange-600 border-orange-500/20" },
-  { value: "won", label: "🎉 Ganado", color: "bg-green-500/10 text-green-600 border-green-500/20" },
-  { value: "lost", label: "❌ Perdido", color: "bg-red-500/10 text-red-600 border-red-500/20" },
+  { value: "contacted", label: "💬 Contactado", color: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
+  { value: "visit", label: "📍 Cita / Visita", color: "bg-purple-500/10 text-purple-600 border-purple-500/20" },
+  { value: "proposal", label: "📑 Propuesta Entregada", color: "bg-orange-500/10 text-orange-600 border-orange-500/20" },
+  { value: "negotiation", label: "🤝 Negociación", color: "bg-indigo-500/10 text-indigo-600 border-indigo-500/20" },
+  { value: "won", label: "🏆 Ganado / Transaccionando", color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" },
+  { value: "lost", label: "❌ Descartado / Churn", color: "bg-rose-500/10 text-rose-600 border-rose-500/20" },
 ];
 
 const LeadsList = () => {
-  const { data: leads = [], isLoading } = useLeads();
-  const updateStatus = useUpdateLeadStatus();
+  const { activeLeads, addTouch, updateStage, markUploadedToMeli } = useMeliCockpit();
+  const [searchParams] = useSearchParams();
+  const initialStaleFilter = searchParams.get("filter") === "stale";
+
   const [searchTerm, setSearchTerm] = useState("");
-  const [channelFilter, setChannelFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [industryFilter, setIndustryFilter] = useState("all");
+  const [stageFilter, setStageFilter] = useState("all");
+  const [showStaleOnly, setShowStaleOnly] = useState(initialStaleFilter);
+
+  // Quick touch modal
+  const [touchLead, setTouchLead] = useState<CrmLead | null>(null);
+  const [touchType, setTouchType] = useState<TouchType>("call");
+  const [touchNote, setTouchNote] = useState("");
+
+  const industriesList = useMemo(() => getIndustries(), []);
 
   const filteredLeads = useMemo(() => {
-    return leads.filter(lead => {
-      const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (lead.company && lead.company.toLowerCase().includes(searchTerm.toLowerCase()));
-      const matchesChannel = channelFilter === "all" || lead.channel === channelFilter;
-      const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
-      return matchesSearch && matchesChannel && matchesStatus;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return activeLeads.filter((lead) => {
+      const q = searchTerm.toLowerCase();
+      const matchesSearch =
+        lead.name.toLowerCase().includes(q) ||
+        lead.company.toLowerCase().includes(q) ||
+        (lead.contact_person && lead.contact_person.toLowerCase().includes(q)) ||
+        (lead.phone && lead.phone.includes(q));
+
+      const matchesIndustry = industryFilter === "all" || lead.industry === industryFilter;
+      const matchesStage = stageFilter === "all" || lead.stage === stageFilter;
+
+      let isStale = false;
+      if (lead.stage !== "won" && lead.stage !== "lost") {
+        const lastDate =
+          lead.touches.length > 0
+            ? new Date(lead.touches[lead.touches.length - 1].date)
+            : new Date(lead.created_at);
+        const diffDays = Math.floor((today.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+        isStale = diffDays >= 7;
+      }
+
+      const matchesStale = !showStaleOnly || isStale;
+
+      return matchesSearch && matchesIndustry && matchesStage && matchesStale;
     });
-  }, [leads, searchTerm, channelFilter, statusFilter]);
+  }, [activeLeads, searchTerm, industryFilter, stageFilter, showStaleOnly]);
 
-  const getChannelIcon = (channel: Channel) => {
-    switch (channel) {
-      case "linkedin":
-        return <Linkedin className="h-4 w-4 text-linkedin" />;
-      case "phone":
-        return <Phone className="h-4 w-4 text-phone" />;
-      case "email":
-        return <Mail className="h-4 w-4 text-email" />;
-    }
+  const handleOpenTouch = (lead: CrmLead, type: TouchType) => {
+    setTouchLead(lead);
+    setTouchType(type);
+    setTouchNote("");
   };
 
-  const getChannelBadge = (channel: Channel) => {
-    const variants: Record<Channel, string> = {
-      linkedin: "bg-linkedin/10 text-linkedin border-linkedin/20",
-      phone: "bg-phone/10 text-phone border-phone/20",
-      email: "bg-email/10 text-email border-email/20",
-    };
-    return variants[channel];
+  const handleSaveTouch = () => {
+    if (!touchLead) return;
+    addTouch(touchLead.id, touchType, touchNote);
+    setTouchLead(null);
   };
 
-  const getStatusOption = (status: string) => {
-    return statusOptions.find(s => s.value === status) || statusOptions[0];
-  };
+  const copyForMeli = (lead: CrmLead) => {
+    const text = `Cuenta: ${lead.company}
+Contacto: ${lead.contact_person || "Director / Dueño"}
+Teléfono: ${lead.phone}
+Email: ${lead.email || "N/A"}
+Dirección: ${lead.street_and_number || lead.address_full || "Quintana Roo"}
+Colonia: ${lead.neighborhood || "Centro"}
+C.P.: ${lead.postal_code || "77500"}
+Ciudad: ${lead.city || "Cancún"}, ${lead.state || "Quintana Roo"}
+Giro / Industria: ${lead.industry}
+Producto MP: ${lead.product_opportunity || "Point Smart 4G"}
+TPV Estimado: $${(lead.tpv_monthly || 0).toLocaleString()} MXN
+Notas de Operación: ${lead.operational_pain || "Sin notas"}`;
 
-  const handleStatusChange = async (leadId: string, newStatus: string) => {
-    try {
-      await updateStatus.mutateAsync({ leadId, status: newStatus });
-      const statusLabel = getStatusOption(newStatus).label;
-      toast.success(`Estado actualizado a ${statusLabel}`);
-    } catch (error: any) {
-      toast.error("Error al actualizar: " + error.message);
-    }
+    navigator.clipboard.writeText(text);
+    toast.success("Información estructurada copiada. Lista para pegar en CRM de MELI.");
   };
-
-  const generateCSV = () => {
-    const headers = ["Nombre", "Empresa", "Correo", "Teléfono", "Canal", "Fecha", "Estado", "Días en ciclo"];
-    const rows = filteredLeads.map(lead => [
-      lead.name,
-      lead.company || "",
-      lead.email || "",
-      lead.phone || "",
-      lead.channel,
-      new Date(lead.created_at).toLocaleDateString(),
-      lead.status || "nuevo",
-      lead.sale_cycle_days || ""
-    ]);
-    return [headers, ...rows].map(row => row.join(",")).join("\n");
-  };
-
-  const downloadFile = (content: string, filename: string, type: string) => {
-    const blob = new Blob([content], { type });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  const handleDownloadCSV = () => {
-    const csv = generateCSV();
-    downloadFile(csv, "leads.csv", "text/csv");
-    toast.success("Archivo CSV descargado");
-  };
-
-  const handleDownloadExcel = () => {
-    const csv = generateCSV();
-    downloadFile(csv, "leads.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    toast.success("Archivo Excel descargado");
-  };
-
-  const handleDownloadPDF = () => {
-    toast.success("Generando PDF...");
-    setTimeout(() => {
-      toast.success("PDF descargado");
-    }, 1000);
-  };
-
-  if (isLoading) {
-    return (
-      <DashboardLayout>
-        <div className="flex flex-col gap-6">
-          <Skeleton className="h-10 w-48" />
-          <Skeleton className="h-96 w-full" />
-        </div>
-      </DashboardLayout>
-    );
-  }
 
   return (
     <DashboardLayout>
@@ -160,139 +147,235 @@ const LeadsList = () => {
               </Link>
             </Button>
             <div>
-              <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-                <Users className="h-8 w-8" />
-                Lista de Leads
+              <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+                <Building2 className="h-6 w-6 text-primary" />
+                Pipeline Activo ({filteredLeads.length} cuentas)
               </h1>
-              <p className="text-muted-foreground mt-1">
-                {filteredLeads.length} leads encontrados
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Cuentas activas en gestión comercial. Registra toques rápidos y copia a MELI CRM.
               </p>
             </div>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button>
-                <Download className="h-4 w-4 mr-2" />
-                Descargar
+
+          <div className="flex items-center gap-2">
+            <Button
+              variant={showStaleOnly ? "destructive" : "outline"}
+              size="sm"
+              onClick={() => setShowStaleOnly(!showStaleOnly)}
+              className="text-xs"
+            >
+              <AlertTriangle className="h-3.5 w-3.5 mr-1.5" />
+              {showStaleOnly ? "Mostrando Solo Estancados (>7d)" : "Filtrar Estancados (+7d)"}
+            </Button>
+            <Link to="/leads">
+              <Button size="sm" className="text-xs">
+                <Plus className="h-4 w-4 mr-1" /> Alta Manual
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-popover">
-              <DropdownMenuItem onClick={handleDownloadPDF}>
-                📄 Descargar PDF
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleDownloadExcel}>
-                📊 Descargar Excel
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleDownloadCSV}>
-                📋 Descargar CSV
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            </Link>
+          </div>
         </div>
 
         <Card>
-          <CardHeader>
-            <div className="flex flex-col md:flex-row gap-4">
+          <CardHeader className="pb-3">
+            <div className="flex flex-col md:flex-row gap-3">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar por nombre o empresa..."
+                  placeholder="Buscar por negocio, contacto o teléfono..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  className="pl-9 text-xs"
                 />
               </div>
-              <Select value={channelFilter} onValueChange={setChannelFilter}>
-                <SelectTrigger className="w-full md:w-[180px]">
-                  <Filter className="h-4 w-4 mr-2" />
-                  <SelectValue placeholder="Filtrar por canal" />
+
+              <Select value={industryFilter} onValueChange={setIndustryFilter}>
+                <SelectTrigger className="w-full md:w-[220px] text-xs">
+                  <Filter className="h-3.5 w-3.5 mr-2" />
+                  <SelectValue placeholder="Filtrar por industria" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todos los canales</SelectItem>
-                  <SelectItem value="linkedin">LinkedIn</SelectItem>
-                  <SelectItem value="phone">Teléfono</SelectItem>
-                  <SelectItem value="email">Email</SelectItem>
+                  <SelectItem value="all">Todas las industrias</SelectItem>
+                  {industriesList.map((ind) => (
+                    <SelectItem key={ind} value={ind}>
+                      {ind}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full md:w-[180px]">
-                  <SelectValue placeholder="Filtrar por estado" />
+
+              <Select value={stageFilter} onValueChange={setStageFilter}>
+                <SelectTrigger className="w-full md:w-[180px] text-xs">
+                  <SelectValue placeholder="Filtrar por etapa" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todos los estados</SelectItem>
-                  {statusOptions.map(option => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
+                  <SelectItem value="all">Todas las etapas</SelectItem>
+                  {stageOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
           </CardHeader>
+
           <CardContent>
-            <div className="rounded-md border">
+            <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Nombre</TableHead>
-                    <TableHead>Empresa</TableHead>
-                    <TableHead>Correo</TableHead>
-                    <TableHead>Teléfono</TableHead>
-                    <TableHead>Canal</TableHead>
-                    <TableHead>Fecha</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead className="text-right">Días</TableHead>
+                  <TableRow className="text-xs">
+                    <TableHead>Comercio / Contacto</TableHead>
+                    <TableHead>Vertical / Producto</TableHead>
+                    <TableHead>Teléfono / WhatsApp</TableHead>
+                    <TableHead>Etapa Comercial</TableHead>
+                    <TableHead className="text-center">Toques</TableHead>
+                    <TableHead className="text-center">Estatus MELI</TableHead>
+                    <TableHead className="text-right">Acciones Rápidas</TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody>
+                <TableBody className="text-xs">
                   {filteredLeads.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                        No se encontraron leads
+                      <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
+                        {activeLeads.length === 0
+                          ? "Tu pipeline está en ceros para Noviembre. Activa un lote de 10 leads desde el Dashboard o da de alta uno manual."
+                          : "No se encontraron leads con los filtros seleccionados."}
                       </TableCell>
                     </TableRow>
                   ) : (
                     filteredLeads.map((lead) => {
-                      const statusOption = getStatusOption(lead.status);
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      const lastDate =
+                        lead.touches.length > 0
+                          ? new Date(lead.touches[lead.touches.length - 1].date)
+                          : new Date(lead.created_at);
+                      const diffDays = Math.floor(
+                        (today.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24)
+                      );
+                      const isStale =
+                        diffDays >= 7 && lead.stage !== "won" && lead.stage !== "lost";
+
                       return (
-                        <TableRow key={lead.id} className="hover:bg-muted/50">
-                          <TableCell className="font-medium">{lead.name}</TableCell>
-                          <TableCell>{lead.company || "-"}</TableCell>
-                          <TableCell className="text-muted-foreground">{lead.email || "-"}</TableCell>
-                          <TableCell className="text-muted-foreground">{lead.phone || "-"}</TableCell>
+                        <TableRow key={lead.id} className="hover:bg-muted/10">
                           <TableCell>
-                            <Badge variant="outline" className={getChannelBadge(lead.channel)}>
-                              <span className="flex items-center gap-1">
-                                {getChannelIcon(lead.channel)}
-                                {lead.channel === "linkedin" ? "LinkedIn" : 
-                                 lead.channel === "phone" ? "Teléfono" : "Email"}
-                              </span>
-                            </Badge>
+                            <div className="font-semibold text-foreground flex items-center gap-1.5">
+                              {lead.company}
+                              {isStale && (
+                                <Badge variant="destructive" className="text-[10px] px-1 py-0">
+                                  ⚠️ +{diffDays}d sin toque
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-muted-foreground">
+                              {lead.contact_person || "Director / Dueño"} • {lead.city}
+                            </div>
                           </TableCell>
-                          <TableCell>{new Date(lead.created_at).toLocaleDateString()}</TableCell>
+
                           <TableCell>
-                            <Select 
-                              value={lead.status} 
-                              onValueChange={(value) => handleStatusChange(lead.id, value)}
+                            <div className="font-medium text-foreground">{lead.industry}</div>
+                            <div className="text-[11px] text-muted-foreground">
+                              {lead.product_opportunity} • ${(lead.tpv_monthly || 0).toLocaleString()} TPV
+                            </div>
+                          </TableCell>
+
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <span>{lead.phone}</span>
+                              {lead.whatsapp_link && (
+                                <a
+                                  href={lead.whatsapp_link}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-emerald-500 hover:text-emerald-600 font-semibold"
+                                  title="Abrir chat en WhatsApp"
+                                >
+                                  💬 Whats
+                                </a>
+                              )}
+                            </div>
+                          </TableCell>
+
+                          <TableCell>
+                            <Select
+                              value={lead.stage}
+                              onValueChange={(val) => updateStage(lead.id, val as LeadStage)}
                             >
-                              <SelectTrigger className={`w-[160px] h-8 text-xs ${statusOption.color}`}>
+                              <SelectTrigger className="h-7 w-[160px] text-xs">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                {statusOptions.map(option => (
-                                  <SelectItem key={option.value} value={option.value}>
-                                    {option.label}
+                                {stageOptions.map((opt) => (
+                                  <SelectItem key={opt.value} value={opt.value}>
+                                    {opt.label}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
                           </TableCell>
-                          <TableCell className="text-right">
-                            {lead.sale_cycle_days !== null ? (
-                              <span className="text-muted-foreground">{lead.sale_cycle_days}d</span>
+
+                          <TableCell className="text-center font-bold">
+                            <Badge variant="secondary" className="text-xs">
+                              {lead.touches.length} toques
+                            </Badge>
+                          </TableCell>
+
+                          <TableCell className="text-center">
+                            {lead.status_meli_crm === "Cargado en MELI CRM" ? (
+                              <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px]">
+                                <CheckCircle2 className="h-3 w-3 mr-1" /> En MELI
+                              </Badge>
                             ) : (
-                              <span className="text-muted-foreground/50">-</span>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 text-[10px] text-muted-foreground hover:text-primary"
+                                onClick={() => markUploadedToMeli(lead.id)}
+                              >
+                                Marcar en MELI
+                              </Button>
                             )}
+                          </TableCell>
+
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                className="h-7 w-7 text-emerald-600"
+                                title="Registrar WhatsApp"
+                                onClick={() => handleOpenTouch(lead, "whatsapp")}
+                              >
+                                <MessageSquare className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                className="h-7 w-7 text-blue-600"
+                                title="Registrar Llamada"
+                                onClick={() => handleOpenTouch(lead, "call")}
+                              >
+                                <Phone className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                className="h-7 w-7 text-purple-600"
+                                title="Registrar Visita"
+                                onClick={() => handleOpenTouch(lead, "visit")}
+                              >
+                                <Building2 className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs font-medium"
+                                title="Copiar datos estructurados para MELI"
+                                onClick={() => copyForMeli(lead)}
+                              >
+                                <Copy className="h-3.5 w-3.5 mr-1" /> Copiar a MELI
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
@@ -304,6 +387,42 @@ const LeadsList = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Modal para Registrar Toque */}
+      {touchLead && (
+        <Dialog open={!!touchLead} onOpenChange={() => setTouchLead(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-base flex items-center gap-2">
+                Registrar Toque: {touchLead.company}
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                Canal: <strong className="capitalize">{touchType}</strong> • Registra el resultado del contacto.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-3 pt-2">
+              <Textarea
+                placeholder="ej. Hablé con el encargado de compras. Le interesó la tasa del 2.49% y pidió cotización por WhatsApp..."
+                value={touchNote}
+                onChange={(e) => setTouchNote(e.target.value)}
+                rows={3}
+                className="text-xs"
+                autoFocus
+              />
+
+              <div className="flex justify-end gap-2">
+                <Button variant="ghost" size="sm" onClick={() => setTouchLead(null)}>
+                  Cancelar
+                </Button>
+                <Button size="sm" onClick={handleSaveTouch}>
+                  Guardar Toque
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </DashboardLayout>
   );
 };

@@ -1,21 +1,10 @@
-
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { Linkedin, Phone, Mail, Plus, CheckCircle } from "lucide-react";
+import React, { useState } from "react";
+import { useMeliCockpit } from "@/hooks/useMeliCockpit";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -23,279 +12,225 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/useAuth";
+import { IndustrySelect } from "@/components/common/IndustrySelect";
+import { GoogleAddressInput } from "@/components/common/GoogleAddressInput";
+import { Building2, PlusCircle, CheckCircle, ArrowLeft } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
-const formSchema = z.object({
-  name: z.string().min(2, {
-    message: "El nombre debe tener al menos 2 caracteres.",
-  }).max(100, {
-    message: "El nombre no puede tener más de 100 caracteres.",
-  }),
-  company: z.string().max(100, {
-    message: "La empresa no puede tener más de 100 caracteres.",
-  }).optional(),
-  email: z.string().email({ message: "Correo inválido" }).max(255).optional().or(z.literal("")),
-  phone: z.string().max(30, { message: "Máximo 30 caracteres" }).optional().or(z.literal("")),
-  channel: z.enum(["linkedin", "phone", "email"], {
-    required_error: "Por favor selecciona un canal.",
-  }),
-  status: z.enum(["new", "contacted", "qualified", "proposal", "won", "lost"], {
-    required_error: "Por favor selecciona una etapa.",
-  }),
-});
+export const AddLeadForm: React.FC = () => {
+  const { addLeadManual } = useMeliCockpit();
+  const navigate = useNavigate();
 
-type FormValues = z.infer<typeof formSchema>;
+  const [company, setCompany] = useState("");
+  const [contactPerson, setContactPerson] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [websiteOrIg, setWebsiteOrIg] = useState("");
+  const [industry, setIndustry] = useState("");
+  const [productOpportunity, setProductOpportunity] = useState("Point Smart 4G");
+  const [tpvMonthly, setTpvMonthly] = useState("450000");
+  const [notes, setNotes] = useState("");
 
-export const AddLeadForm = () => {
-  const [loading, setLoading] = useState(false);
-  const [addAnother, setAddAnother] = useState(false);
-  const queryClient = useQueryClient();
-  const { user } = useAuth();
-
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: "",
-      company: "",
-      email: "",
-      phone: "",
-      channel: "linkedin",
-      status: "new",
-    },
+  const [fullAddress, setFullAddress] = useState("");
+  const [addressParts, setAddressParts] = useState({
+    streetAndNumber: "",
+    interiorOrUnit: "",
+    neighborhood: "",
+    postalCode: "",
+    city: "Cancún",
+    state: "Quintana Roo",
   });
 
-  const onSubmit = async (values: FormValues) => {
-    if (!user) {
-      toast.error("Debes iniciar sesión para agregar leads");
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!company.trim()) {
+      toast.error("Por favor ingresa el nombre de la empresa o comercio.");
       return;
     }
 
-    setLoading(true);
-    
-    try {
-      const { error } = await supabase.from("leads").insert({
-        name: values.name.trim(),
-        company: values.company?.trim() || null,
-        email: values.email?.trim() || null,
-        phone: values.phone?.trim() || null,
-        channel: values.channel,
-        status: values.status,
-        user_id: user.id,
-      });
+    const cleanPhone = phone.replace(/\D/g, "");
+    if (cleanPhone.length > 0 && cleanPhone.length < 10) {
+      toast.warning("El teléfono debe tener al menos 10 dígitos para WhatsApp.");
+    }
 
-      if (error) throw error;
-      
-      queryClient.invalidateQueries({ queryKey: ["leads"] });
-      toast.success("Lead agregado exitosamente", {
-        icon: <CheckCircle className="h-4 w-4 text-green-500" />,
-      });
-      
-      if (addAnother) {
-        form.reset({
-          name: "",
-          company: "",
-          email: "",
-          phone: "",
-          channel: values.channel, // Keep the same channel
-          status: "new",
-        });
-      } else {
-        form.reset();
-      }
-    } catch (error: any) {
-      toast.error("Error al guardar: " + (error.message || "Intenta de nuevo"));
-    } finally {
-      setLoading(false);
+    const success = addLeadManual({
+      name: company.trim(),
+      company: company.trim(),
+      contact_person: contactPerson.trim() || "Director / Dueño",
+      phone: cleanPhone,
+      email: email.trim(),
+      website_or_ig: websiteOrIg.trim(),
+      address_full: fullAddress,
+      street_and_number: addressParts.streetAndNumber,
+      neighborhood: addressParts.neighborhood,
+      postal_code: addressParts.postalCode,
+      city: addressParts.city,
+      state: addressParts.state,
+      industry: industry || "General",
+      product_opportunity: productOpportunity,
+      tpv_monthly: Number(tpvMonthly) || 450000,
+      operational_pain: notes.trim(),
+      stage: "new",
+    });
+
+    if (success) {
+      navigate("/leads-list");
     }
   };
 
-  const channelButtons = [
-    { value: "linkedin", label: "LinkedIn", icon: Linkedin, color: "text-linkedin bg-linkedin/10 border-linkedin/30 hover:bg-linkedin/20" },
-    { value: "phone", label: "Teléfono", icon: Phone, color: "text-phone bg-phone/10 border-phone/30 hover:bg-phone/20" },
-    { value: "email", label: "Email", icon: Mail, color: "text-email bg-email/10 border-email/30 hover:bg-email/20" },
-  ];
-
-  const statusOptions = [
-    { value: "new", label: "🆕 Nuevo", description: "Lead recién captado" },
-    { value: "contacted", label: "📞 Contactado", description: "Primera comunicación realizada" },
-    { value: "qualified", label: "✅ Calificado", description: "Lead con potencial confirmado" },
-    { value: "proposal", label: "📋 Propuesta", description: "Propuesta enviada" },
-    { value: "won", label: "🎉 Ganado", description: "Venta concretada" },
-    { value: "lost", label: "❌ Perdido", description: "No se concretó" },
-  ];
-
   return (
-    <Card className="glass-card w-full max-w-2xl mx-auto animate-scale-in">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Plus className="h-5 w-5" />
-          Agregar Lead
-        </CardTitle>
-        <CardDescription>
-          Registra un nuevo prospecto de forma rápida y sencilla.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* Channel Selection - Visual Buttons */}
-            <FormField
-              control={form.control}
-              name="channel"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Canal de captación</FormLabel>
-                  <div className="grid grid-cols-3 gap-3">
-                    {channelButtons.map((channel) => {
-                      const Icon = channel.icon;
-                      const isSelected = field.value === channel.value;
-                      return (
-                        <button
-                          key={channel.value}
-                          type="button"
-                          onClick={() => field.onChange(channel.value)}
-                          className={`
-                            flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all
-                            ${isSelected 
-                              ? channel.color + " border-current shadow-md scale-105" 
-                              : "border-muted hover:border-muted-foreground/30 hover:bg-muted/50"
-                            }
-                          `}
-                        >
-                          <Icon className={`h-6 w-6 mb-1 ${isSelected ? "" : "text-muted-foreground"}`} />
-                          <span className={`text-sm font-medium ${isSelected ? "" : "text-muted-foreground"}`}>
-                            {channel.label}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
+    <div className="max-w-2xl mx-auto space-y-6">
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="icon" asChild>
+          <Link to="/">
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+        </Button>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Alta Manual en Calle</h1>
+          <p className="text-xs text-muted-foreground">
+            Registra comercios que visites en ruta con dirección validada para MELI CRM.
+          </p>
+        </div>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Building2 className="h-5 w-5 text-primary" />
+            Ficha del Comercio
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Todos los datos se guardan en tu equipo (100% privado y sin contraseñas).
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="company" className="text-xs font-medium">
+                  Nombre del Comercio *
+                </Label>
+                <Input
+                  id="company"
+                  placeholder="ej. Restaurante Puerto Santo"
+                  value={company}
+                  onChange={(e) => setCompany(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="contactPerson" className="text-xs font-medium">
+                  Contacto / Dueño / Encargado
+                </Label>
+                <Input
+                  id="contactPerson"
+                  placeholder="ej. Lic. Roberto Gómez"
+                  value={contactPerson}
+                  onChange={(e) => setContactPerson(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="phone" className="text-xs font-medium">
+                  Teléfono / WhatsApp Directo (10 dígitos)
+                </Label>
+                <Input
+                  id="phone"
+                  placeholder="ej. 998 123 4567"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="email" className="text-xs font-medium">
+                  Correo Electrónico (Opcional)
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="contacto@negocio.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Dirección con Google Places + Desglose estructurado */}
+            <GoogleAddressInput
+              initialFullAddress={fullAddress}
+              onChange={(full, parts) => {
+                setFullAddress(full);
+                setAddressParts(parts);
+              }}
             />
 
-            {/* Name Field */}
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Nombre completo *</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="Ej: Juan García López" 
-                      {...field} 
-                      autoFocus
-                      className="text-lg"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Company Field - Optional */}
-            <FormField
-              control={form.control}
-              name="company"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Empresa <span className="text-muted-foreground text-xs">(opcional)</span></FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ej: Tech Solutions S.A." {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Email & Phone Fields - Optional */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Correo <span className="text-muted-foreground text-xs">(opcional)</span></FormLabel>
-                    <FormControl>
-                      <Input type="email" placeholder="correo@ejemplo.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="phone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Teléfono <span className="text-muted-foreground text-xs">(opcional)</span></FormLabel>
-                    <FormControl>
-                      <Input type="tel" placeholder="+52 55 1234 5678" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+            {/* Vertical / Industria (Dropdown + Opción Manual) */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Vertical / Industria</Label>
+              <IndustrySelect
+                value={industry}
+                onChange={setIndustry}
+                placeholder="Selecciona o escribe una industria"
               />
             </div>
 
-            {/* Status/Stage Field */}
-            <FormField
-              control={form.control}
-              name="status"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Etapa del embudo</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger className="text-base">
-                        <SelectValue placeholder="Selecciona una etapa" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {statusOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          <div className="flex flex-col">
-                            <span>{option.label}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Producto Recomendado</Label>
+                <Select value={productOpportunity} onValueChange={setProductOpportunity}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Point Smart 4G">Point Smart 4G (Impresión + 4G)</SelectItem>
+                    <SelectItem value="Point Air">Point Air (Ligera y Rápida)</SelectItem>
+                    <SelectItem value="Point Pro 2">Point Pro 2</SelectItem>
+                    <SelectItem value="Link de Pago">Link de Pago / E-commerce</SelectItem>
+                    <SelectItem value="Código QR / Wallet">Código QR / Wallet MP</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3 pt-4">
-              <Button 
-                type="submit" 
-                disabled={loading}
-                className="flex-1"
-                size="lg"
-              >
-                {loading ? "Guardando..." : "Guardar Lead"}
-              </Button>
-              <Button 
-                type="submit"
-                variant="outline"
-                disabled={loading}
-                onClick={() => setAddAnother(true)}
-                onMouseDown={() => setAddAnother(true)}
-                className="flex-1"
-                size="lg"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Guardar y agregar otro
+              <div className="space-y-1.5">
+                <Label htmlFor="tpvMonthly" className="text-xs font-medium">
+                  TPV Mensual Estimado (MXN)
+                </Label>
+                <Input
+                  id="tpvMonthly"
+                  type="number"
+                  placeholder="450000"
+                  value={tpvMonthly}
+                  onChange={(e) => setTpvMonthly(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="notes" className="text-xs font-medium">
+                Notas de Campo / Dolor Detectado
+              </Label>
+              <Textarea
+                id="notes"
+                placeholder="ej. Tienen Clip pero se quejan de la comisión en 6 MSI. El dueño está los martes a las 4pm."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={3}
+              />
+            </div>
+
+            <div className="pt-2 flex gap-3">
+              <Button type="submit" className="w-full bg-primary">
+                <CheckCircle className="h-4 w-4 mr-2" /> Guardar en Mi CRM
               </Button>
             </div>
           </form>
-        </Form>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 };

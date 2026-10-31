@@ -1,5 +1,6 @@
 import { BarChart3, Linkedin, Phone, Mail, Users, TrendingUp, Clock } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { SalesforceCockpit } from "@/components/dashboard/SalesforceCockpit";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { LeadChart } from "@/components/dashboard/LeadChart";
 import { ChannelMetrics } from "@/components/dashboard/ChannelMetrics";
@@ -120,6 +121,9 @@ const Index = () => {
           </div>
           <DataActions onImportData={handleImportData} />
         </div>
+
+        {/* Tablero Salesforce - Velocidad, Acciones del Día y Sub-productos */}
+        <SalesforceCockpit />
 
         {/* Sales Companion - Interactive Avatar */}
         <SalesCompanion />
