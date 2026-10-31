@@ -1,6 +1,6 @@
 import React from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { SalesforceCockpit } from "@/components/dashboard/SalesforceCockpit";
+import { MeliKanbanCockpit } from "@/components/dashboard/MeliKanbanCockpit";
 import { ExecutiveHistoryDashboard } from "@/components/dashboard/ExecutiveHistoryDashboard";
 import { GoogleSheetSyncManager } from "@/components/dashboard/GoogleSheetSyncManager";
 import { DataActions } from "@/components/dashboard/DataActions";
@@ -85,9 +85,9 @@ const Index: React.FC = () => {
             </TabsTrigger>
           </TabsList>
 
-          {/* 1. Cockpit Diario (Tacómetro, Cadencia de Canales, Pacing Predictivo, Embudo 4 Fases, Industrias) */}
-          <TabsContent value="cockpit" className="pt-4 space-y-6">
-            <SalesforceCockpit />
+          {/* 1. Panel Comercial Diario (Resumen Ejecutivo + Tablero Kanban con Candado) */}
+          <TabsContent value="cockpit" className="pt-2 space-y-6">
+            <MeliKanbanCockpit />
           </TabsContent>
 
           {/* 2. Tablero Ejecutivo: Histórico Semana vs Semana / Mes vs Mes / Calidad de Datos */}
