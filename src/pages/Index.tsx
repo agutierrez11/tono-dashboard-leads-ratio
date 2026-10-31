@@ -36,7 +36,7 @@ const Index: React.FC = () => {
           <div>
             <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight flex items-center gap-2.5">
               <Building2 className="h-7 w-7 text-primary" />
-              Sales Cockpit • Mercado Pago
+              Tablero Comercial • Mercado Pago
             </h1>
             <p className="text-xs text-muted-foreground mt-0.5">
               Tablero táctico personal • Quintana Roo • Metas Diarias, Conversión de 4 Etapas y Tendencias Históricas.
@@ -72,7 +72,7 @@ const Index: React.FC = () => {
         <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="grid w-full grid-cols-4 max-w-2xl bg-muted/60 p-1 rounded-xl">
             <TabsTrigger value="cockpit" className="text-xs flex items-center gap-1.5 font-medium">
-              <Gauge className="h-3.5 w-3.5" /> Cockpit Diario
+              <Gauge className="h-3.5 w-3.5" /> Tablero Diario
             </TabsTrigger>
             <TabsTrigger value="history" className="text-xs flex items-center gap-1.5 font-medium">
               <History className="h-3.5 w-3.5" /> Histórico W vs W-1

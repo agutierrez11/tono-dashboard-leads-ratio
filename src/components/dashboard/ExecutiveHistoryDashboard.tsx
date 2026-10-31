@@ -23,116 +23,114 @@ import {
   ShieldCheck,
   CheckCircle2,
   AlertTriangle,
-  FileCheck,
-  Building2,
-  Users,
-  Briefcase,
-  Trophy,
   ArrowUpRight,
   ArrowDownRight,
+  Info,
 } from "lucide-react";
 import { useMeliCockpit } from "@/hooks/useMeliCockpit";
 
 const DONUT_COLORS_GOOD = ["#10b981", "#e2e8f0"];
 const DONUT_COLORS_WARN = ["#f59e0b", "#e2e8f0"];
-const DONUT_COLORS_ALERT = ["#ef4444", "#10b981"];
 
 export const ExecutiveHistoryDashboard: React.FC = () => {
-  const { activeLeads, stagingLeads, metrics } = useMeliCockpit();
+  const { activeLeads, metrics } = useMeliCockpit();
   const [viewMode, setViewMode] = useState<"week" | "month">("week");
 
-  // Pre-seed or compute real current week actuals vs previous week benchmark
+  // Real data computation (Zero fake fallbacks)
   const comparisonData = useMemo(() => {
-    if (viewMode === "week") {
-      // Semana Actual vs Semana Pasada (W vs W-1)
-      const current = {
-        label: "Semana Actual (W)",
-        touches: metrics.totalTouchesToday * 4 || 38,
-        prospects: metrics.leadsThisWeek || 14,
-        negotiation: activeLeads.filter((l) => l.stage === "proposal" || l.stage === "negotiation").length || 4,
-        closed: metrics.wonLeadsCount || 2,
-        tpv: (metrics.totalWonTpv / 1000) || 750, // in thousands
-      };
+    // Current Real Metrics
+    const realTouches = metrics.totalTouchesToday;
+    const realProspects = activeLeads.length;
+    const realNegotiation = activeLeads.filter(
+      (l) => l.stage === "visit" || l.stage === "proposal" || l.stage === "negotiation"
+    ).length;
+    const realClosed = metrics.wonLeadsCount;
+    const realTpv = metrics.totalWonTpv / 1000;
 
-      const previous = {
-        label: "Semana Anterior (W-1)",
-        touches: 28,
-        prospects: 10,
-        negotiation: 2,
-        closed: 1,
-        tpv: 450,
-      };
+    // Previous Period Historical (Read from localStorage or initialize at 0 for Nov 2 kickoff)
+    let previousTouches = 0;
+    let previousProspects = 0;
+    let previousNegotiation = 0;
+    let previousClosed = 0;
+    let previousTpv = 0;
 
-      const calcDelta = (curr: number, prev: number) => {
-        if (prev === 0) return 0;
-        return Number((((curr - prev) / prev) * 100).toFixed(1));
-      };
-
-      return {
-        current,
-        previous,
-        deltas: {
-          touches: calcDelta(current.touches, previous.touches),
-          prospects: calcDelta(current.prospects, previous.prospects),
-          negotiation: calcDelta(current.negotiation, previous.negotiation),
-          closed: calcDelta(current.closed, previous.closed),
-          tpv: calcDelta(current.tpv, previous.tpv),
-        },
-        chartData: [
-          { name: "Toques Totales", "Período Actual": current.touches, "Período Anterior": previous.touches },
-          { name: "Prospectos Activos", "Período Actual": current.prospects, "Período Anterior": previous.prospects },
-          { name: "En Negociación", "Período Actual": current.negotiation, "Período Anterior": previous.negotiation },
-          { name: "Cierres Ganados", "Período Actual": current.closed, "Período Anterior": previous.closed },
-        ],
-      };
-    } else {
-      // Mes vs Mes (M vs M-1)
-      const current = {
-        label: "Noviembre 2026 (Actual)",
-        touches: metrics.totalTouchesToday * 18 || 96,
-        prospects: activeLeads.length || 32,
-        negotiation: 6,
-        closed: metrics.wonLeadsCount || 3,
-        tpv: (metrics.totalWonTpv / 1000) || 1200,
-      };
-
-      const previous = {
-        label: "Octubre 2026 (Anterior)",
-        touches: 72,
-        prospects: 24,
-        negotiation: 4,
-        closed: 2,
-        tpv: 850,
-      };
-
-      const calcDelta = (curr: number, prev: number) => {
-        if (prev === 0) return 0;
-        return Number((((curr - prev) / prev) * 100).toFixed(1));
-      };
-
-      return {
-        current,
-        previous,
-        deltas: {
-          touches: calcDelta(current.touches, previous.touches),
-          prospects: calcDelta(current.prospects, previous.prospects),
-          negotiation: calcDelta(current.negotiation, previous.negotiation),
-          closed: calcDelta(current.closed, previous.closed),
-          tpv: calcDelta(current.tpv, previous.tpv),
-        },
-        chartData: [
-          { name: "Toques Totales", "Período Actual": current.touches, "Período Anterior": previous.touches },
-          { name: "Prospectos Activos", "Período Actual": current.prospects, "Período Anterior": previous.prospects },
-          { name: "En Negociación", "Período Actual": current.negotiation, "Período Anterior": previous.negotiation },
-          { name: "Cierres Ganados", "Período Actual": current.closed, "Período Anterior": previous.closed },
-        ],
-      };
+    try {
+      const savedHistory = localStorage.getItem("meli_previous_period_snapshot");
+      if (savedHistory) {
+        const parsed = JSON.parse(savedHistory);
+        previousTouches = parsed.touches || 0;
+        previousProspects = parsed.prospects || 0;
+        previousNegotiation = parsed.negotiation || 0;
+        previousClosed = parsed.closed || 0;
+        previousTpv = parsed.tpv || 0;
+      }
+    } catch {
+      // clean start
     }
+
+    const current = {
+      label: viewMode === "week" ? "Semana Actual (W)" : "Noviembre 2026 (M)",
+      touches: realTouches,
+      prospects: realProspects,
+      negotiation: realNegotiation,
+      closed: realClosed,
+      tpv: realTpv,
+    };
+
+    const previous = {
+      label: viewMode === "week" ? "Semana Anterior (W-1)" : "Mes Anterior (M-1)",
+      touches: previousTouches,
+      prospects: previousProspects,
+      negotiation: previousNegotiation,
+      closed: previousClosed,
+      tpv: previousTpv,
+    };
+
+    const calcDelta = (curr: number, prev: number) => {
+      if (prev === 0) return curr > 0 ? 100 : 0;
+      return Number((((curr - prev) / prev) * 100).toFixed(1));
+    };
+
+    const hasPreviousData = previousTouches > 0 || previousProspects > 0;
+
+    return {
+      current,
+      previous,
+      hasPreviousData,
+      deltas: {
+        touches: calcDelta(current.touches, previous.touches),
+        prospects: calcDelta(current.prospects, previous.prospects),
+        negotiation: calcDelta(current.negotiation, previous.negotiation),
+        closed: calcDelta(current.closed, previous.closed),
+        tpv: calcDelta(current.tpv, previous.tpv),
+      },
+      chartData: [
+        { name: "Toques Comerciales", "Período Actual": current.touches, "Período Anterior": previous.touches },
+        { name: "Prospectos Activos", "Período Actual": current.prospects, "Período Anterior": previous.prospects },
+        { name: "En Negociación", "Período Actual": current.negotiation, "Período Anterior": previous.negotiation },
+        { name: "Cierres Ganados", "Período Actual": current.closed, "Período Anterior": previous.closed },
+      ],
+    };
   }, [viewMode, metrics, activeLeads]);
 
   // Data Quality Metrics (Salesforce Screenshot 2 Style)
   const qualityData = useMemo(() => {
-    const total = activeLeads.length || 1;
+    const total = activeLeads.length;
+
+    if (total === 0) {
+      return {
+        phoneScore: 100,
+        withPhone: 0,
+        missingPhone: 0,
+        addressScore: 100,
+        withAddress: 0,
+        missingAddress: 0,
+        healthScore: 100,
+        activeHealthyCount: 0,
+        staleCount: 0,
+        isEmpty: true,
+      };
+    }
 
     // 1. Phone / Contact Quality
     const withPhone = activeLeads.filter((l) => l.phone && l.phone.length >= 10).length;
@@ -159,6 +157,7 @@ export const ExecutiveHistoryDashboard: React.FC = () => {
       healthScore,
       activeHealthyCount,
       staleCount,
+      isEmpty: false,
     };
   }, [activeLeads, metrics]);
 
@@ -199,7 +198,7 @@ export const ExecutiveHistoryDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* 1. Tarjetas de KPI con Deltas Reales (Estilo Salesforce) */}
+      {/* 1. Tarjetas de KPI con Datos Reales */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {/* Card 1: Toques */}
         <Card className="border shadow-sm">
@@ -207,23 +206,27 @@ export const ExecutiveHistoryDashboard: React.FC = () => {
             <CardDescription className="text-xs">Toques Comerciales</CardDescription>
             <CardTitle className="text-2xl font-bold flex items-baseline justify-between">
               {comparisonData.current.touches}
-              <span
-                className={`text-xs font-semibold flex items-center ${
-                  comparisonData.deltas.touches >= 0 ? "text-emerald-600" : "text-rose-600"
-                }`}
-              >
-                {comparisonData.deltas.touches >= 0 ? (
-                  <ArrowUpRight className="h-3.5 w-3.5 mr-0.5" />
-                ) : (
-                  <ArrowDownRight className="h-3.5 w-3.5 mr-0.5" />
-                )}
-                {Math.abs(comparisonData.deltas.touches)}%
-              </span>
+              {comparisonData.hasPreviousData && (
+                <span
+                  className={`text-xs font-semibold flex items-center ${
+                    comparisonData.deltas.touches >= 0 ? "text-emerald-600" : "text-rose-600"
+                  }`}
+                >
+                  {comparisonData.deltas.touches >= 0 ? (
+                    <ArrowUpRight className="h-3.5 w-3.5 mr-0.5" />
+                  ) : (
+                    <ArrowDownRight className="h-3.5 w-3.5 mr-0.5" />
+                  )}
+                  {Math.abs(comparisonData.deltas.touches)}%
+                </span>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-[11px] text-muted-foreground">
-              vs {comparisonData.previous.touches} en {comparisonData.previous.label.split("(")[0]}
+              {comparisonData.hasPreviousData
+                ? `vs ${comparisonData.previous.touches} en ${comparisonData.previous.label}`
+                : "Semana de arranque: 2 de Noviembre"}
             </p>
           </CardContent>
         </Card>
@@ -234,23 +237,27 @@ export const ExecutiveHistoryDashboard: React.FC = () => {
             <CardDescription className="text-xs">Prospectos Activados</CardDescription>
             <CardTitle className="text-2xl font-bold flex items-baseline justify-between">
               {comparisonData.current.prospects}
-              <span
-                className={`text-xs font-semibold flex items-center ${
-                  comparisonData.deltas.prospects >= 0 ? "text-emerald-600" : "text-rose-600"
-                }`}
-              >
-                {comparisonData.deltas.prospects >= 0 ? (
-                  <ArrowUpRight className="h-3.5 w-3.5 mr-0.5" />
-                ) : (
-                  <ArrowDownRight className="h-3.5 w-3.5 mr-0.5" />
-                )}
-                {Math.abs(comparisonData.deltas.prospects)}%
-              </span>
+              {comparisonData.hasPreviousData && (
+                <span
+                  className={`text-xs font-semibold flex items-center ${
+                    comparisonData.deltas.prospects >= 0 ? "text-emerald-600" : "text-rose-600"
+                  }`}
+                >
+                  {comparisonData.deltas.prospects >= 0 ? (
+                    <ArrowUpRight className="h-3.5 w-3.5 mr-0.5" />
+                  ) : (
+                    <ArrowDownRight className="h-3.5 w-3.5 mr-0.5" />
+                  )}
+                  {Math.abs(comparisonData.deltas.prospects)}%
+                </span>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-[11px] text-muted-foreground">
-              vs {comparisonData.previous.prospects} en {comparisonData.previous.label.split("(")[0]}
+              {comparisonData.hasPreviousData
+                ? `vs ${comparisonData.previous.prospects} en ${comparisonData.previous.label}`
+                : "En gestión activa en tu CRM"}
             </p>
           </CardContent>
         </Card>
@@ -261,23 +268,27 @@ export const ExecutiveHistoryDashboard: React.FC = () => {
             <CardDescription className="text-xs">Cuentas en Negociación</CardDescription>
             <CardTitle className="text-2xl font-bold flex items-baseline justify-between">
               {comparisonData.current.negotiation}
-              <span
-                className={`text-xs font-semibold flex items-center ${
-                  comparisonData.deltas.negotiation >= 0 ? "text-emerald-600" : "text-rose-600"
-                }`}
-              >
-                {comparisonData.deltas.negotiation >= 0 ? (
-                  <ArrowUpRight className="h-3.5 w-3.5 mr-0.5" />
-                ) : (
-                  <ArrowDownRight className="h-3.5 w-3.5 mr-0.5" />
-                )}
-                {Math.abs(comparisonData.deltas.negotiation)}%
-              </span>
+              {comparisonData.hasPreviousData && (
+                <span
+                  className={`text-xs font-semibold flex items-center ${
+                    comparisonData.deltas.negotiation >= 0 ? "text-emerald-600" : "text-rose-600"
+                  }`}
+                >
+                  {comparisonData.deltas.negotiation >= 0 ? (
+                    <ArrowUpRight className="h-3.5 w-3.5 mr-0.5" />
+                  ) : (
+                    <ArrowDownRight className="h-3.5 w-3.5 mr-0.5" />
+                  )}
+                  {Math.abs(comparisonData.deltas.negotiation)}%
+                </span>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-[11px] text-muted-foreground">
-              vs {comparisonData.previous.negotiation} en {comparisonData.previous.label.split("(")[0]}
+              {comparisonData.hasPreviousData
+                ? `vs ${comparisonData.previous.negotiation} en ${comparisonData.previous.label}`
+                : "Citas y propuestas entregadas"}
             </p>
           </CardContent>
         </Card>
@@ -288,18 +299,20 @@ export const ExecutiveHistoryDashboard: React.FC = () => {
             <CardDescription className="text-xs">Cierres Ganados</CardDescription>
             <CardTitle className="text-2xl font-bold flex items-baseline justify-between text-emerald-600">
               {comparisonData.current.closed}
-              <span
-                className={`text-xs font-semibold flex items-center ${
-                  comparisonData.deltas.closed >= 0 ? "text-emerald-600" : "text-rose-600"
-                }`}
-              >
-                {comparisonData.deltas.closed >= 0 ? (
-                  <ArrowUpRight className="h-3.5 w-3.5 mr-0.5" />
-                ) : (
-                  <ArrowDownRight className="h-3.5 w-3.5 mr-0.5" />
-                )}
-                {Math.abs(comparisonData.deltas.closed)}%
-              </span>
+              {comparisonData.hasPreviousData && (
+                <span
+                  className={`text-xs font-semibold flex items-center ${
+                    comparisonData.deltas.closed >= 0 ? "text-emerald-600" : "text-rose-600"
+                  }`}
+                >
+                  {comparisonData.deltas.closed >= 0 ? (
+                    <ArrowUpRight className="h-3.5 w-3.5 mr-0.5" />
+                  ) : (
+                    <ArrowDownRight className="h-3.5 w-3.5 mr-0.5" />
+                  )}
+                  {Math.abs(comparisonData.deltas.closed)}%
+                </span>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -310,21 +323,21 @@ export const ExecutiveHistoryDashboard: React.FC = () => {
         </Card>
       </div>
 
-      {/* 2. Gráfico de Barras Agrupadas Comparativo (Estilo Salesforce screenshot 1) */}
+      {/* 2. Gráfico de Barras Agrupadas Comparativo */}
       <Card className="border shadow-sm">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="text-base font-bold flex items-center gap-2">
                 <TrendingUp className="h-5 w-5 text-primary" />
-                Evolución Comparativa: {comparisonData.current.label} vs {comparisonData.previous.label}
+                Evolución Comparativa: {comparisonData.current.label}
               </CardTitle>
               <CardDescription className="text-xs">
-                Comparativa directa de volumen entre el período actual y el anterior.
+                Métricas reales acumuladas semana a semana en tu gestión comercial.
               </CardDescription>
             </div>
             <Badge variant="outline" className="text-xs">
-              Salesforce Benchmark
+              Historial Real
             </Badge>
           </div>
         </CardHeader>
@@ -340,7 +353,7 @@ export const ExecutiveHistoryDashboard: React.FC = () => {
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip />
                 <Legend wrapperStyle={{ fontSize: 12, paddingTop: 10 }} />
-                {/* Azul Salesforce oficial #0176D3 */}
+                {/* Azul Salesforce oficial */}
                 <Bar dataKey="Período Actual" fill="#0176D3" radius={[4, 4, 0, 0]} />
                 {/* Gris neutro corporativo */}
                 <Bar dataKey="Período Anterior" fill="#94A3B8" radius={[4, 4, 0, 0]} />
@@ -350,15 +363,15 @@ export const ExecutiveHistoryDashboard: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* 3. Calidad de Datos (Inspirado en la Captura 2 de Salesforce: Data Quality & Missing Info) */}
+      {/* 3. Calidad de Datos (Inspirado en Salesforce Data Quality) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Donut 1: Calidad de Teléfonos / Contacto */}
+        {/* Donut 1: Calidad de Teléfonos */}
         <Card className="border shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold flex items-center justify-between">
               <span>Calidad de Contacto (Teléfono)</span>
               <Badge variant="outline" className="text-[10px]">
-                {qualityData.phoneScore}% Completo
+                {qualityData.phoneScore}%
               </Badge>
             </CardTitle>
             <CardDescription className="text-[11px]">
@@ -366,25 +379,27 @@ export const ExecutiveHistoryDashboard: React.FC = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col items-center">
-            <div className="h-36 w-36 relative flex items-center justify-center">
+            <div className="h-32 w-32 relative flex items-center justify-center">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={[
-                      { name: "Con Teléfono", value: qualityData.withPhone },
+                      { name: "Con Teléfono", value: qualityData.withPhone || 1 },
                       { name: "Sin Teléfono", value: qualityData.missingPhone },
                     ]}
-                    innerRadius={42}
-                    outerRadius={56}
+                    innerRadius={38}
+                    outerRadius={50}
                     dataKey="value"
                   >
-                    <Cell fill={DONUT_COLORS_GOOD[0]} />
+                    <Cell fill={qualityData.isEmpty ? "#e2e8f0" : DONUT_COLORS_GOOD[0]} />
                     <Cell fill={DONUT_COLORS_GOOD[1]} />
                   </Pie>
                   <Tooltip />
                 </PieChart>
               </ResponsiveContainer>
-              <span className="absolute text-lg font-bold">{qualityData.phoneScore}%</span>
+              <span className="absolute text-base font-bold">
+                {qualityData.isEmpty ? "0%" : `${qualityData.phoneScore}%`}
+              </span>
             </div>
             <div className="w-full flex justify-between text-[11px] text-muted-foreground mt-2 border-t pt-2">
               <span className="flex items-center gap-1">
@@ -403,7 +418,7 @@ export const ExecutiveHistoryDashboard: React.FC = () => {
             <CardTitle className="text-sm font-semibold flex items-center justify-between">
               <span>Direcciones Estructuradas (MELI)</span>
               <Badge variant="outline" className="text-[10px]">
-                {qualityData.addressScore}% Válido
+                {qualityData.addressScore}%
               </Badge>
             </CardTitle>
             <CardDescription className="text-[11px]">
@@ -411,25 +426,27 @@ export const ExecutiveHistoryDashboard: React.FC = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col items-center">
-            <div className="h-36 w-36 relative flex items-center justify-center">
+            <div className="h-32 w-32 relative flex items-center justify-center">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={[
-                      { name: "Estructurada", value: qualityData.withAddress },
+                      { name: "Estructurada", value: qualityData.withAddress || 1 },
                       { name: "Pendiente Validar", value: qualityData.missingAddress },
                     ]}
-                    innerRadius={42}
-                    outerRadius={56}
+                    innerRadius={38}
+                    outerRadius={50}
                     dataKey="value"
                   >
-                    <Cell fill={DONUT_COLORS_WARN[0]} />
+                    <Cell fill={qualityData.isEmpty ? "#e2e8f0" : DONUT_COLORS_WARN[0]} />
                     <Cell fill={DONUT_COLORS_WARN[1]} />
                   </Pie>
                   <Tooltip />
                 </PieChart>
               </ResponsiveContainer>
-              <span className="absolute text-lg font-bold">{qualityData.addressScore}%</span>
+              <span className="absolute text-base font-bold">
+                {qualityData.isEmpty ? "0%" : `${qualityData.addressScore}%`}
+              </span>
             </div>
             <div className="w-full flex justify-between text-[11px] text-muted-foreground mt-2 border-t pt-2">
               <span className="flex items-center gap-1">
@@ -442,7 +459,7 @@ export const ExecutiveHistoryDashboard: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Donut 3: Salud del Pipeline (Alarma de Estancamiento +7d) */}
+        {/* Donut 3: Salud del Pipeline */}
         <Card className="border shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold flex items-center justify-between">
@@ -461,25 +478,27 @@ export const ExecutiveHistoryDashboard: React.FC = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col items-center">
-            <div className="h-36 w-36 relative flex items-center justify-center">
+            <div className="h-32 w-32 relative flex items-center justify-center">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={[
-                      { name: "Al Día", value: qualityData.activeHealthyCount },
+                      { name: "Al Día", value: qualityData.activeHealthyCount || 1 },
                       { name: "Estancadas (+7d)", value: qualityData.staleCount },
                     ]}
-                    innerRadius={42}
-                    outerRadius={56}
+                    innerRadius={38}
+                    outerRadius={50}
                     dataKey="value"
                   >
-                    <Cell fill={DONUT_COLORS_GOOD[0]} />
+                    <Cell fill={qualityData.isEmpty ? "#e2e8f0" : DONUT_COLORS_GOOD[0]} />
                     <Cell fill={qualityData.staleCount > 0 ? "#ef4444" : "#e2e8f0"} />
                   </Pie>
                   <Tooltip />
                 </PieChart>
               </ResponsiveContainer>
-              <span className="absolute text-lg font-bold">{qualityData.healthScore}%</span>
+              <span className="absolute text-base font-bold">
+                {qualityData.isEmpty ? "100%" : `${qualityData.healthScore}%`}
+              </span>
             </div>
             <div className="w-full flex justify-between text-[11px] text-muted-foreground mt-2 border-t pt-2">
               <span className="flex items-center gap-1">

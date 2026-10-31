@@ -62,7 +62,7 @@ const stageOptions: { value: LeadStage; label: string; color: string }[] = [
 ];
 
 const LeadsList = () => {
-  const { activeLeads, stagingLeads, addTouch, updateStage, markUploadedToMeli } = useMeliCockpit();
+  const { activeLeads, stagingLeads, activateNextBatch, addTouch, updateStage, markUploadedToMeli } = useMeliCockpit();
   const [searchParams] = useSearchParams();
   const initialStaleFilter = searchParams.get("filter") === "stale";
 
@@ -245,10 +245,29 @@ Notas de Operación: ${lead.operational_pain || "Sin notas"}`;
                 <TableBody className="text-xs">
                   {filteredLeads.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
-                        {activeLeads.length === 0
-                          ? "Tu pipeline está en ceros para Noviembre. Activa un lote de 10 leads desde el Dashboard o da de alta uno manual."
-                          : "No se encontraron leads con los filtros seleccionados."}
+                      <TableCell colSpan={7} className="text-center py-12">
+                        {activeLeads.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center gap-2 max-w-md mx-auto">
+                            <Building2 className="h-8 w-8 text-muted-foreground/60 mb-1" />
+                            <p className="text-sm font-semibold text-foreground">
+                              Tu Pipeline Activo está en ceros para Noviembre
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Tienes <strong>{stagingLeads.length} comercios de Quintana Roo</strong> disponibles en tu Banco Maestro. Activa un lote de 10 para comenzar tu gestión.
+                            </p>
+                            <div className="pt-2">
+                              <Button
+                                size="sm"
+                                onClick={() => activateNextBatch(10)}
+                                className="text-xs bg-primary text-primary-foreground hover:bg-primary/90"
+                              >
+                                ⚡ Activar Primer Lote de 10 Leads
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">No se encontraron leads con los filtros seleccionados.</span>
+                        )}
                       </TableCell>
                     </TableRow>
                   ) : (

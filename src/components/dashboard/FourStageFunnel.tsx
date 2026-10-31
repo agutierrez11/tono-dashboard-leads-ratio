@@ -3,10 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useMeliCockpit } from "@/hooks/useMeliCockpit";
-import { ArrowRight, TrendingUp, CheckCircle2, XCircle, Users, PhoneCall, Briefcase, Trophy } from "lucide-react";
+import { ArrowRight, TrendingUp, Users, PhoneCall, Briefcase, Trophy } from "lucide-react";
 
 export const FourStageFunnel: React.FC = () => {
-  const { activeLeads, stagingLeads } = useMeliCockpit();
+  const { activeLeads } = useMeliCockpit();
   const [timeframe, setTimeframe] = useState<"today" | "week" | "month">("today");
 
   const today = useMemo(() => {
@@ -25,7 +25,7 @@ export const FourStageFunnel: React.FC = () => {
     return new Date(today.getFullYear(), today.getMonth(), 1);
   }, [today]);
 
-  // Filter leads based on selected timeframe
+  // Filter ONLY leads that are currently in active pipeline for the selected timeframe
   const filteredActive = useMemo(() => {
     return activeLeads.filter((lead) => {
       const created = new Date(lead.created_at);
@@ -35,15 +35,10 @@ export const FourStageFunnel: React.FC = () => {
     });
   }, [activeLeads, timeframe, today, startOfWeek, startOfMonth]);
 
-  // Compute Funnel Metrics
+  // Compute Funnel Metrics based strictly on REAL active leads
   const funnelData = useMemo(() => {
-    // 1. Prospectos Generados (Disponibles en el banco + activados)
-    const totalProspects =
-      timeframe === "today"
-        ? Math.max(filteredActive.length, 10)
-        : timeframe === "week"
-        ? Math.max(filteredActive.length, 45)
-        : Math.max(filteredActive.length, stagingLeads.length || 120);
+    // 1. Prospectos Generados / Activados en el pipeline activo
+    const totalProspects = filteredActive.length;
 
     // 2. Leads Contactados (recibieron al menos 1 toque o etapa >= contacted)
     const contactedLeads = filteredActive.filter(
@@ -76,18 +71,18 @@ export const FourStageFunnel: React.FC = () => {
       closeRate: Number(closeRate.toFixed(1)),
       overallRate: Number(overallRate.toFixed(1)),
     };
-  }, [filteredActive, stagingLeads, timeframe]);
+  }, [filteredActive]);
 
   const stages = [
     {
       id: "prospects",
-      title: "1. Prospectos Generados",
-      subtitle: "Banco & Asignación",
+      title: "1. Prospectos Activados",
+      subtitle: "En Gestión Comercial",
       count: funnelData.totalProspects,
       icon: Users,
       color: "border-blue-500/30 bg-blue-500/5 text-blue-600",
-      pill: "Entrada Base",
-      rateText: "Base inicial",
+      pill: funnelData.totalProspects > 0 ? "Base Activa" : "Sin leads hoy",
+      rateText: "Pipeline activo",
     },
     {
       id: "leads",
@@ -97,7 +92,7 @@ export const FourStageFunnel: React.FC = () => {
       icon: PhoneCall,
       color: "border-cyan-500/30 bg-cyan-500/5 text-cyan-600",
       pill: `${funnelData.contactRate}% contactabilidad`,
-      rateText: `${funnelData.contactRate}% del banco`,
+      rateText: `${funnelData.contactedLeads} de ${funnelData.totalProspects}`,
     },
     {
       id: "negotiation",
@@ -107,18 +102,18 @@ export const FourStageFunnel: React.FC = () => {
       icon: Briefcase,
       color: "border-amber-500/30 bg-amber-500/5 text-amber-600",
       pill: `${funnelData.negotiationRate}% calificación`,
-      rateText: `${funnelData.negotiationRate}% de los contactados`,
+      rateText: `${funnelData.inNegotiation} de ${funnelData.contactedLeads}`,
     },
     {
       id: "closed",
       title: "4. Negociación a Cierre",
-      subtitle: "Terminal Ganada / Transacc.",
+      subtitle: "Terminal Ganada",
       count: funnelData.wonCount,
       secondaryCount: funnelData.lostCount,
       icon: Trophy,
       color: "border-emerald-500/30 bg-emerald-500/5 text-emerald-600",
       pill: `${funnelData.closeRate}% tasa de cierre`,
-      rateText: `${funnelData.overallRate}% conversión total`,
+      rateText: `${funnelData.wonCount} de ${funnelData.inNegotiation}`,
     },
   ];
 
@@ -132,7 +127,7 @@ export const FourStageFunnel: React.FC = () => {
               Embudo de Conversión de 4 Etapas
             </CardTitle>
             <CardDescription className="text-xs">
-              Mide la eficiencia en cada paso del proceso: Prospecto ➔ Lead ➔ Negociación ➔ Cierre.
+              Mide la eficiencia en cada paso: Prospecto ➔ Lead Contactado ➔ Negociación ➔ Cierre.
             </CardDescription>
           </div>
 
@@ -169,7 +164,7 @@ export const FourStageFunnel: React.FC = () => {
       <CardContent>
         {/* 4 Cards in Horizontal Flow with Arrow Connectors */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3 relative">
-          {stages.map((stage, index) => {
+          {stages.map((stage) => {
             const Icon = stage.icon;
             return (
               <div
@@ -220,9 +215,11 @@ export const FourStageFunnel: React.FC = () => {
             </strong>
           </div>
           <div className="text-muted-foreground text-[11px]">
-            {funnelData.inNegotiation > 0
+            {funnelData.totalProspects === 0
+              ? "Tu pipeline está en ceros para Noviembre. Activa un lote de 10 leads desde el banco para comenzar."
+              : funnelData.inNegotiation > 0
               ? `🔥 ${funnelData.inNegotiation} cuentas en fase crítica de propuesta/negociación.`
-              : "Activa prospectos del banco maestro para alimentar la etapa de contacto."}
+              : "Registra toques en tus prospectos para moverlos a la etapa de contacto."}
           </div>
         </div>
       </CardContent>

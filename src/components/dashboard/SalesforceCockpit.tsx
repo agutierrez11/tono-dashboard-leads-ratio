@@ -62,13 +62,13 @@ export const SalesforceCockpit: React.FC = () => {
 
   // Copiloto de Pacing Predictivo Automático (Sin calculadoras estáticas manuales)
   const remainingWorkDays = 21; // Días laborales de Noviembre
-  const meliMonthlyGoal = 12; // Meta de 12 cierres de Mercado Pago
+  const meliMonthlyGoal = 2; // Meta de 2 cierres de arranque en Noviembre
   const currentPacingTouches = metrics.totalTouchesToday || 8;
-  const projectedMonthlyClosures = Math.max(
-    1,
-    Math.round(((currentPacingTouches * 0.04) * remainingWorkDays) + metrics.wonLeadsCount)
+  const projectedMonthlyClosures = Math.min(
+    2,
+    Math.max(1, Math.round(((currentPacingTouches * 0.04) * remainingWorkDays) + metrics.wonLeadsCount))
   );
-  const requiredDailyTouches = Math.ceil((meliMonthlyGoal - metrics.wonLeadsCount) / (remainingWorkDays * 0.04));
+  const requiredDailyTouches = 8;
 
   return (
     <div className="space-y-6">
@@ -163,11 +163,11 @@ export const SalesforceCockpit: React.FC = () => {
                     Copiloto de Pacing • Meta Mensual MELI
                   </h4>
                   <Badge variant="outline" className="text-[10px] bg-primary/5 text-primary border-primary/20">
-                    Objetivo: 12 Cierres
+                    Objetivo: 2 Cierres
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Proyección al ritmo actual: <strong className="text-foreground">{projectedMonthlyClosures} cierres ganados</strong> (~${((projectedMonthlyClosures * 450000) / 1000).toLocaleString()}k TPV). Cadencia recomendada: <strong>{requiredDailyTouches} toques diarios</strong>.
+                  Proyección al ritmo actual: <strong className="text-foreground">{projectedMonthlyClosures} cierres ganados</strong> (~${((projectedMonthlyClosures * 450000) / 1000).toLocaleString()}k TPV). Cadencia recomendada: <strong>{requiredDailyTouches} toques diarios</strong> para asegurar tus aperturas del mes.
                 </p>
               </div>
             </div>
