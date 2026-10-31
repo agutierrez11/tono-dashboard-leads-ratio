@@ -106,11 +106,11 @@ export const useMeliCockpit = () => {
         quality_points: leadData.quality_points || 2.5,
         operational_pain: leadData.operational_pain || "",
         opening_hook: leadData.opening_hook || "",
-        stage: "new",
+        stage: leadData.stage || (leadData.touches && leadData.touches.length > 0 ? "contacted" : "new"),
         status_mi_crm: "Activo en Mi CRM",
         status_meli_crm: "Pendiente de Carga",
         fecha_carga_mi_crm: now,
-        touches: [],
+        touches: leadData.touches || [],
         created_at: now,
         updated_at: now,
       };
@@ -388,10 +388,12 @@ export const useMeliCockpit = () => {
         industryStats[ind] = { count: 0, won: 0, totalDays: 0, tpv: 0 };
       }
       industryStats[ind].count++;
-      industryStats[ind].tpv += lead.tpv_monthly || 0;
-      if (lead.stage === "won" && lead.days_in_cycle) {
+      if (lead.stage === "won") {
         industryStats[ind].won++;
-        industryStats[ind].totalDays += lead.days_in_cycle;
+        industryStats[ind].tpv += lead.tpv_monthly || 0;
+        if (lead.days_in_cycle) {
+          industryStats[ind].totalDays += lead.days_in_cycle;
+        }
       }
     });
 

@@ -38,6 +38,7 @@ import { Link } from "react-router-dom";
 import { QuickOutreachLogger } from "@/components/dashboard/QuickOutreachLogger";
 import { SalesforceGauge } from "@/components/dashboard/SalesforceGauge";
 import { FourStageFunnel } from "@/components/dashboard/FourStageFunnel";
+import { ActivePipelineManager } from "@/components/dashboard/ActivePipelineManager";
 
 const PIE_COLORS = [
   "#3b82f6", // Blue
@@ -187,7 +188,10 @@ export const SalesforceCockpit: React.FC = () => {
       {/* 3. Embudo de Conversión de 4 Etapas (Al día, por semana y por mes) */}
       <FourStageFunnel />
 
-      {/* 4. Registro Rápido de Acciones en Campo (1-Clic, Local-First) */}
+      {/* 4. Pipeline Activo en Gestión (Tus Cuentas de Hoy - Mueve etapas y toques en 1 clic) */}
+      <ActivePipelineManager />
+
+      {/* 5. Registro Rápido de Acciones en Campo (1-Clic, Local-First) */}
       <QuickOutreachLogger />
 
       {/* 5. Métrica Reina: Velocidad de Cierre General & Concentración por Industria */}
@@ -304,7 +308,7 @@ export const SalesforceCockpit: React.FC = () => {
                   <th className="p-2.5 font-medium text-center">Cuentas Activas</th>
                   <th className="p-2.5 font-medium text-center">Cierres Ganados</th>
                   <th className="p-2.5 font-medium text-center">Velocidad Promedio</th>
-                  <th className="p-2.5 font-medium text-right">TPV Total</th>
+                  <th className="p-2.5 font-medium text-right">TPV Ganado (Cerrado)</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -317,7 +321,7 @@ export const SalesforceCockpit: React.FC = () => {
                       {ind.avgDays > 0 ? `${ind.avgDays} días` : "--"}
                     </td>
                     <td className="p-2.5 text-right font-medium">
-                      ${(ind.tpv / 1000).toLocaleString()}k
+                      {ind.won > 0 ? `$${(ind.tpv / 1000).toLocaleString()}k MXN` : "$0 MXN"}
                     </td>
                   </tr>
                 ))}

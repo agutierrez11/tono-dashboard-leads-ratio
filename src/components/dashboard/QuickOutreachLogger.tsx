@@ -53,19 +53,26 @@ export const QuickOutreachLogger = () => {
       const touchType: TouchType = selectedChannel === "cambaceo" ? "cambaceo" : (selectedChannel as TouchType);
       const noteDetails = `${isInterested ? "[🔥 Interesado] " : ""}${notes ? notes : (answeredOrConnected ? "Contacto efectivo" : "Sin respuesta directa")}`;
 
+      const now = new Date().toISOString();
+      const initialTouch = {
+        id: `touch-${Date.now()}`,
+        type: touchType,
+        date: now,
+        note: noteDetails,
+      };
+
       if (existing) {
         // Log touch on existing lead
         addTouch(existing.id, touchType, noteDetails);
       } else {
-        // Create manual lead directly in local CRM
+        // Create manual lead directly in local CRM with initial touch
         addLeadManual({
           name: company,
           company: company,
           contact_person: contactName,
           stage: isInterested ? "proposal" : "contacted",
+          touches: [initialTouch],
         });
-
-        // The hook will append the lead to activeLeads
       }
 
       toast.success(
