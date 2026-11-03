@@ -902,6 +902,7 @@
         </div>
         <div style="display:flex;gap:8px;">
           <button class="btn-touch" onclick="resetDemo()">Restablecer Ejemplos</button>
+          <button class="btn-touch" style="color:var(--red);border-color:rgba(239,68,68,0.3)" onclick="clearAllData()">🗑️ Borrar Pruebas (Pizarra en Blanco)</button>
           <button class="add-btn" onclick="openNewModal()" style="padding:6px 10px;font-size:11px;">
             ＋ Nuevo Comercio
           </button>
@@ -1447,6 +1448,14 @@ function createDeal(e) {
   closeModal("newModal");
   render();
   notify(`✓ <strong>${name}</strong> guardado en Prospectos.`);
+}
+
+function clearAllData() {
+  if (!confirm('¿Deseas borrar todos los comercios de prueba y comenzar con una pizarra en blanco de 0?')) return;
+  deals = [];
+  persist();
+  render();
+  notify('🗑️ Datos de prueba eliminados. Pizarra en blanco lista para comercios reales.');
 }
 
 function resetDemo() {

@@ -1,0 +1,1473 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Mercado Pago · Panel Comercial Quintana Roo</title>
+<style>
+  :root {
+    --bg: #f5f7fb;
+    --paper: #ffffff;
+    --ink: #111827;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --navy: #0b1b3d;
+    --mp-blue: #009ee3;
+    --mp-blue-hover: #0087c2;
+    --mp-green: #00a650;
+    --mp-yellow: #ffe600;
+    --amber: #f59e0b;
+    --red: #ef4444;
+    --purple: #795bd2;
+    --teal: #14b8a6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--ink);
+  }
+  button { font: inherit; }
+  .shell {
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 220px 1fr;
+  }
+  aside {
+    background: var(--navy);
+    color: #dce7f7;
+    padding: 24px 16px;
+    display: flex;
+    flex-direction: column;
+  }
+  .brand {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 800;
+    padding: 0 4px 28px;
+  }
+  .logo-box {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    background: var(--mp-blue);
+    color: #fff;
+    font-weight: 900;
+    font-size: 13px;
+    box-shadow: 0 4px 10px rgba(0, 158, 227, 0.35);
+  }
+  .brand-sub {
+    font-size: 10px;
+    color: var(--mp-blue);
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    display: block;
+    margin-top: 1px;
+    text-transform: uppercase;
+  }
+  .nav-cap {
+    padding: 0 8px 8px;
+    color: #7d90b2;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 9px;
+    font-weight: 700;
+  }
+  .nav { display: grid; gap: 4px; }
+  .nav a {
+    color: #b8c8e0;
+    padding: 10px 12px;
+    border-radius: 8px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .nav a:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+  }
+  .nav a.active {
+    background: rgba(0, 158, 227, 0.18);
+    color: #fff;
+    box-shadow: inset 3px 0 var(--mp-blue);
+  }
+  .side-tip {
+    margin-top: auto;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    padding: 14px;
+    background: rgba(255, 255, 255, 0.03);
+    color: #c4d0e2;
+    font-size: 11px;
+    line-height: 1.5;
+  }
+  .side-tip b {
+    display: block;
+    color: #fff;
+    font-size: 11px;
+    margin-bottom: 4px;
+  }
+  main {
+    min-width: 0;
+    padding: 24px 32px 40px;
+    max-width: 1560px;
+    width: 100%;
+    margin: 0 auto;
+  }
+  .top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--muted);
+    font-size: 12px;
+    margin-bottom: 18px;
+  }
+  .user-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #fff;
+    border: 1px solid var(--line);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    color: #374151;
+    font-weight: 600;
+  }
+  .user-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--mp-green);
+  }
+  .head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 14px;
+  }
+  h1 {
+    font-size: 23px;
+    letter-spacing: -0.4px;
+    margin: 0;
+    color: #111827;
+    font-weight: 800;
+  }
+  .sub {
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 4px;
+  }
+  .head-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .add-btn {
+    border: 0;
+    border-radius: 8px;
+    background: var(--mp-blue);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 9px 14px;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 158, 227, 0.3);
+    transition: background 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .add-btn:hover { background: var(--mp-blue-hover); }
+  .view-tabs {
+    display: flex;
+    gap: 3px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+    padding: 3px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  }
+  .view-tabs button {
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #6b7280;
+    padding: 7px 13px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .view-tabs button.active {
+    background: rgba(0, 158, 227, 0.12);
+    color: #007bb3;
+    font-weight: 750;
+  }
+  .periodline {
+    font-size: 11px;
+    color: #6b7280;
+    margin: -4px 0 16px;
+  }
+  .periodline strong { color: #374151; font-weight: 600; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .grid4 {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .card {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: 0 1px 4px rgba(17, 24, 39, 0.04);
+  }
+  .kpi { padding: 16px 18px 14px; min-height: 100px; }
+  .kpi-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #4b5563;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .kpi-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    font-size: 13px;
+    font-weight: 800;
+  }
+  .bluebg { color: var(--mp-blue); background: rgba(0, 158, 227, 0.1); }
+  .tealbg { color: var(--teal); background: rgba(20, 184, 166, 0.1); }
+  .purplebg { color: var(--purple); background: rgba(121, 91, 210, 0.1); }
+  .greenbg { color: var(--mp-green); background: rgba(0, 166, 80, 0.1); }
+  .kpi-val {
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1;
+    margin-top: 8px;
+    color: #111827;
+  }
+  .kpi-foot {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 8px;
+  }
+  .up { color: var(--mp-green); font-weight: 700; }
+  .middle-grid {
+    display: grid;
+    grid-template-columns: minmax(360px, 1fr) minmax(420px, 1.25fr);
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+  .card-head {
+    padding: 16px 18px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  .card-title {
+    font-weight: 750;
+    font-size: 13px;
+    color: #111827;
+  }
+  .card-sub {
+    color: var(--muted);
+    font-size: 10px;
+    margin-top: 3px;
+  }
+  .pill {
+    padding: 4px 8px;
+    border-radius: 99px;
+    font-size: 9px;
+    font-weight: 700;
+    background: rgba(0, 166, 80, 0.1);
+    color: var(--mp-green);
+    border: 1px solid rgba(0, 166, 80, 0.2);
+  }
+  .gauge-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 18px 12px;
+  }
+  .gauge {
+    width: 220px;
+    max-width: 100%;
+    height: 125px;
+    overflow: visible;
+  }
+  .gauge-num { font-size: 28px; font-weight: 800; fill: #111827; }
+  .gauge-den { font-size: 9px; font-weight: 700; fill: #6b7280; letter-spacing: 0.5px; }
+  .gauge-caption {
+    font-size: 11px;
+    color: #4b5563;
+    margin-top: 2px;
+    text-align: center;
+  }
+  .gauge-caption strong { color: #111827; font-weight: 700; }
+  .channels {
+    border-top: 1px solid var(--line);
+    padding: 12px 18px 14px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .ch-card {
+    background: #f8fafc;
+    border: 1px solid #edf0f5;
+    border-radius: 8px;
+    padding: 8px;
+    text-align: center;
+  }
+  .ch-label { font-size: 9px; color: #6b7280; font-weight: 600; display: block; }
+  .ch-val { font-size: 16px; font-weight: 800; margin-top: 2px; display: block; }
+  .ch-bar { height: 4px; border-radius: 4px; background: #e5e7eb; overflow: hidden; margin-top: 4px; }
+  .ch-fill { height: 100%; border-radius: 4px; }
+  .funnel-body { padding: 14px 18px 16px; }
+  .funnel-row {
+    display: grid;
+    grid-template-columns: 130px 1fr 36px 65px;
+    align-items: center;
+    gap: 10px;
+    margin: 10px 0;
+    font-size: 11px;
+    color: #4b5563;
+  }
+  .funnel-bar {
+    height: 8px;
+    background: #edf1f7;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .funnel-fill { height: 100%; border-radius: 6px; }
+  .funnel-n { font-weight: 750; color: #111827; text-align: right; }
+  .funnel-rate { font-size: 10px; color: var(--mp-green); text-align: right; font-weight: 600; }
+  .action-table-wrap {
+    overflow-x: auto;
+    padding: 0 16px 16px;
+  }
+  table.action-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    text-align: left;
+  }
+  table.action-table th {
+    padding: 9px 10px;
+    background: #f8fafc;
+    color: #6b7280;
+    font-weight: 700;
+    border-bottom: 1px solid var(--line);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  table.action-table td {
+    padding: 10px;
+    border-bottom: 1px solid #f0f3f8;
+    vertical-align: middle;
+  }
+  table.action-table tr:hover td { background: #f9fbff; }
+  .btn-touch {
+    border: 1px solid #dfe5ef;
+    background: #fff;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-right: 4px;
+    transition: all 0.12s;
+  }
+  .btn-touch:hover { background: #f3f7fe; border-color: var(--mp-blue); }
+  .btn-touch.wa { color: var(--mp-green); border-color: rgba(0, 166, 80, 0.3); }
+  .btn-touch.wa:hover { background: rgba(0, 166, 80, 0.08); }
+  .btn-touch.call { color: var(--mp-blue); border-color: rgba(0, 158, 227, 0.3); }
+  .btn-touch.call:hover { background: rgba(0, 158, 227, 0.08); }
+  .btn-touch.visit { color: var(--purple); border-color: rgba(121, 91, 210, 0.3); }
+  .btn-touch.visit:hover { background: rgba(121, 91, 210, 0.08); }
+  .stage-select {
+    border: 1px solid #dfe5ef;
+    border-radius: 6px;
+    padding: 4px 6px;
+    font-size: 10px;
+    background: #fff;
+    color: #374151;
+    outline: none;
+    cursor: pointer;
+  }
+  /* Kanban styles */
+  .kanban-tools {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-bottom: 14px;
+  }
+  .lock-legend {
+    font-size: 11px;
+    color: #4b5563;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .lock-legend strong { color: var(--mp-blue); }
+  .kanban-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(200px, 1fr));
+    gap: 10px;
+    align-items: start;
+    overflow-x: auto;
+    padding-bottom: 20px;
+  }
+  .kanban-col {
+    background: #eef2f7;
+    border-radius: 10px;
+    padding: 10px;
+    min-height: 560px;
+    transition: background 0.15s, box-shadow 0.15s;
+  }
+  .kanban-col.dragover {
+    background: #e0f2fe;
+    box-shadow: inset 0 0 0 2px var(--mp-blue);
+  }
+  .col-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding: 2px 2px 6px;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+  }
+  .col-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 750;
+    color: #1f2937;
+  }
+  .col-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+  .col-count {
+    font-size: 9px;
+    font-weight: 700;
+    background: #fff;
+    color: #6b7280;
+    border-radius: 99px;
+    padding: 2px 7px;
+  }
+  .deal-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 11px;
+    margin-bottom: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    cursor: grab;
+    user-select: none;
+    transition: transform 0.12s, box-shadow 0.12s;
+  }
+  .deal-card:hover {
+    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    transform: translateY(-1px);
+  }
+  .deal-card.dragging {
+    opacity: 0.45;
+  }
+  .deal-card.overdue {
+    border-left: 3px solid var(--red);
+  }
+  .deal-card.warning {
+    border-left: 3px solid var(--amber);
+  }
+  .deal-card.exception {
+    border-left: 3px solid var(--purple);
+  }
+  .deal-name {
+    font-weight: 750;
+    font-size: 11px;
+    color: #111827;
+  }
+  .deal-sub {
+    font-size: 9px;
+    color: #6b7280;
+    margin-top: 2px;
+  }
+  .deal-source {
+    font-size: 8px;
+    color: #9ca3af;
+    margin-top: 3px;
+  }
+  .deal-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+    padding-top: 6px;
+    border-top: 1px solid #f1f5f9;
+  }
+  .age-pill {
+    font-size: 8px;
+    font-weight: 750;
+    padding: 3px 6px;
+    border-radius: 4px;
+    background: #f1f5f9;
+    color: #475569;
+  }
+  .age-pill.warn { background: #fef3c7; color: #b45309; }
+  .age-pill.late { background: #fee2e2; color: #b91c1c; }
+  .gate-status {
+    font-size: 8px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .gate-status.locked { color: #b45309; }
+  .gate-status.ready { color: var(--mp-green); }
+  .deal-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 6px;
+  }
+  .btn-log {
+    border: 0;
+    background: none;
+    color: var(--mp-blue);
+    font-size: 9px;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0;
+  }
+  .btn-log:hover { text-decoration: underline; }
+  .btn-ex {
+    border: 0;
+    background: none;
+    color: #9ca3af;
+    font-size: 8px;
+    cursor: pointer;
+    padding: 0;
+  }
+  .ex-note {
+    font-size: 8px;
+    color: #795bd2;
+    background: #f5f3ff;
+    padding: 4px;
+    border-radius: 4px;
+    margin-top: 5px;
+    line-height: 1.3;
+  }
+  /* Modals */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(11, 27, 61, 0.6);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    z-index: 100;
+    backdrop-filter: blur(2px);
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    width: min(480px, 100%);
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+    padding: 22px;
+  }
+  .modal h2 { margin: 0; font-size: 16px; font-weight: 800; color: #111827; }
+  .modal-sub { color: #6b7280; font-size: 11px; margin: 4px 0 16px; }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 10px; font-weight: 700; color: #374151; margin-bottom: 4px; }
+  .field input, .field select, .field textarea {
+    width: 100%;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 12px;
+    color: #111827;
+    background: #fff;
+    outline: none;
+    font-family: inherit;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus {
+    border-color: var(--mp-blue);
+    box-shadow: 0 0 0 3px rgba(0, 158, 227, 0.15);
+  }
+  .field textarea { min-height: 80px; resize: vertical; }
+  .modal-btns {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 18px;
+  }
+  .btn-secondary {
+    border: 1px solid #d1d5db;
+    background: #fff;
+    color: #4b5563;
+    padding: 7px 12px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .btn-primary {
+    border: 0;
+    background: var(--mp-blue);
+    color: #fff;
+    padding: 7px 14px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .btn-primary:hover { background: var(--mp-blue-hover); }
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translate(-50%, 20px);
+    opacity: 0;
+    pointer-events: none;
+    background: #0b1b3d;
+    color: #fff;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    transition: all 0.2s;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .toast.show {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+  @media(max-width: 900px) {
+    .shell { grid-template-columns: 1fr; }
+    aside { display: none; }
+    main { padding: 16px; }
+    .grid4 { grid-template-columns: repeat(2, 1fr); }
+    .middle-grid { grid-template-columns: 1fr; }
+    .channels { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <!-- Sidebar MELI Navy -->
+  <aside>
+    <div class="brand">
+      <div class="logo-box">MP</div>
+      <div>
+        Mercado Pago
+        <span class="brand-sub">Quintana Roo</span>
+      </div>
+    </div>
+    <div class="nav-cap">Mesa Comercial</div>
+    <div class="nav">
+      <a id="nav-resumen" class="active" onclick="switchTab('resumen')">
+        <span>▦</span> Resumen & Ritmo
+      </a>
+      <a id="nav-kanban" onclick="switchTab('kanban')">
+        <span>▤</span> Tablero Kanban
+      </a>
+    </div>
+    <div class="side-tip">
+      <b>🎯 Meta Noviembre: 2 Cierres</b>
+      Ritmo base de 15 toques diarios (Cambaceo, WhatsApp y Llamadas). Máximo 7 días por etapa en el pipeline.
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main>
+    <div class="top-bar">
+      <div>Ventas &nbsp;/&nbsp; <strong style="color:#111827">Panel Comercial • Quintana Roo</strong></div>
+      <div class="user-badge">
+        <span class="user-dot"></span>
+        Antonio Gutiérrez · Mercado Pago
+      </div>
+    </div>
+
+    <div class="head">
+      <div>
+        <h1>Panel Comercial • Mercado Pago</h1>
+        <div class="sub">Control táctico diario, candado de avance de etapa y acelerómetro de actividad.</div>
+      </div>
+      <div class="head-actions">
+        <button class="add-btn" onclick="openNewModal()">
+          <span>＋</span> Nuevo Comercio
+        </button>
+        <div class="view-tabs">
+          <button id="tab-resumen" class="active" onclick="switchTab('resumen')">▦ Resumen</button>
+          <button id="tab-kanban" onclick="switchTab('kanban')">▤ Tablero Kanban</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="periodline">
+      Periodo operativo: <strong>Noviembre 2026</strong> &nbsp;·&nbsp; Meta de arranque: <strong>2 Cierres Ganados</strong> (~$900k TPV)
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- VISTA 1: RESUMEN EJECUTIVO Y OPERATIVO                            -->
+    <!-- ================================================================= -->
+    <section id="view-resumen" class="panel active">
+      <!-- 4 KPIs -->
+      <div class="grid4">
+        <div class="card kpi">
+          <div class="kpi-top"><span>Prospectos Generados</span><span class="kpi-icon bluebg">◉</span></div>
+          <div class="kpi-val" id="kpi-prospectos">42</div>
+          <div class="kpi-foot"><span class="up">En cartera activa</span> • Quintana Roo</div>
+        </div>
+        <div class="card kpi">
+          <div class="kpi-top"><span>Leads Calificados</span><span class="kpi-icon tealbg">✓</span></div>
+          <div class="kpi-val" id="kpi-leads">18</div>
+          <div class="kpi-foot"><span class="up" id="kpi-contact-rate">43%</span> contactabilidad</div>
+        </div>
+        <div class="card kpi">
+          <div class="kpi-top"><span>En Negociación / Cita</span><span class="kpi-icon purplebg">↗</span></div>
+          <div class="kpi-val" id="kpi-negoc">7</div>
+          <div class="kpi-foot">Citas & propuestas de tasa</div>
+        </div>
+        <div class="card kpi" style="border-color:rgba(0,166,80,0.3);background:rgba(0,166,80,0.03);">
+          <div class="kpi-top"><span style="color:#00a650;font-weight:700">Cierres Ganados MP</span><span class="kpi-icon greenbg">★</span></div>
+          <div class="kpi-val" style="color:#00a650" id="kpi-won">0 <span style="font-size:12px;color:#6b7280;font-weight:500">/ 2 Meta Nov</span></div>
+          <div class="kpi-foot"><strong id="kpi-tpv">$0 MXN</strong> TPV Colocado</div>
+        </div>
+      </div>
+
+      <!-- Fila Media: Tacómetro de 15 Toques + Embudo de Conversión -->
+      <div class="middle-grid">
+        <!-- Tacómetro y Canales -->
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <div class="card-title">Meta de Actividad Diaria</div>
+              <div class="card-sub">Toques comerciales registrados hoy contra tu ritmo de 15</div>
+            </div>
+            <span class="pill" id="gauge-pill">Ritmo de Hoy</span>
+          </div>
+          <div class="gauge-wrap">
+            <svg class="gauge" viewBox="0 0 200 115">
+              <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#eef1f6" stroke-width="16" stroke-linecap="round"/>
+              <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#ef4444" stroke-width="16" stroke-linecap="round" stroke-dasharray="45 200"/>
+              <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#f59e0b" stroke-width="16" stroke-linecap="round" stroke-dasharray="40 200" stroke-dashoffset="-45"/>
+              <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#00a650" stroke-width="16" stroke-linecap="round" stroke-dasharray="70 200" stroke-dashoffset="-85"/>
+              <text x="100" y="85" text-anchor="middle" class="gauge-num" id="gauge-val">0</text>
+              <text x="100" y="103" text-anchor="middle" class="gauge-den">/ 15 TOQUES HOY</text>
+            </svg>
+            <div class="gauge-caption" id="gauge-text">
+              <strong>Mínimo 8 toques</strong> para ritmo base · 12-15 para alta conversión
+            </div>
+          </div>
+          <div class="channels">
+            <div class="ch-card">
+              <span class="ch-label">Cambaceo</span>
+              <span class="ch-val" style="color:var(--purple)" id="ch-cambaceo">0</span>
+              <div class="ch-bar"><div class="ch-fill" id="fill-cambaceo" style="width:0%;background:var(--purple)"></div></div>
+            </div>
+            <div class="ch-card">
+              <span class="ch-label">WhatsApp</span>
+              <span class="ch-val" style="color:var(--mp-green)" id="ch-whatsapp">0</span>
+              <div class="ch-bar"><div class="ch-fill" id="fill-whatsapp" style="width:0%;background:var(--mp-green)"></div></div>
+            </div>
+            <div class="ch-card">
+              <span class="ch-label">Llamadas</span>
+              <span class="ch-val" style="color:var(--mp-blue)" id="ch-call">0</span>
+              <div class="ch-bar"><div class="ch-fill" id="fill-call" style="width:0%;background:var(--mp-blue)"></div></div>
+            </div>
+            <div class="ch-card">
+              <span class="ch-label">Correos</span>
+              <span class="ch-val" style="color:var(--amber)" id="ch-email">0</span>
+              <div class="ch-bar"><div class="ch-fill" id="fill-email" style="width:0%;background:var(--amber)"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Embudo Comercial de 4 Etapas -->
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <div class="card-title">Embudo de Conversión</div>
+              <div class="card-sub">Avance por etapas hacia los 2 cierres de noviembre</div>
+            </div>
+            <span class="pill" style="background:#edf3ff;color:#007bb3;border-color:rgba(0,158,227,0.2)">Flujo Activo</span>
+          </div>
+          <div class="funnel-body">
+            <div class="funnel-row">
+              <span>1. Prospectos</span>
+              <div class="funnel-bar"><div class="funnel-fill" id="funnel-fill-1" style="width:100%;background:var(--mp-blue)"></div></div>
+              <span class="funnel-n" id="funnel-n-1">0</span>
+              <span class="funnel-rate">Base</span>
+            </div>
+            <div class="funnel-row">
+              <span>2. Leads Calificados</span>
+              <div class="funnel-bar"><div class="funnel-fill" id="funnel-fill-2" style="width:0%;background:var(--teal)"></div></div>
+              <span class="funnel-n" id="funnel-n-2">0</span>
+              <span class="funnel-rate" id="funnel-r-2">0%</span>
+            </div>
+            <div class="funnel-row">
+              <span>3. Negociaciones</span>
+              <div class="funnel-bar"><div class="funnel-fill" id="funnel-fill-3" style="width:0%;background:var(--purple)"></div></div>
+              <span class="funnel-n" id="funnel-n-3">0</span>
+              <span class="funnel-rate" id="funnel-r-3">0%</span>
+            </div>
+            <div class="funnel-row">
+              <span>4. Cierres Ganados</span>
+              <div class="funnel-bar"><div class="funnel-fill" id="funnel-fill-4" style="width:0%;background:var(--mp-green)"></div></div>
+              <span class="funnel-n" id="funnel-n-4">0</span>
+              <span class="funnel-rate" id="funnel-r-4">0 / 2</span>
+            </div>
+          </div>
+          <div style="border-top:1px solid var(--line);padding:12px 18px;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:11px;color:#6b7280">Ciclo de venta promedio: <strong style="color:#111827">5.4 días</strong></span>
+            <button class="btn-touch call" onclick="switchTab('kanban')" style="font-size:11px;padding:5px 10px;">
+              Ver Tablero Kanban ➔
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mesa de Acción Rápida de Comercios de Hoy -->
+      <div class="card">
+        <div class="card-head" style="padding-bottom:12px;border-bottom:1px solid var(--line);">
+          <div>
+            <div class="card-title">Tus Comercios en Curso • Mesa de Acción Inmediata</div>
+            <div class="card-sub">Registra acciones en 1 clic para mover el tacómetro o avanza la etapa comercial.</div>
+          </div>
+          <button class="btn-touch" onclick="openNewModal()" style="color:var(--mp-blue);border-color:rgba(0,158,227,0.3)">
+            ＋ Agregar Comercio
+          </button>
+        </div>
+        <div class="action-table-wrap">
+          <table class="action-table">
+            <thead>
+              <tr>
+                <th>Comercio / Encargado</th>
+                <th>Giro & Ciudad</th>
+                <th style="text-align:center">Acción Rápida (1 Clic)</th>
+                <th>Etapa Comercial</th>
+              </tr>
+            </thead>
+            <tbody id="action-table-body">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- VISTA 2: TABLERO KANBAN CON CANDADO DE ACTIVIDAD                  -->
+    <!-- ================================================================= -->
+    <section id="view-kanban" class="panel">
+      <div class="kanban-tools">
+        <div class="lock-legend">
+          <span>🔒</span>
+          <span><strong>Candado de Etapa activo:</strong> Para arrastrar una ficha a la siguiente etapa, debes registrar primero un contacto real en su etapa actual.</span>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn-touch" onclick="resetDemo()">Restablecer Ejemplos</button>
+          <button class="btn-touch" style="color:var(--red);border-color:rgba(239,68,68,0.3)" onclick="clearAllData()">🗑️ Borrar Pruebas (Pizarra en Blanco)</button>
+          <button class="add-btn" onclick="openNewModal()" style="padding:6px 10px;font-size:11px;">
+            ＋ Nuevo Comercio
+          </button>
+        </div>
+      </div>
+
+      <div class="kanban-grid" id="kanban-board">
+        <!-- 5 Columns Rendered via JS -->
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Modal: Nuevo Comercio -->
+<div id="newModal" class="modal-overlay" onclick="overlayClose(event,'newModal')">
+  <form class="modal" onsubmit="createDeal(event)">
+    <h2>Agregar Comercio • Mercado Pago</h2>
+    <div class="modal-sub">Regístralo en tu banco de prospección. Entrará en la columna de Prospectos.</div>
+    <div class="field">
+      <label>Nombre del Comercio *</label>
+      <input id="newName" required placeholder="Ej. Restaurante Mariscos El Faro" autocomplete="off"/>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="field">
+        <label>Giro / Industria *</label>
+        <select id="newIndustry">
+          <option>Restaurante & Bar</option>
+          <option>Hotelería & Hospedaje</option>
+          <option>Beach Club & Ocio</option>
+          <option>Clínica Estética & Spa</option>
+          <option>Hospital Veterinario</option>
+          <option>Ferretería & Materiales</option>
+          <option>Retail & Abarrotes</option>
+          <option>Otro</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Ciudad / Municipio *</label>
+        <select id="newCity">
+          <option>Cancún</option>
+          <option>Playa del Carmen</option>
+          <option>Tulum</option>
+          <option>Cozumel</option>
+          <option>Isla Mujeres</option>
+          <option>Chetumal</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="field">
+        <label>Contacto / Encargado</label>
+        <input id="newContact" placeholder="Ej. Don Roberto"/>
+      </div>
+      <div class="field">
+        <label>Teléfono / WhatsApp</label>
+        <input id="newPhone" placeholder="998 123 4567"/>
+      </div>
+    </div>
+    <div class="field">
+      <label>Fuente de Origen *</label>
+      <select id="newSource">
+        <option>Cambaceo en calle</option>
+        <option>Recomendación / referido</option>
+        <option>Búsqueda en directorio o mapa</option>
+        <option>Cartera propia</option>
+        <option>Evento / Inbound</option>
+      </select>
+    </div>
+    <div class="modal-btns">
+      <button type="button" class="btn-secondary" onclick="closeModal('newModal')">Cancelar</button>
+      <button type="submit" class="btn-primary">Guardar en Prospectos</button>
+    </div>
+  </form>
+</div>
+
+<!-- Modal: Candado de Actividad -->
+<div id="activityModal" class="modal-overlay" onclick="overlayClose(event,'activityModal')">
+  <form class="modal" onsubmit="saveActivity(event)">
+    <h2 id="actTitle">Candado: Registrar Actividad</h2>
+    <div class="modal-sub" id="actHint">El candado evita avanzar fichas sin registrar una gestión real previa.</div>
+    <div class="field">
+      <label>Tipo de Interacción *</label>
+      <select id="actType">
+        <option value="WhatsApp">💬 WhatsApp con el dueño / encargado</option>
+        <option value="Llamada">📞 Llamada telefónica directa</option>
+        <option value="Cambaceo">🚶‍♂️ Visita presencial en local (Cambaceo)</option>
+        <option value="Correo">✉️ Correo electrónico formal</option>
+        <option value="Nota">📝 Nota interna / Acuerdo</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>¿Qué ocurrió o qué acordaron? (Mínimo 8 caracteres) *</label>
+      <textarea id="actNote" required minlength="8" placeholder="Ej. Hablé con el encargado; le presenté la tasa de Mercado Pago y revisará propuesta el martes..."></textarea>
+    </div>
+    <div id="actError" style="font-size:10px;color:var(--red);min-height:14px;margin-bottom:6px;"></div>
+    <div class="modal-btns">
+      <button type="button" class="btn-secondary" onclick="closeModal('activityModal')">Cancelar</button>
+      <button type="submit" class="btn-primary">Guardar y Desbloquear</button>
+    </div>
+  </form>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+const STORAGE_KEY = "meli-grid-tono-sales-v2";
+
+const SEED_DEALS = [
+  { id: "d1", name: "Hotel Boutique Casa Tortuga", industry: "Hotelería & Hospedaje", city: "Tulum", contact: "Lic. Arismendi", phone: "9841238899", source: "Cambaceo en calle", stage: "prospecto", days: 1, logs: [{ type: "Cambaceo", note: "Visita en recepción; pedí cita con gerente", date: new Date().toISOString() }] },
+  { id: "d2", name: "Restaurante Mariscos El Faro", industry: "Restaurante & Bar", city: "Cancún", contact: "Don Roberto", phone: "9988452211", source: "Recomendación / referido", stage: "lead", days: 2, logs: [{ type: "WhatsApp", note: "Interesado en Point Smart 4G; revisa comisiones", date: new Date().toISOString() }] },
+  { id: "d3", name: "Clínica Dental & Estética Maya", industry: "Clínica Estética & Spa", city: "Playa del Carmen", contact: "Dra. Sofía", phone: "9847721100", source: "Búsqueda en mapa", stage: "lead", days: 3, logs: [{ type: "Llamada", note: "Llamada efectiva; le envié comparativa de tasas", date: new Date().toISOString() }] },
+  { id: "d4", name: "Beach Club Coral Beach", industry: "Beach Club & Ocio", city: "Cozumel", contact: "Carlos M.", phone: "9871029933", source: "Cartera propia", stage: "negociacion", days: 4, logs: [{ type: "WhatsApp", note: "Negociando paquete de 3 terminales Point Smart", date: new Date().toISOString() }] },
+  { id: "d5", name: "Ferretería El Tornillo de Oro", industry: "Ferretería & Materiales", city: "Cancún", contact: "Ing. Manuel", phone: "9982341100", source: "Cambaceo en calle", stage: "negociacion", days: 8, logs: [], exception: { reason: "Esperando firma de socio", review: "2026-11-05" } },
+  { id: "d6", name: "Hospital Veterinario Riviera", industry: "Hospital Veterinario", city: "Playa del Carmen", contact: "Dr. Morales", phone: "9845561122", source: "Recomendación", stage: "prospecto", days: 2, logs: [] },
+  { id: "d7", name: "Abarrotes y Vinos El Puerto", industry: "Retail & Abarrotes", city: "Isla Mujeres", contact: "Doña Elena", phone: "9983345566", source: "Búsqueda en directorio", stage: "prospecto", days: 1, logs: [] }
+];
+
+let deals = loadDeals();
+let activeDealId = null;
+let pendingTargetStage = null;
+let draggedId = null;
+let toastTimer = null;
+
+function loadDeals() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : structuredClone(SEED_DEALS);
+  } catch (e) {
+    return structuredClone(SEED_DEALS);
+  }
+}
+
+function persist() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(deals));
+  } catch (e) {}
+}
+
+function switchTab(tab) {
+  document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".view-tabs button").forEach(b => b.classList.remove("active"));
+  document.querySelectorAll(".nav a").forEach(a => a.classList.remove("active"));
+
+  document.getElementById("view-" + tab).classList.add("active");
+  document.getElementById("tab-" + tab).classList.add("active");
+  document.getElementById("nav-" + tab).classList.add("active");
+
+  render();
+}
+
+function stageLabel(s) {
+  return { prospecto: "Prospecto", lead: "Lead Calificado", negociacion: "Negociación / Cita", ganado: "Ganado MP", perdido: "Perdido" }[s] || s;
+}
+
+function notify(text) {
+  const t = document.getElementById("toast");
+  t.innerHTML = text;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 3200);
+}
+
+function render() {
+  renderResumen();
+  renderKanban();
+  renderActionTable();
+}
+
+function renderResumen() {
+  const total = deals.length;
+  const leads = deals.filter(d => d.stage !== "prospecto").length;
+  const negoc = deals.filter(d => d.stage === "negociacion" || d.stage === "ganado").length;
+  const won = deals.filter(d => d.stage === "ganado").length;
+
+  document.getElementById("kpi-prospectos").textContent = total;
+  document.getElementById("kpi-leads").textContent = leads;
+  document.getElementById("kpi-negoc").textContent = negoc;
+  document.getElementById("kpi-won").innerHTML = `${won} <span style="font-size:12px;color:#6b7280;font-weight:500">/ 2 Meta Nov</span>`;
+  document.getElementById("kpi-tpv").textContent = won > 0 ? `$${(won * 450000 / 1000).toLocaleString()}k MXN` : "$0 MXN";
+
+  const contactRate = total > 0 ? Math.round((leads / total) * 100) : 0;
+  document.getElementById("kpi-contact-rate").textContent = contactRate + "%";
+
+  // Funnel
+  document.getElementById("funnel-n-1").textContent = total;
+  document.getElementById("funnel-n-2").textContent = leads;
+  document.getElementById("funnel-n-3").textContent = negoc;
+  document.getElementById("funnel-n-4").textContent = won;
+
+  document.getElementById("funnel-fill-2").style.width = contactRate + "%";
+  document.getElementById("funnel-r-2").textContent = contactRate + "%";
+
+  const negocRate = leads > 0 ? Math.round((negoc / leads) * 100) : 0;
+  document.getElementById("funnel-fill-3").style.width = negocRate + "%";
+  document.getElementById("funnel-r-3").textContent = negocRate + "%";
+
+  document.getElementById("funnel-fill-4").style.width = Math.min(100, (won / 2) * 100) + "%";
+  document.getElementById("funnel-r-4").textContent = `${won} / 2`;
+
+  // Channels count
+  let cambaceoCount = 0, waCount = 0, callCount = 0, emailCount = 0;
+  deals.forEach(d => {
+    (d.logs || []).forEach(l => {
+      const type = (l.type || "").toLowerCase();
+      if (type.includes("cambaceo") || type.includes("visita")) cambaceoCount++;
+      else if (type.includes("whatsapp")) waCount++;
+      else if (type.includes("llamada")) callCount++;
+      else if (type.includes("correo")) emailCount++;
+    });
+  });
+
+  const totalTouches = cambaceoCount + waCount + callCount + emailCount;
+  document.getElementById("gauge-val").textContent = totalTouches;
+  document.getElementById("ch-cambaceo").textContent = cambaceoCount;
+  document.getElementById("ch-whatsapp").textContent = waCount;
+  document.getElementById("ch-call").textContent = callCount;
+  document.getElementById("ch-email").textContent = emailCount;
+
+  document.getElementById("fill-cambaceo").style.width = Math.min(100, (cambaceoCount / 5) * 100) + "%";
+  document.getElementById("fill-whatsapp").style.width = Math.min(100, (waCount / 5) * 100) + "%";
+  document.getElementById("fill-call").style.width = Math.min(100, (callCount / 5) * 100) + "%";
+  document.getElementById("fill-email").style.width = Math.min(100, (emailCount / 5) * 100) + "%";
+
+  const gaugePill = document.getElementById("gauge-pill");
+  if (totalTouches >= 15) {
+    gaugePill.textContent = "Meta Cumplida 🎉";
+    gaugePill.style.color = "#00a650";
+  } else if (totalTouches >= 8) {
+    gaugePill.textContent = "Ritmo Óptimo ✓";
+    gaugePill.style.color = "#00a650";
+  } else {
+    gaugePill.textContent = "En Progreso";
+    gaugePill.style.color = "#f59e0b";
+  }
+}
+
+function renderActionTable() {
+  const tbody = document.getElementById("action-table-body");
+  tbody.innerHTML = "";
+
+  deals.forEach(deal => {
+    const tr = document.createElement("tr");
+
+    tr.innerHTML = `
+      <td>
+        <strong style="font-size:12px;color:#111827;display:block;">${deal.name}</strong>
+        <span style="font-size:10px;color:#6b7280;">${deal.contact || "Encargado"} ${deal.phone ? "• " + deal.phone : ""}</span>
+      </td>
+      <td>
+        <span style="display:inline-block;padding:2px 6px;border-radius:4px;background:#f1f5f9;font-size:10px;font-weight:600;">${deal.industry}</span>
+        <span style="display:block;font-size:9px;color:#9ca3af;margin-top:2px;">📍 ${deal.city}</span>
+      </td>
+      <td style="text-align:center;">
+        <button class="btn-touch visit" onclick="quickLog('${deal.id}', 'Cambaceo')">🚶‍♂️ Visita</button>
+        <button class="btn-touch wa" onclick="quickLog('${deal.id}', 'WhatsApp', '${deal.phone || ""}')">💬 WhatsApp</button>
+        <button class="btn-touch call" onclick="quickLog('${deal.id}', 'Llamada', '${deal.phone || ""}')">📞 Llamar</button>
+        <button class="btn-touch" onclick="openActivityModal('${deal.id}')">+ Nota</button>
+      </td>
+      <td>
+        <select class="stage-select" onchange="changeStage('${deal.id}', this.value)">
+          <option value="prospecto" ${deal.stage === "prospecto" ? "selected" : ""}>1. Prospecto</option>
+          <option value="lead" ${deal.stage === "lead" ? "selected" : ""}>2. Lead Calificado</option>
+          <option value="negociacion" ${deal.stage === "negociacion" ? "selected" : ""}>3. Negociación</option>
+          <option value="ganado" ${deal.stage === "ganado" ? "selected" : ""}>4. Ganado MP ★</option>
+          <option value="perdido" ${deal.stage === "perdido" ? "selected" : ""}>Perdido / Descarte</option>
+        </select>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+const COLS = [
+  { key: "prospecto", name: "Prospecto", color: "#009ee3" },
+  { key: "lead", name: "Lead Calificado", color: "#14b8a6" },
+  { key: "negociacion", name: "Negociación", color: "#795bd2" },
+  { key: "ganado", name: "Ganado MP", color: "#00a650" },
+  { key: "perdido", name: "Perdido", color: "#ef4444" }
+];
+
+function renderKanban() {
+  const board = document.getElementById("kanban-board");
+  board.innerHTML = "";
+
+  COLS.forEach(col => {
+    const colDiv = document.createElement("div");
+    colDiv.className = "kanban-col";
+    colDiv.dataset.stage = col.key;
+
+    const list = deals.filter(d => d.stage === col.key);
+
+    colDiv.innerHTML = `
+      <div class="col-header">
+        <span class="col-title">
+          <i class="col-dot" style="background:${col.color}"></i> ${col.name}
+        </span>
+        <span class="col-count">${list.length}</span>
+      </div>
+      <div class="cards-holder" style="min-height:500px;"></div>
+    `;
+
+    const holder = colDiv.querySelector(".cards-holder");
+
+    list.forEach(d => {
+      const isClosed = d.stage === "ganado" || d.stage === "perdido";
+      const hasLog = (d.logs || []).length > 0;
+      const days = d.days || 1;
+      const isOverdue = !isClosed && days > 7 && !d.exception;
+      const isWarn = !isClosed && days >= 5 && days <= 7;
+
+      const card = document.createElement("div");
+      card.className = "deal-card" + (isOverdue ? " overdue" : isWarn ? " warning" : "") + (d.exception ? " exception" : "");
+      card.draggable = true;
+      card.dataset.id = d.id;
+
+      card.innerHTML = `
+        <div class="deal-name">${d.name}</div>
+        <div class="deal-sub">${d.industry} · ${d.city}</div>
+        <div class="deal-source">Origen: ${d.source || "Cambaceo"}</div>
+        <div class="deal-meta">
+          <span class="age-pill ${isOverdue ? "late" : isWarn ? "warn" : ""}">${isOverdue ? "⚠ " : ""}${days === 0 ? "Hoy" : days + " d en etapa"}</span>
+          ${!isClosed ? `
+            <span class="gate-status ${hasLog ? "ready" : "locked"}">
+              ${hasLog ? `✓ ${d.logs.length} reg.` : "🔒 Sin reg."}
+            </span>
+          ` : `<span class="gate-status ready">✓ Cerrado</span>`}
+        </div>
+        ${d.exception ? `<div class="ex-note">Excepción: ${d.exception.reason} (${d.exception.review})</div>` : ""}
+        ${!isClosed ? `
+          <div class="deal-actions">
+            <button class="btn-log" onclick="openActivityModal('${d.id}')">+ Registrar Actividad</button>
+            <button class="btn-ex" onclick="toggleException('${d.id}')">${d.exception ? "Quitar exc." : "Excepción"}</button>
+          </div>
+        ` : ""}
+      `;
+
+      card.addEventListener("dragstart", (e) => {
+        draggedId = d.id;
+        card.classList.add("dragging");
+        e.dataTransfer.setData("text/plain", d.id);
+      });
+      card.addEventListener("dragend", () => {
+        card.classList.remove("dragging");
+        document.querySelectorAll(".kanban-col").forEach(c => c.classList.remove("dragover"));
+      });
+
+      holder.appendChild(card);
+    });
+
+    colDiv.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      colDiv.classList.add("dragover");
+    });
+    colDiv.addEventListener("dragleave", () => {
+      colDiv.classList.remove("dragover");
+    });
+    colDiv.addEventListener("drop", (e) => {
+      e.preventDefault();
+      colDiv.classList.remove("dragover");
+      const id = e.dataTransfer.getData("text/plain") || draggedId;
+      handleDrop(id, col.key);
+    });
+
+    board.appendChild(colDiv);
+  });
+}
+
+// Candado logic on drop
+function handleDrop(id, targetStage) {
+  const deal = deals.find(d => d.id === id);
+  if (!deal || deal.stage === targetStage) return;
+
+  const hasLog = (deal.logs || []).length > 0;
+
+  // Candado Check
+  if (!hasLog && targetStage !== "perdido") {
+    openActivityModal(deal.id, targetStage);
+    notify("🔒 <strong>Candado activo:</strong> Registra primero una actividad o nota antes de avanzar.");
+    return;
+  }
+
+  // Allowed to move!
+  const oldStage = deal.stage;
+  deal.stage = targetStage;
+  deal.days = 0;
+  deal.exception = null;
+  deal.logs = []; // reset stage logs for the next stage
+  persist();
+  render();
+  notify(`✓ <strong>${deal.name}</strong>: avanzada a <strong>${stageLabel(targetStage)}</strong>`);
+}
+
+function quickLog(id, type, phone) {
+  const deal = deals.find(d => d.id === id);
+  if (!deal) return;
+
+  deal.logs = deal.logs || [];
+  deal.logs.push({ type, note: `Acción rápida registrada: ${type}`, date: new Date().toISOString() });
+  persist();
+  render();
+
+  if (type === "WhatsApp" && phone) {
+    const clean = phone.replace(/\D/g, "");
+    window.open(`https://wa.me/52${clean}`, "_blank");
+  } else if (type === "Llamada" && phone) {
+    window.location.href = `tel:${phone}`;
+  }
+
+  notify(`✓ Toque de <strong>${type}</strong> registrado para ${deal.name} (+1 en tacómetro)`);
+}
+
+function changeStage(id, newStage) {
+  const deal = deals.find(d => d.id === id);
+  if (!deal) return;
+
+  const hasLog = (deal.logs || []).length > 0;
+  if (!hasLog && newStage !== "perdido" && newStage !== "prospecto") {
+    openActivityModal(deal.id, newStage);
+    notify("🔒 <strong>Candado activo:</strong> Registra una nota de acuerdo antes de avanzar.");
+    return;
+  }
+
+  deal.stage = newStage;
+  deal.days = 0;
+  deal.exception = null;
+  persist();
+  render();
+  notify(`✓ Etapa actualizada a <strong>${stageLabel(newStage)}</strong>`);
+}
+
+function openActivityModal(id, target) {
+  const deal = deals.find(d => d.id === id);
+  if (!deal) return;
+
+  activeDealId = id;
+  pendingTargetStage = target || null;
+
+  document.getElementById("actTitle").textContent = `Candado: Registrar Actividad • ${deal.name}`;
+  document.getElementById("actHint").textContent = `Registra el contacto en etapa actual para desbloquear ${target ? "el avance a " + stageLabel(target) : "la ficha"}.`;
+  document.getElementById("actNote").value = "";
+  document.getElementById("actError").textContent = "";
+  document.getElementById("activityModal").classList.add("open");
+  setTimeout(() => document.getElementById("actNote").focus(), 30);
+}
+
+function saveActivity(e) {
+  e.preventDefault();
+  const deal = deals.find(d => d.id === activeDealId);
+  if (!deal) return;
+
+  const type = document.getElementById("actType").value;
+  const note = document.getElementById("actNote").value.trim();
+
+  if (note.length < 8) {
+    document.getElementById("actError").textContent = "Describe lo acordado con al menos 8 caracteres.";
+    return;
+  }
+
+  deal.logs = deal.logs || [];
+  deal.logs.push({ type, note, date: new Date().toISOString() });
+
+  if (pendingTargetStage) {
+    deal.stage = pendingTargetStage;
+    deal.days = 0;
+    deal.logs = [];
+    notify(`✓ Actividad guardada y ${deal.name} avanzada a ${stageLabel(pendingTargetStage)}`);
+  } else {
+    notify(`✓ Actividad registrada para ${deal.name}. Candado desbloqueado.`);
+  }
+
+  persist();
+  closeModal("activityModal");
+  render();
+  activeDealId = null;
+  pendingTargetStage = null;
+}
+
+function toggleException(id) {
+  const deal = deals.find(d => d.id === id);
+  if (!deal) return;
+
+  if (deal.exception) {
+    if (confirm(`¿Quitar la excepción para ${deal.name}?`)) {
+      deal.exception = null;
+      persist();
+      render();
+      notify("Excepción eliminada.");
+    }
+    return;
+  }
+
+  const reason = prompt(`Motivo de la excepción para ${deal.name}:`, "Esperando aprobación de socio");
+  if (!reason || !reason.trim()) return;
+  const review = prompt("Fecha de revisión (AAAA-MM-DD):", "2026-11-06") || "Sin fecha";
+
+  deal.exception = { reason: reason.trim(), review };
+  persist();
+  render();
+  notify(`✓ Excepción guardada para ${deal.name}`);
+}
+
+function openNewModal() {
+  document.getElementById("newName").value = "";
+  document.getElementById("newContact").value = "";
+  document.getElementById("newPhone").value = "";
+  document.getElementById("newModal").classList.add("open");
+  setTimeout(() => document.getElementById("newName").focus(), 30);
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove("open");
+}
+
+function overlayClose(e, id) {
+  if (e.target.id === id) closeModal(id);
+}
+
+function createDeal(e) {
+  e.preventDefault();
+  const name = document.getElementById("newName").value.trim();
+  if (!name) return;
+
+  const industry = document.getElementById("newIndustry").value;
+  const city = document.getElementById("newCity").value;
+  const contact = document.getElementById("newContact").value.trim();
+  const phone = document.getElementById("newPhone").value.trim();
+  const source = document.getElementById("newSource").value;
+
+  deals.unshift({
+    id: "d_" + Date.now(),
+    name,
+    industry,
+    city,
+    contact,
+    phone,
+    source,
+    stage: "prospecto",
+    days: 0,
+    logs: []
+  });
+
+  persist();
+  closeModal("newModal");
+  render();
+  notify(`✓ <strong>${name}</strong> guardado en Prospectos.`);
+}
+
+function clearAllData() {
+  if (!confirm('¿Deseas borrar todos los comercios de prueba y comenzar con una pizarra en blanco de 0?')) return;
+  deals = [];
+  persist();
+  render();
+  notify('🗑️ Datos de prueba eliminados. Pizarra en blanco lista para comercios reales.');
+}
+
+function resetDemo() {
+  if (!confirm("¿Restablecer los comercios de ejemplo de Quintana Roo?")) return;
+  deals = structuredClone(SEED_DEALS);
+  persist();
+  render();
+  notify("Ejemplos de Quintana Roo restablecidos.");
+}
+
+// Initial render
+render();
+</script>
+</body>
+</html>
