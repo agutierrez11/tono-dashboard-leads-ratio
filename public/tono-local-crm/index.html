@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1b3d">
+  <meta name="description" content="Tablero personal de ejecución comercial. Los registros permanecen en este navegador.">
+  <title>Ritmo — tablero comercial personal</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Navegación principal">
+      <a class="brand" href="#hoy" aria-label="Ritmo, inicio">
+        <span class="brand-mark" aria-hidden="true">R</span>
+        <span><strong>Ritmo</strong><small>tablero personal</small></span>
+      </a>
+      <p class="nav-label">TRABAJO</p>
+      <nav class="nav-list">
+        <button class="nav-link is-active" data-view="dashboard"><span aria-hidden="true">◷</span> Mi ritmo</button>
+        <button class="nav-link" data-view="kanban"><span aria-hidden="true">▦</span> Pipeline</button>
+        <button class="nav-link" data-view="prospects"><span aria-hidden="true">◎</span> Prospectos</button>
+        <button class="nav-link" data-view="campaigns"><span aria-hidden="true">✉</span> Campañas YAMM</button>
+        <button class="nav-link" data-view="insights"><span aria-hidden="true">⌁</span> Lecturas</button>
+      </nav>
+      <div class="sidebar-spacer"></div>
+      <button class="nav-link settings-link" data-view="settings"><span aria-hidden="true">⚙</span> Ajustes</button>
+      <div class="local-note"><span class="local-dot"></span><div><strong>Solo en este navegador</strong><small>Sin sincronización con servidores</small></div></div>
+      <div class="sidebar-foot">Ritmo · uso personal</div>
+    </aside>
+
+    <main class="main-area">
+      <header class="topbar">
+        <div class="crumb"><span class="crumb-dot"></span> CRM PERSONAL <span class="crumb-sep">/</span> <span id="viewBreadcrumb">MI RITMO</span></div>
+        <div class="top-actions">
+          <span class="storage-chip"><span aria-hidden="true">●</span> Local</span>
+          <button class="button button-quiet button-small" id="exportButton" type="button">Respaldo</button>
+          <button class="button button-primary button-small" id="newLeadButton" type="button">＋ Nuevo prospecto</button>
+        </div>
+      </header>
+
+      <div class="content-wrap">
+        <div id="appView" aria-live="polite"></div>
+      </div>
+
+      <footer class="page-footer">
+        <span>Los datos se guardan en este navegador. Exporta un respaldo antes de cambiar de dispositivo o borrar el historial.</span>
+        <button type="button" class="text-button" id="privacyInfoButton">¿Qué se guarda?</button>
+      </footer>
+    </main>
+  </div>
+
+  <input id="csvFileInput" class="visually-hidden" type="file" accept=".csv,text/csv,.txt,text/plain">
+  <input id="jsonFileInput" class="visually-hidden" type="file" accept=".json,application/json">
+  <div id="toastRegion" class="toast-region" aria-live="polite" aria-atomic="true"></div>
+  <dialog id="appDialog" class="app-dialog" aria-labelledby="dialogTitle"></dialog>
+  <script src="./app.js" defer></script>
+</body>
+</html>

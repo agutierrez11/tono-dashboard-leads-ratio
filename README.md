@@ -44,3 +44,8 @@ Este proyecto es un Panel de Control Avanzado de Ventas y Ratios de Conversión 
 * **Estilos:** Tailwind CSS, shadcn-ui
 * **Base de Datos y Autenticación:** Supabase (PostgreSQL)
 * **Despliegue:** Vercel
+
+
+## Tablero personal local / Local-only personal board
+
+Se añadió `public/tono-local-crm/`, una página estática independiente para seguimiento personal. No forma parte del CRM de Supabase y no utiliza backend ni servicios externos. Para publicar únicamente esta herramienta, sirve esa carpeta o copia `dist/tono-local-crm/` después de `npm run build`. La guía de despliegue, persistencia local, importación CSV y definiciones está en [`docs/tono-local-crm.md`](docs/tono-local-crm.md).
