@@ -892,11 +892,15 @@
 
           <!-- Canales con métricas de intento y efectividad separadas -->
           <div class="channels" style="grid-template-columns: repeat(4, 1fr);gap:8px;padding:12px 16px;">
-            <div class="ch-card" style="padding:8px;">
-              <span class="ch-label">Llamadas</span>
-              <span class="ch-val" style="color:var(--mp-blue);font-size:16px;" id="ch-call">0</span>
-              <div style="font-size:9px;color:#64748b;margin-top:2px;" id="ch-call-sub">0% conex.</div>
-            </div>
+            <div class="ch-card" style="padding:8px;" title="Gamificación Go for No: contabiliza tus SÍ conseguidos vs NOs superados">
+          <span class="ch-label">Llamadas</span>
+          <span class="ch-val" style="color:var(--mp-blue);font-size:16px;" id="ch-call">0</span>
+          <div style="font-size:9px;color:#64748b;margin-top:2px;" id="ch-call-sub">— conex.</div>
+          <div id="ch-call-gamification" style="display:none;margin-top:4px;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:4px;" title="🎯 SÍ (avances a cita/demo) vs 🛡️ NO (objeciones/rechazos superados)">
+            <span style="color:#00a650;background:rgba(0,166,80,0.12);padding:1px 4px;border-radius:3px;">🎯 <span id="ch-call-yes">0</span> SÍ</span>
+            <span style="color:#ef4444;background:rgba(239,68,68,0.12);padding:1px 4px;border-radius:3px;">🛡️ <span id="ch-call-no">0</span> NO</span>
+          </div>
+        </div>
             <div class="ch-card" style="padding:8px;">
               <span class="ch-label">WhatsApp</span>
               <span class="ch-val" style="color:var(--mp-green);font-size:16px;" id="ch-whatsapp">0</span>
@@ -1492,7 +1496,7 @@ function renderResumen() {
   
   // 1. Toques brutos registrados hoy (todas las actividades con fecha de hoy)
   let totalTouchesToday = 0;
-  let callsTotal = 0, callsConnected = 0;
+  let callsTotal = 0, callsConnected = 0, callsYes = 0, callsNo = 0;
   let waTotal = 0, waResponses = 0;
   let emailTotal = 0, emailResponses = 0;
   let visitScheduled = 0, visitRealized = 0;
@@ -1510,8 +1514,13 @@ function renderResumen() {
         const ch = (log.channel || log.type || "").toLowerCase();
         if (ch.includes("llamada")) {
           callsTotal++;
-          if (log.connected === true || log.outcome === "conectada" || log.outcome === "visita_agendada" || log.outcome === "acepto_verbalmente") {
+          if (log.connected === true || log.outcome === "conectada" || log.outcome === "visita_agendada" || log.outcome === "acepto_verbalmente" || log.outcome === "pidio_visita") {
             callsConnected++;
+            if (log.outcome === "pidio_visita" || log.outcome === "visita_agendada" || log.outcome === "acepto_verbalmente" || log.outcome === "cierre_ganado") {
+              callsYes++;
+            } else {
+              callsNo++;
+            }
           }
         } else if (ch.includes("whatsapp")) {
           waTotal++;
@@ -1901,7 +1910,19 @@ function saveActivity(e) {
     openDrawer(deal.id); // Refresca drawer si está abierto
   }
 
-  notify(`✓ Actividad registrada para <strong>${deal.name}</strong> (+1 toque hoy).`);
+  if (channel === "llamada") {
+    if (connected) {
+      if (outcome === "pidio_visita" || outcome === "visita_agendada" || outcome === "acepto_verbalmente") {
+        notify(`🎯 <strong>¡BOOM! +1 'SÍ' conseguido.</strong> Cita o propuesta en marcha con <strong>${deal.name}</strong>.`);
+      } else {
+        notify(`🛡️ <strong>+1 'NO' coleccionado.</strong> ¡La estadística dice que cada rechazo te acerca al próximo SÍ!`);
+      }
+    } else {
+      notify(`📞 Intento de llamada registrado para <strong>${deal.name}</strong> (+1 toque hoy).`);
+    }
+  } else {
+    notify(`✓ Actividad registrada para <strong>${deal.name}</strong> (+1 toque hoy).`);
+  }
   activeDealId = null;
   pendingTargetStage = null;
 }
