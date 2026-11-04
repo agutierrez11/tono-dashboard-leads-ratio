@@ -750,17 +750,17 @@
       <div class="grid4">
         <div class="card kpi">
           <div class="kpi-top"><span>Prospectos Generados</span><span class="kpi-icon bluebg">◉</span></div>
-          <div class="kpi-val" id="kpi-prospectos">42</div>
+          <div class="kpi-val" id="kpi-prospectos">0</div>
           <div class="kpi-foot"><span class="up">En cartera activa</span> • Quintana Roo</div>
         </div>
         <div class="card kpi">
           <div class="kpi-top"><span>Leads Calificados</span><span class="kpi-icon tealbg">✓</span></div>
-          <div class="kpi-val" id="kpi-leads">18</div>
-          <div class="kpi-foot"><span class="up" id="kpi-contact-rate">43%</span> contactabilidad</div>
+          <div class="kpi-val" id="kpi-leads">0</div>
+          <div class="kpi-foot"><span class="up" id="kpi-contact-rate">0%</span> contactabilidad</div>
         </div>
         <div class="card kpi">
           <div class="kpi-top"><span>En Negociación / Cita</span><span class="kpi-icon purplebg">↗</span></div>
-          <div class="kpi-val" id="kpi-negoc">7</div>
+          <div class="kpi-val" id="kpi-negoc">0</div>
           <div class="kpi-foot">Citas & propuestas de tasa</div>
         </div>
         <div class="card kpi" style="border-color:rgba(0,166,80,0.3);background:rgba(0,166,80,0.03);">
@@ -1029,9 +1029,9 @@ let toastTimer = null;
 function loadDeals() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : structuredClone(SEED_DEALS);
+    return raw ? JSON.parse(raw) : [];
   } catch (e) {
-    return structuredClone(SEED_DEALS);
+    return [];
   }
 }
 
