@@ -776,6 +776,9 @@
         <button id="btn-sync-sheets" onclick="syncWithGoogleSheets(true)" style="background:#e0f2fe;color:#0284c7;border:1px solid #bae6fd;padding:4px 12px;border-radius:14px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all 0.2s;" title="Descargar cambios recién hechos en tu Google Sheet">
           <span id="sheet-sync-pill">🔄 Sincronizar Google Sheets</span>
         </button>
+        <button id="btn-pull-sheet" onclick="pullMarkedFromSheet()" style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;padding:4px 12px;border-radius:14px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all 0.2s;" title="Jalar comercios que marcaste con 'EN_CARTERA', 'JALAR' o 'SI' en Google Sheets">
+          <span>📥 Jalar Marcados del Sheet</span>
+        </button>
       </div>
       <div class="user-badge">
         <span class="user-dot"></span>
@@ -1039,8 +1042,11 @@
             Tienes <strong id="empty-bank-count-label">644</strong> comercios en tu Google Sheet listos para prospectar. Jala solo un lote de 8 a 10 para prospectar hoy con foco total y mantener tus ratios al 100%.
           </div>
           <div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap;">
+            <button class="btn-touch" onclick="pullDiversifiedBatch(8)" style="background:#7c3aed;color:#fff;border:none;font-weight:700;padding:8px 16px;font-size:12px;" title="Jalar 8 comercios mezclando Cancún, Playa del Carmen y Chetumal con giros distintos">
+              🎲 Jalar 8 Variados (Mix Cancún / Playa)
+            </button>
             <button class="btn-touch" onclick="pullBatch(8)" style="background:var(--mp-blue);color:#fff;border:none;font-weight:700;padding:8px 16px;font-size:12px;">
-              ⚡ Jalar Lote de 8 Comercios de Hoy
+              ⚡ Jalar Lote Consecutivo de 8
             </button>
             <button class="btn-touch" onclick="pullBatch(10)" style="background:#0284c7;color:#fff;border:none;font-weight:700;padding:8px 16px;font-size:12px;">
               ⚡ Jalar Lote de 10
@@ -1105,8 +1111,11 @@
             <div class="card-sub">Tu reserva fría completa con Redes, Web, Teléfono, Correo, Rating y TPV. Jala a tu gusto los 8 a 10 que quieras trabajar hoy.</div>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-            <button class="btn-touch" onclick="pullBatch(8)" style="background:var(--mp-blue);color:#fff;border:none;font-weight:700;font-size:11px;" title="Jalar automáticamente los mejores 8 comercios que no tengas en cartera">
-              ⚡ Jalar Lote de 8 Hoy
+            <button class="btn-touch" onclick="pullDiversifiedBatch(8)" style="background:#7c3aed;color:#fff;border:none;font-weight:700;font-size:11px;" title="Jalar 8 comercios mezclando ciudades (Cancún, Playa, Tulum) y giros distintos">
+              🎲 Jalar 8 Variados (Mix Ciudades)
+            </button>
+            <button class="btn-touch" onclick="pullBatch(8)" style="background:var(--mp-blue);color:#fff;border:none;font-weight:700;font-size:11px;" title="Jalar lote consecutivo de 8">
+              ⚡ Lote 8 Consecutivos
             </button>
             <button class="btn-touch" onclick="pullBatch(10)" style="background:#0284c7;color:#fff;border:none;font-weight:700;font-size:11px;" title="Jalar lote de 10">
               ⚡ Jalar Lote de 10
@@ -1394,6 +1403,16 @@ function getAllBankLeads() {
     return [...custom, ...sheetBankLeads];
   }
   return [...custom, ...FALLBACK_BANK_QROO];
+}
+
+function escapeHtml(str) {
+  if (!str) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 function mapRawStageToInternal(rawStage) {
@@ -2337,16 +2356,33 @@ function openDrawer(id) {
     warnEl.style.display = (deal.stage === "closing_deal" && !hasRealizedVisit) ? "block" : "none";
   }
 
-  document.getElementById("drawerTouchesCount").textContent = `${logs.length} toques en historial`;
+  document.getElementById("drawerTouchesCount").textContent = `${logs.length} toques registrados`;
 
   const timeline = document.getElementById("drawerTimeline");
   timeline.innerHTML = "";
 
-  if (logs.length === 0) {
+  // Si tiene una nota proveniente del Sheet (lastNote) y no está en los logs, mostrarla al inicio
+  if (deal.lastNote && !logs.some(l => (l.comment || l.notes) === deal.lastNote)) {
+    const sheetNoteItem = document.createElement("div");
+    sheetNoteItem.className = "timeline-item call";
+    sheetNoteItem.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+        <span style="font-weight:700;color:#0369a1;font-size:11px;">📝 NOTA DESDE GOOGLE SHEETS</span>
+        <span style="color:#64748b;font-size:10px;">En vivo</span>
+      </div>
+      <div style="font-size:12px;color:#0f172a;background:#f0f9ff;padding:8px 12px;border-radius:6px;border:1px solid #bae6fd;line-height:1.4;">
+        "${escapeHtml(deal.lastNote)}"
+      </div>
+    `;
+    timeline.appendChild(sheetNoteItem);
+  }
+
+  if (logs.length === 0 && !deal.lastNote) {
     timeline.innerHTML = `
-      <div style="text-align:center;padding:24px 10px;color:#94a3b8;font-size:12px;">
-        Sin actividades documentadas aún.
-        <br/><button class="btn-touch" onclick="openActivityFromDrawer()" style="margin-top:10px;font-size:11px;">＋ Registrar Primer Toque</button>
+      <div style="text-align:center;padding:28px 10px;color:#94a3b8;font-size:12px;">
+        <div style="font-size:24px;margin-bottom:6px;">📭</div>
+        Sin comentarios ni acciones registradas aún para este comercio.
+        <br/><button class="btn-touch" onclick="openActivityFromDrawer()" style="margin-top:12px;font-size:11px;background:#009ee3;color:#fff;border:none;font-weight:700;padding:6px 14px;border-radius:4px;">＋ Registrar Primer Toque / Nota</button>
       </div>
     `;
   } else {
@@ -2361,14 +2397,19 @@ function openDrawer(id) {
       else if (ch.includes("correo") || ch.includes("email")) { chClass = "email"; chIcon = "✉️"; }
       else if (ch.includes("visita") || ch.includes("cambaceo")) { chClass = "visit"; chIcon = "🚶‍♂️"; }
 
+      const noteText = l.comment || l.notes || "";
       item.className = "timeline-item " + chClass;
       item.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
-          <span style="font-weight:700;color:#0f172a;">${chIcon} ${(l.channel || l.type || "Actividad").toUpperCase()}</span>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <span style="font-weight:700;color:#0f172a;font-size:12px;">${chIcon} ${(l.channel || l.type || "Actividad").toUpperCase()}</span>
           <span style="color:#64748b;font-size:10px;">${l.date ? new Date(l.date).toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}) : "Hoy"}</span>
         </div>
-        <div style="font-size:11px;color:#334155;font-weight:600;">Resultado: ${l.outcome ? l.outcome.replace(/_/g, ' ') : "Toque registrado"}</div>
-        ${l.comment ? `<div style="font-size:10px;color:#64748b;margin-top:2px;">Nota: ${l.comment}</div>` : ""}
+        <div style="font-size:11px;color:#334155;font-weight:600;margin-bottom:4px;">Resultado: <span style="color:#009ee3;font-weight:700;">${l.outcome ? l.outcome.replace(/_/g, ' ') : "Toque registrado"}</span></div>
+        ${noteText ? `
+          <div style="font-size:11px;color:#0f172a;background:#f8fafc;padding:7px 10px;border-radius:6px;border:1px solid #e2e8f0;line-height:1.4;margin-top:4px;">
+            💬 <strong>Comentario / Nota:</strong><br/>"${escapeHtml(noteText)}"
+          </div>
+        ` : ""}
       `;
       timeline.appendChild(item);
     });
@@ -2436,16 +2477,33 @@ function renderKanban() {
       const isOverdue = !isClosed && days > 7 && !d.exception;
       const isWarn = !isClosed && days >= 5 && days <= 7;
 
+      // Obtener el comentario / nota más reciente
+      const lastLog = (d.logs && d.logs.length > 0) ? d.logs[d.logs.length - 1] : null;
+      const recentNote = (lastLog && (lastLog.comment || lastLog.notes)) ? (lastLog.comment || lastLog.notes) : (d.lastNote || "");
+      const recentAction = lastLog ? (lastLog.outcome || lastLog.channel || "Toque registrado") : "";
+
       const card = document.createElement("div");
       card.className = "deal-card" + (isOverdue ? " overdue" : isWarn ? " warning" : "") + (d.exception ? " exception" : "");
       card.draggable = true;
       card.dataset.id = d.id;
+      card.style.cursor = "pointer";
 
       card.innerHTML = `
-        <div class="deal-name" style="cursor:pointer;" onclick="openDrawer('${d.id}')">${d.name}</div>
-        <div class="deal-sub">${d.industry} · ${d.city}</div>
-        <div class="deal-source" style="font-size:10px;color:#64748b;">👤 ${d.contact || "Encargado"} ${d.phone ? "· 📞 " + d.phone : ""}</div>
-        <div class="deal-meta">
+        <div class="deal-name" style="font-weight:700;color:#0f172a;font-size:13px;line-height:1.3;">${escapeHtml(d.name)}</div>
+        <div class="deal-sub" style="font-size:11px;color:#64748b;margin-top:2px;">${escapeHtml(d.industry)} · ${escapeHtml(d.city)}</div>
+        <div class="deal-source" style="font-size:10px;color:#64748b;margin-top:2px;">👤 ${escapeHtml(d.contact || "Encargado")} ${d.phone ? "· 📞 " + escapeHtml(d.phone) : ""}</div>
+        
+        ${recentNote ? `
+          <div style="margin-top:7px;font-size:11px;color:#1e293b;background:#f8fafc;border-left:3px solid #009ee3;padding:5px 8px;border-radius:0 4px 4px 0;line-height:1.3;box-shadow:inset 0 0 0 1px #e2e8f0;">
+            💬 <strong>Nota:</strong> "${escapeHtml(recentNote)}"
+          </div>
+        ` : (recentAction ? `
+          <div style="margin-top:6px;font-size:10px;color:#475569;background:#f1f5f9;padding:3px 6px;border-radius:4px;">
+            ⚡ Acción: ${escapeHtml(recentAction)}
+          </div>
+        ` : "")}
+
+        <div class="deal-meta" style="margin-top:8px;">
           <span class="age-pill ${isOverdue ? "late" : isWarn ? "warn" : ""} ${days === 0 ? "new" : ""}">${isOverdue ? "⚠ " : ""}${days === 0 ? "Hoy" : days + " d en etapa"}</span>
           ${!isClosed ? `
             <span class="gate-status ${hasLog ? "ready" : "locked"}">
@@ -2457,7 +2515,18 @@ function renderKanban() {
             </span>
           `}
         </div>
+
+        <div style="margin-top:8px;padding-top:6px;border-top:1px dashed #e2e8f0;display:flex;justify-content:space-between;align-items:center;font-size:10px;color:#009ee3;">
+          <span style="font-weight:600;">📋 Ver comentarios y acciones ➔</span>
+          <span style="color:#64748b;">${hasLog ? d.logs.length + ' acciones' : '0 acciones'}</span>
+        </div>
       `;
+
+      card.addEventListener("click", e => {
+        if (!card.classList.contains("dragging") && !draggedId) {
+          openDrawer(d.id);
+        }
+      });
 
       card.addEventListener("dragstart", e => {
         draggedId = d.id;
@@ -2766,6 +2835,78 @@ function pullBatch(count) {
   switchTab("resumen");
   render();
   notify(`🚀 Se jalaron <strong>${batch.length} comercios</strong> a tu Mesa de Acción de hoy.`);
+}
+
+function pullDiversifiedBatch(count = 8) {
+  const activeIds = new Set(deals.map(d => d.id));
+  const available = getAllBankLeads().filter(m => !activeIds.has(m.id));
+
+  if (available.length === 0) {
+    notify("Todos los comercios ya están en tu cartera activa.");
+    return;
+  }
+
+  const cities = ["Cancún", "Playa del Carmen", "Chetumal", "Tulum", "Bacalar"];
+  const batch = [];
+  const pickedIds = new Set();
+
+  for (let round = 0; round < count && batch.length < count; round++) {
+    for (const city of cities) {
+      if (batch.length >= count) break;
+      const found = available.find(m => 
+        !pickedIds.has(m.id) && 
+        m.city && m.city.toLowerCase().includes(city.toLowerCase()) && 
+        !batch.some(b => b.industry === m.industry && b.city === m.city)
+      );
+      if (found) {
+        batch.push(found);
+        pickedIds.add(found.id);
+      }
+    }
+  }
+
+  for (const m of available) {
+    if (batch.length >= count) break;
+    if (!pickedIds.has(m.id)) {
+      batch.push(m);
+      pickedIds.add(m.id);
+    }
+  }
+
+  batch.forEach(item => {
+    deals.push({
+      ...safeClone(item),
+      stage: "calificacion",
+      createdAt: new Date().toISOString(),
+      days: 0,
+      logs: []
+    });
+  });
+
+  persist();
+  mirrorEventToGoogleSheet("pull_batch", { dealIds: batch.map(b => b.id) });
+  switchTab("resumen");
+  render();
+  notify(`🚀 Se jaló un <strong>Lote Variado de ${batch.length} comercios</strong> (mezclando Cancún, Playa y giros distintos).`);
+}
+
+async function pullMarkedFromSheet() {
+  const btn = document.getElementById("btn-pull-sheet");
+  if (btn) btn.innerHTML = "⏳ Buscando en Sheet...";
+  notify("⏳ Buscando comercios marcados con 'EN_CARTERA', 'JALAR' o 'SI' en Google Sheets...");
+  
+  const beforeCount = deals ? deals.length : 0;
+  await syncWithGoogleSheets(false);
+  const afterCount = deals ? deals.length : 0;
+  const added = afterCount - beforeCount;
+
+  if (btn) btn.innerHTML = "<span>📥 Jalar Marcados del Sheet</span>";
+  if (added > 0) {
+    notify(`🎉 <strong>${added} comercios nuevos</strong> marcados en Google Sheets fueron agregados a tu Tablero.`);
+    switchTab("resumen");
+  } else {
+    notify(`ℹ️ No se encontraron comercios nuevos marcados con 'EN_CARTERA' en el Sheet.`);
+  }
 }
 
 function pullSelected() {
