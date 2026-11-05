@@ -771,7 +771,12 @@
   <!-- Main Content -->
   <main>
     <div class="top-bar">
-      <div>Ventas &nbsp;/&nbsp; <strong style="color:#111827">Panel Comercial • Quintana Roo</strong></div>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <div>Ventas &nbsp;/&nbsp; <strong style="color:#111827">Panel Comercial • Quintana Roo</strong></div>
+        <button id="btn-sync-sheets" onclick="syncWithGoogleSheets(true)" style="background:#e0f2fe;color:#0284c7;border:1px solid #bae6fd;padding:4px 12px;border-radius:14px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all 0.2s;" title="Descargar cambios recién hechos en tu Google Sheet">
+          <span id="sheet-sync-pill">🔄 Sincronizar Google Sheets</span>
+        </button>
+      </div>
       <div class="user-badge">
         <span class="user-dot"></span>
         Antonio Gutiérrez · Mercado Pago
@@ -1382,24 +1387,51 @@ function getAllBankLeads() {
 
 async function syncWithGoogleSheets(showNotification = false) {
   const pill = document.getElementById("sheet-sync-pill");
+  const btn = document.getElementById("btn-sync-sheets");
   if (pill) {
-    pill.innerHTML = "⏳ Sincronizando...";
-    pill.style.background = "#fef3c7";
-    pill.style.color = "#b45309";
+    pill.innerHTML = "⏳ Sincronizando con Sheet...";
+    if (btn) {
+      btn.style.background = "#fef3c7";
+      btn.style.color = "#b45309";
+      btn.style.borderColor = "#fde68a";
+    }
   }
   try {
-    const res = await fetch(GOOGLE_SHEET_API_URL);
+    const res = await fetch(GOOGLE_SHEET_API_URL + "?nocache=" + Date.now());
     const data = await res.json();
     if (data && data.success && Array.isArray(data.leads) && data.leads.length > 0) {
       sheetBankLeads = data.leads;
       localStorage.setItem(SHEET_CACHE_KEY, JSON.stringify(sheetBankLeads));
+
+      // Sincronizar en tiempo real los comercios que ya están en Cartera Activa (deals)
+      if (Array.isArray(deals) && deals.length > 0) {
+        deals.forEach(deal => {
+          const fresh = data.leads.find(l => l.id === deal.id);
+          if (fresh) {
+            deal.name = fresh.name || deal.name;
+            deal.phone = fresh.phone || deal.phone;
+            deal.email = fresh.email || deal.email;
+            deal.website = fresh.website || deal.website;
+            deal.contact = fresh.contact || deal.contact;
+            deal.address = fresh.address || deal.address;
+            deal.industry = fresh.industry || deal.industry;
+            deal.hook = fresh.hook || deal.hook;
+            deal.pain = fresh.pain || deal.pain;
+          }
+        });
+        persist();
+      }
+
       render();
       if (pill) {
-        pill.innerHTML = `🟢 Google Sheets: Conectado (${data.count})`;
-        pill.style.background = "#dcfce7";
-        pill.style.color = "#15803d";
+        pill.innerHTML = `🟢 Google Sheets en vivo (${data.count})`;
+        if (btn) {
+          btn.style.background = "#dcfce7";
+          btn.style.color = "#15803d";
+          btn.style.borderColor = "#bbf7d0";
+        }
       }
-      if (showNotification) notify(`🟢 Google Sheets actualizado: ${data.count} comercios cargados en vivo.`);
+      if (showNotification) notify(`🟢 Google Sheets sincronizado: ${data.count} comercios actualizados.`);
     } else {
       throw new Error("Respuesta inválida de Google Sheets");
     }
@@ -1409,12 +1441,20 @@ async function syncWithGoogleSheets(showNotification = false) {
       pill.innerHTML = sheetBankLeads.length > 0 
         ? `🟡 Google Sheets (Caché: ${sheetBankLeads.length})` 
         : "⚠️ Google Sheets Desconectado";
-      pill.style.background = "#fee2e2";
-      pill.style.color = "#b91c1c";
+      if (btn) {
+        btn.style.background = "#fee2e2";
+        btn.style.color = "#b91c1c";
+        btn.style.borderColor = "#fecaca";
+      }
     }
     if (showNotification) notify("⚠️ No se pudo sincronizar en vivo. Mostrando datos guardados en tu equipo.");
   }
 }
+
+// Sincronización automática en segundo plano al abrir el tablero
+setTimeout(() => {
+  syncWithGoogleSheets(false);
+}, 100);
 
 // Espejo en tiempo real (Dual-Write) hacia Google Sheets
 function mirrorEventToGoogleSheet(action, payload) {
@@ -2003,14 +2043,30 @@ function saveActivity(e) {
 
   // Espejo en tiempo real hacia Google Sheets (Bitacora_Actividad)
   if (typeof mirrorEventToGoogleSheet === "function") {
-    const isYes = (outcome === "acepto_verbalmente" || outcome === "interesado");
-    const isNo = (outcome === "rechazo" || outcome === "no_interesado");
+    let resultText = "No Contestó";
+    if (channel === "correo_1a1") {
+      if (outcome === "enviado") resultText = "Enviado (En espera)";
+      else if (outcome === "respondio") resultText = "SÍ (Respondió)";
+      else if (outcome === "visita_agendada") resultText = "SÍ (Cita acordada)";
+    } else if (channel === "whatsapp") {
+      if (outcome === "sin_respuesta") resultText = "Enviado (Sin respuesta)";
+      else if (outcome === "respondio" || outcome === "pidio_llamada" || outcome === "visita_agendada") resultText = "SÍ";
+    } else if (channel === "llamada") {
+      const isYes = (outcome === "acepto_verbalmente" || outcome === "interesado" || outcome === "pidio_visita" || outcome === "visita_agendada");
+      const isNo = (outcome === "rechazo" || outcome === "no_interesado" || outcome === "sin_avance");
+      resultText = isYes ? "SÍ" : isNo ? "NO" : "No Contestó";
+    } else if (channel === "visita") {
+      if (outcome === "cierre_ganado") resultText = "SÍ (Cierre Ganado)";
+      else if (outcome === "visita_realizada" || outcome === "agendada") resultText = "SÍ (Visita Realizada)";
+      else resultText = "NO";
+    }
+
     mirrorEventToGoogleSheet("log_touch", {
       dealId: deal.id,
       dealName: deal.name,
       city: deal.city,
       channel: channel || "Llamada",
-      result: isYes ? "SÍ" : isNo ? "NO" : "No Contestó",
+      result: resultText,
       stage: deal.stage,
       hook: deal.hook || "",
       notes: comment || "",
