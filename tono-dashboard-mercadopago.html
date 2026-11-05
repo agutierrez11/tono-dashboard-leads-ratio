@@ -1863,12 +1863,23 @@ function renderActionTable() {
     const tr = document.createElement("tr");
     const logs = deal.logs || [];
     const hasRealizedVisit = logs.some(l => l.channel === "visita" && (l.outcome === "visita_realizada" || l.outcome === "cierre_ganado"));
+    const isLost = deal.stage === "perdido";
+    const isWon = deal.stage === "ganado";
+
+    if (isLost) {
+      tr.style.background = "rgba(239, 68, 68, 0.05)";
+      tr.style.opacity = "0.82";
+    } else if (isWon) {
+      tr.style.background = "rgba(0, 166, 80, 0.06)";
+    }
 
     tr.innerHTML = `
       <td>
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
           <strong style="font-size:13px;color:#0f172a;cursor:pointer;" onclick="openDrawer('${deal.id}')">${deal.name}</strong>
           ${deal.website ? `<a href="${deal.website}" target="_blank" rel="noopener" title="Abrir Sitio Web / Red Social" style="font-size:11px;text-decoration:none;">🌐</a>` : ''}
+          ${isLost ? `<span style="font-size:9px;font-weight:700;color:#dc2626;background:#fee2e2;padding:2px 6px;border-radius:4px;">✕ DESCARTADO</span>` : ''}
+          ${isWon ? `<span style="font-size:9px;font-weight:700;color:#16a34a;background:#dcfce7;padding:2px 6px;border-radius:4px;">★ GANADO</span>` : ''}
         </div>
         
         <div style="font-size:11px;color:#475569;margin-bottom:4px;display:flex;align-items:center;gap:4px;">
@@ -2186,8 +2197,25 @@ function changeStage(id, newStage) {
   deal.stage = newStage;
   deal.days = 0;
   persist();
+
+  // Espejo inmediato a Google Sheets
+  const statusMap = {
+    ganado: "GANADO",
+    perdido: "DESCARTADO",
+    closing_deal: "EN_PROCESO",
+    negociacion: "EN_PROCESO",
+    calificacion: "EN_CARTERA"
+  };
+  mirrorEventToGoogleSheet("update_deal", {
+    dealId: deal.id,
+    updates: {
+      stage: stageLabel(newStage),
+      status: statusMap[newStage] || "EN_PROCESO"
+    }
+  });
+
   render();
-  notify(`✓ Etapa actualizada a <strong>${stageLabel(newStage)}</strong>`);
+  notify(`✓ <strong>${deal.name}</strong> actualizado a <strong>${stageLabel(newStage)}</strong>`);
 }
 
 // -------------------------------------------------------------
@@ -2396,8 +2424,25 @@ function handleDrop(id, targetStage) {
   deal.days = 0;
   deal.exception = null;
   persist();
+
+  // Espejo inmediato a Google Sheets
+  const statusMap = {
+    ganado: "GANADO",
+    perdido: "DESCARTADO",
+    closing_deal: "EN_PROCESO",
+    negociacion: "EN_PROCESO",
+    calificacion: "EN_CARTERA"
+  };
+  mirrorEventToGoogleSheet("update_deal", {
+    dealId: deal.id,
+    updates: {
+      stage: stageLabel(targetStage),
+      status: statusMap[targetStage] || "EN_PROCESO"
+    }
+  });
+
   render();
-  notify(`✓ ${deal.name} movido a <strong>${stageLabel(targetStage)}</strong>`);
+  notify(`✓ <strong>${deal.name}</strong> movido a <strong>${stageLabel(targetStage)}</strong>`);
 }
 
 // -------------------------------------------------------------
@@ -2486,11 +2531,16 @@ function renderBancoTable() {
   if (selCountEl) selCountEl.textContent = selectedBancoIds.size;
 
   pageItems.forEach(item => {
-    const isInActive = activeIds.has(item.id);
+    const activeDeal = deals.find(d => d.id === item.id);
+    const isInActive = !!activeDeal;
     const isChecked = selectedBancoIds.has(item.id);
 
     const tr = document.createElement("tr");
-    if (isInActive) tr.style.background = "rgba(0, 166, 80, 0.04)";
+    if (activeDeal) {
+      if (activeDeal.stage === "ganado") tr.style.background = "rgba(0, 166, 80, 0.08)";
+      else if (activeDeal.stage === "perdido") tr.style.background = "rgba(239, 68, 68, 0.06)";
+      else tr.style.background = "rgba(0, 166, 80, 0.04)";
+    }
 
     tr.innerHTML = `
       <td style="text-align:center;">
@@ -2524,12 +2574,23 @@ function renderBancoTable() {
         $${((item.tpv || 500000)/1000).toLocaleString()}k
       </td>
       <td style="text-align:center;">
-        ${isInActive ? `
-          <span style="display:inline-block;padding:3px 8px;border-radius:12px;background:#dcfce7;color:#15803d;font-size:10px;font-weight:700;">
-            ✓ En Cartera
-          </span>
-          <button class="btn-touch" onclick="returnToBank('${item.id}')" style="font-size:9px;color:#ef4444;border-color:rgba(239,68,68,0.3);margin-left:4px;padding:2px 5px;" title="Quitar de cartera activa">✕</button>
-        ` : `
+        ${activeDeal ? (
+          activeDeal.stage === "ganado" ? `
+            <span style="display:inline-block;padding:3px 8px;border-radius:12px;background:#bbf7d0;color:#15803d;font-size:10px;font-weight:700;">
+              ★ Ganado MP
+            </span>
+          ` : activeDeal.stage === "perdido" ? `
+            <span style="display:inline-block;padding:3px 8px;border-radius:12px;background:#fee2e2;color:#b91c1c;font-size:10px;font-weight:700;">
+              ✕ Descartado
+            </span>
+            <button class="btn-touch" onclick="returnToBank('${item.id}')" style="font-size:9px;color:#64748b;margin-left:4px;padding:2px 5px;" title="Limpiar y devolver a frío">✕</button>
+          ` : `
+            <span style="display:inline-block;padding:3px 8px;border-radius:12px;background:#dcfce7;color:#15803d;font-size:10px;font-weight:700;">
+              ✓ En Cartera (${stageLabel(activeDeal.stage)})
+            </span>
+            <button class="btn-touch" onclick="returnToBank('${item.id}')" style="font-size:9px;color:#ef4444;border-color:rgba(239,68,68,0.3);margin-left:4px;padding:2px 5px;" title="Quitar de cartera activa">✕</button>
+          `
+        ) : `
           <button class="btn-touch" onclick="pullToActive('${item.id}')" style="background:#009ee3;color:#fff;border:none;font-weight:700;font-size:11px;padding:4px 10px;">
             ＋ Jalar
           </button>
@@ -2656,6 +2717,13 @@ function returnToBank(id) {
 
   deals = deals.filter(d => d.id !== id);
   persist();
+  mirrorEventToGoogleSheet("update_deal", {
+    dealId: id,
+    updates: {
+      status: "DISPONIBLE",
+      stage: "1. Calificación"
+    }
+  });
   render();
   notify(`${deal.name} devuelto al Acordeón Maestro.`);
 }
