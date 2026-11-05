@@ -1643,6 +1643,16 @@ function renderResumen() {
   // DESGLOSE TÁCTICO DE CANALES CON GUARDAS DE DIVISIÓN POR CERO
   document.getElementById("ch-call").textContent = callsTotal;
   document.getElementById("ch-call-sub").textContent = callsTotal > 0 ? `${Math.round((callsConnected/callsTotal)*100)}% conex. (${callsConnected}/${callsTotal})` : "— conex.";
+  const callYesEl = document.getElementById("ch-call-yes");
+  const callNoEl = document.getElementById("ch-call-no");
+  const callGamEl = document.getElementById("ch-call-gamification");
+  if (callYesEl && callNoEl) {
+    callYesEl.textContent = callsYes;
+    callNoEl.textContent = callsNo;
+  }
+  if (callGamEl) {
+    callGamEl.style.display = (callsTotal > 0) ? "flex" : "none";
+  }
 
   document.getElementById("ch-whatsapp").textContent = waTotal;
   document.getElementById("ch-wa-sub").textContent = waTotal > 0 ? `${Math.round((waResponses/waTotal)*100)}% resp.` : "— resp.";
