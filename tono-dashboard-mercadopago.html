@@ -1951,17 +1951,37 @@ function openActivityModalForDeal(id, targetStage) {
   activeDealId = id;
   pendingTargetStage = targetStage || null;
 
-  document.getElementById("actTitle").textContent = `＋ Registrar Actividad • ${deal.name}`;
-  document.getElementById("actHint").textContent = "Documenta la gestión realizada (el botón solo documenta, no abre apps externas).";
+  const titleEl = document.getElementById("actTitle");
+  const hintEl = document.getElementById("actHint");
+  const channelEl = document.getElementById("actChannel");
+  const noteEl = document.getElementById("actNote");
 
-  // Reset to default Llamada
-  document.getElementById("actChannel").value = "llamada";
-  onActChannelChange("llamada");
+  if (targetStage === "ganado") {
+    titleEl.innerHTML = `🏆 <strong>Registrar Cierre Ganado ★</strong> · ${deal.name}`;
+    hintEl.innerHTML = `¡Gran trabajo, Antonio! Documenta el cierre (visita presencial, entrega de terminal Point Smart o activación) con tus notas.`;
+    channelEl.value = "visita";
+    onActChannelChange("visita");
+    const outcomeSel = document.getElementById("actOutcome");
+    outcomeSel.value = "cierre_ganado";
+    noteEl.placeholder = "Ej. Visita presencial realizada, Point Smart 4G entregada y configurada a tasa 2.7%.";
+  } else if (targetStage === "perdido") {
+    titleEl.innerHTML = `✕ <strong>Registrar Motivo de Descarte</strong> · ${deal.name}`;
+    hintEl.innerHTML = `Documenta la razón por la que no se concretó para tu bitácora comercial y estadísticas.`;
+    channelEl.value = "llamada";
+    onActChannelChange("descarte");
+    noteEl.placeholder = "Ej. Tienen contrato vigente con terminal BBVA hasta fin de año.";
+  } else {
+    titleEl.textContent = `＋ Registrar Actividad • ${deal.name}`;
+    hintEl.textContent = "Documenta la gestión realizada (el botón solo documenta, no abre apps externas).";
+    channelEl.value = "llamada";
+    onActChannelChange("llamada");
+    noteEl.placeholder = "Ej. Dejé recado con asistente; volver a marcar mañana 10am";
+  }
 
-  document.getElementById("actNote").value = "";
+  noteEl.value = "";
   document.getElementById("actError").textContent = "";
   document.getElementById("activityModal").classList.add("open");
-  setTimeout(() => document.getElementById("actNote").focus(), 30);
+  setTimeout(() => noteEl.focus(), 30);
 }
 
 function onActChannelChange(channel) {
@@ -1973,6 +1993,15 @@ function onActChannelChange(channel) {
     connectSec.style.display = "block";
     document.querySelector('input[name="callConnected"][value="no"]').checked = true;
     onCallConnectChange(false);
+  } else if (channel === "descarte") {
+    connectSec.style.display = "none";
+    outcomeSel.innerHTML = `
+      <option value="rechazo_tasa">Comisiones / Tasa más baja con su banco actual</option>
+      <option value="no_interesado">No le interesa cambiar de terminal / proveedor</option>
+      <option value="negocio_cerrado">Comercio cerrado / Traspaso / Sin actividad</option>
+      <option value="sin_contacto">Sin contacto tras múltiples intentos</option>
+      <option value="otro_descarte">Otro motivo</option>
+    `;
   } else {
     connectSec.style.display = "none";
     if (channel === "whatsapp") {
@@ -1984,16 +2013,16 @@ function onActChannelChange(channel) {
       `;
     } else if (channel === "correo_1a1") {
       outcomeSel.innerHTML = `
-        <option value="enviado">Correo 1:1 enviado</option>
+        <option value="enviado">Correo 1:1 enviado (En espera de respuesta)</option>
         <option value="respondio">Respondió al correo</option>
         <option value="visita_agendada">Visita agendada vía correo</option>
       `;
     } else if (channel === "visita") {
       outcomeSel.innerHTML = `
+        <option value="cierre_ganado">★ Cierre Ganado confirmado (Point Smart entregada / activada)</option>
         <option value="visita_realizada">Visita presencial realizada en el local</option>
         <option value="agendada">Visita agendada para fecha próxima</option>
         <option value="visita_no_concretada">Visita no concretada (No se encontró decisor)</option>
-        <option value="cierre_ganado">Cierre Ganado confirmado (Point Smart)</option>
       `;
     }
   }
@@ -2044,7 +2073,15 @@ function saveActivity(e) {
   // Espejo en tiempo real hacia Google Sheets (Bitacora_Actividad)
   if (typeof mirrorEventToGoogleSheet === "function") {
     let resultText = "No Contestó";
-    if (channel === "correo_1a1") {
+    let statusText = "EN_PROCESO";
+
+    if (pendingTargetStage === "ganado" || outcome === "cierre_ganado") {
+      resultText = "SÍ (Cierre Ganado)";
+      statusText = "GANADO";
+    } else if (pendingTargetStage === "perdido" || (outcome && (outcome.includes("descarte") || outcome.includes("rechazo")))) {
+      resultText = "NO (Descarte)";
+      statusText = "DESCARTADO";
+    } else if (channel === "correo_1a1") {
       if (outcome === "enviado") resultText = "Enviado (En espera)";
       else if (outcome === "respondio") resultText = "SÍ (Respondió)";
       else if (outcome === "visita_agendada") resultText = "SÍ (Cita acordada)";
@@ -2056,7 +2093,7 @@ function saveActivity(e) {
       const isNo = (outcome === "rechazo" || outcome === "no_interesado" || outcome === "sin_avance");
       resultText = isYes ? "SÍ" : isNo ? "NO" : "No Contestó";
     } else if (channel === "visita") {
-      if (outcome === "cierre_ganado") resultText = "SÍ (Cierre Ganado)";
+      if (outcome === "cierre_ganado") { resultText = "SÍ (Cierre Ganado)"; statusText = "GANADO"; }
       else if (outcome === "visita_realizada" || outcome === "agendada") resultText = "SÍ (Visita Realizada)";
       else resultText = "NO";
     }
@@ -2067,7 +2104,8 @@ function saveActivity(e) {
       city: deal.city,
       channel: channel || "Llamada",
       result: resultText,
-      stage: deal.stage,
+      stage: pendingTargetStage || deal.stage,
+      status: statusText,
       hook: deal.hook || "",
       notes: comment || "",
       tpv: deal.tpv || 500000,
@@ -2075,22 +2113,18 @@ function saveActivity(e) {
     });
   }
 
-  // Si aceptó verbalmente, sugerir o avanzar a Closing Deal
-  if (outcome === "acepto_verbalmente" && deal.stage !== "closing_deal" && deal.stage !== "ganado") {
-    deal.stage = "closing_deal";
-  }
-
-  // Si fue visita agendada y estaba en calificación, avanza a negociación
-  if (outcome === "visita_agendada" && (deal.stage === "calificacion" || deal.stage === "prospecto" || deal.stage === "lead")) {
-    deal.stage = "negociacion";
-  }
-
-  // Si fue cierre ganado y se realizó visita, avanza a ganado
-  if (outcome === "cierre_ganado") {
+  // Determinar la etapa resultante
+  if (pendingTargetStage === "ganado" || outcome === "cierre_ganado") {
     deal.stage = "ganado";
-  }
-
-  if (pendingTargetStage) {
+    deal.days = 0;
+  } else if (pendingTargetStage === "perdido" || (outcome && (outcome.includes("descarte") || outcome.includes("rechazo")))) {
+    deal.stage = "perdido";
+    deal.days = 0;
+  } else if (outcome === "acepto_verbalmente" && deal.stage !== "closing_deal" && deal.stage !== "ganado") {
+    deal.stage = "closing_deal";
+  } else if (outcome === "visita_agendada" && (deal.stage === "calificacion" || deal.stage === "prospecto" || deal.stage === "lead")) {
+    deal.stage = "negociacion";
+  } else if (pendingTargetStage) {
     deal.stage = pendingTargetStage;
     deal.days = 0;
   }
@@ -2103,7 +2137,11 @@ function saveActivity(e) {
     openDrawer(deal.id); // Refresca drawer si está abierto
   }
 
-  if (channel === "llamada") {
+  if (deal.stage === "ganado") {
+    notify(`🏆 <strong>¡ENHORABUENA! Cierre Ganado registrado para ${deal.name}.</strong> ¡Sumas a tu meta mensual!`);
+  } else if (deal.stage === "perdido") {
+    notify(`✕ <strong>${deal.name}</strong> archivado en Descarte / Perdido.`);
+  } else if (channel === "llamada") {
     if (connected) {
       if (outcome === "pidio_visita" || outcome === "visita_agendada" || outcome === "acepto_verbalmente") {
         notify(`🎯 <strong>¡BOOM! +1 'SÍ' conseguido.</strong> Cita o propuesta en marcha con <strong>${deal.name}</strong>.`);
@@ -2121,28 +2159,25 @@ function saveActivity(e) {
 }
 
 // -------------------------------------------------------------
-// CAMBIO DE ETAPA Y CANDADO DE VISITA FÍSICA PARA "GANADO"
+// CAMBIO DE ETAPA EN SELECTOR DE TABLA
 // -------------------------------------------------------------
 function changeStage(id, newStage) {
   const deal = deals.find(d => d.id === id);
   if (!deal) return;
 
-  // REGLA DE ORO: Ganado solo tras registrar visita presencial realizada
   if (newStage === "ganado") {
-    const logs = deal.logs || [];
-    const hasRealizedVisit = logs.some(l => l.channel === "visita" && (l.outcome === "visita_realizada" || l.outcome === "cierre_ganado"));
-    
-    if (!hasRealizedVisit) {
-      alert("🔒 CANDADO ESTRICTO DE CIERRE:\n\nUn negocio solo puede marcarse como 'Ganado' después de realizar la visita presencial al local.\n\nUna aceptación verbal debe registrarse en la etapa 'Closing Deal (Visita Pendiente)'.");
-      renderActionTable();
-      renderKanban();
-      return;
-    }
+    openActivityModalForDeal(deal.id, "ganado");
+    return;
+  }
+
+  if (newStage === "perdido") {
+    openActivityModalForDeal(deal.id, "perdido");
+    return;
   }
 
   // Candado de actividad: Exigir al menos un contacto antes de mover
   const hasLog = (deal.logs || []).length > 0;
-  if (!hasLog && newStage !== "perdido" && newStage !== "calificacion" && newStage !== "prospecto") {
+  if (!hasLog && newStage !== "calificacion" && newStage !== "prospecto") {
     openActivityModalForDeal(deal.id, newStage);
     notify("🔒 <strong>Candado activo:</strong> Registra una actividad antes de avanzar la etapa.");
     return;
@@ -2336,23 +2371,22 @@ function handleDrop(id, targetStage) {
   const deal = deals.find(d => d.id === id);
   if (!deal || deal.stage === targetStage) return;
 
-  // Candado estricto para ganado
   if (targetStage === "ganado") {
-    const logs = deal.logs || [];
-    const hasRealizedVisit = logs.some(l => l.channel === "visita" && (l.outcome === "visita_realizada" || l.outcome === "cierre_ganado"));
-    if (!hasRealizedVisit) {
-      alert("🔒 CANDADO ESTRICTO DE CIERRE:\n\nUn negocio solo puede marcarse como 'Ganado' después de realizar la visita presencial al local.\n\nUna aceptación verbal debe registrarse en la etapa 'Closing Deal'.");
-      renderKanban();
-      return;
-    }
+    openActivityModalForDeal(deal.id, "ganado");
+    return;
   }
 
-  const order = ["calificacion", "negociacion", "closing_deal", "ganado"];
+  if (targetStage === "perdido") {
+    openActivityModalForDeal(deal.id, "perdido");
+    return;
+  }
+
+  const order = ["calificacion", "negociacion", "closing_deal"];
   const currentIdx = order.indexOf(deal.stage === "prospecto" || deal.stage === "lead" ? "calificacion" : deal.stage);
   const targetIdx = order.indexOf(targetStage);
 
   const hasLog = (deal.logs || []).length > 0;
-  if (!hasLog && targetIdx > currentIdx && targetStage !== "perdido") {
+  if (!hasLog && targetIdx > currentIdx) {
     openActivityModalForDeal(deal.id, targetStage);
     notify("🔒 <strong>Candado activo:</strong> Registra la interacción con el comercio antes de avanzar.");
     return;
