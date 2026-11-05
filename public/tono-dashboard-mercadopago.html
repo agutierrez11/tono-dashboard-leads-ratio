@@ -759,7 +759,7 @@
         <span>▤</span> Tablero Kanban
       </a>
       <a id="nav-banco" onclick="switchTab('banco')">
-        <span>📊</span> Acordeón 644 Leads (Excel)
+        <span>📊</span> Acordeón Maestro (Google Sheets)
       </a>
     </div>
     <div class="side-tip">
@@ -790,7 +790,7 @@
         <div class="view-tabs">
           <button id="tab-resumen" class="active" onclick="switchTab('resumen')">▦ Resumen & Ritmo</button>
           <button id="tab-kanban" onclick="switchTab('kanban')">▤ Tablero Kanban</button>
-          <button id="tab-banco" onclick="switchTab('banco')">📊 Acordeón 644 Leads (Excel)</button>
+          <button id="tab-banco" onclick="switchTab('banco')">📊 Acordeón Maestro (Google Sheets)</button>
         </div>
       </div>
     </div>
@@ -1011,7 +1011,7 @@
               📋 Copiar Lote para CRM
             </button>
             <button class="btn-touch" onclick="switchTab('banco')" style="background:#f1f5f9;color:#334155;border:1px solid #cbd5e1;font-weight:600;font-size:11px;">
-              📊 Abrir Acordeón (644) ➔
+              📊 Abrir Acordeón Maestro ➔
             </button>
             <button class="btn-touch" onclick="exportBackupJSON()" style="background:#f8fafc;color:#0369a1;border:1px solid #bae6fd;font-weight:600;font-size:11px;" title="Descargar archivo de respaldo seguro de tu cartera, toques y notas">
               💾 Respaldar
@@ -1031,7 +1031,7 @@
           <div style="font-size:32px;margin-bottom:8px;">🎯</div>
           <div style="font-size:15px;font-weight:700;color:#0f172a;">Tu Cartera Activa de Hoy está lista para arrancar (0 comercios)</div>
           <div style="font-size:12px;color:#64748b;margin:6px auto 18px auto;max-width:480px;line-height:1.4;">
-            Tienes <strong>644 comercios enriquecidos</strong> guardados en tu Acordeón Maestro. Jala solo un lote de 8 a 10 para prospectar hoy con foco total y mantener tus ratios al 100%.
+            Tienes <strong id="empty-bank-count-label">644</strong> comercios en tu Google Sheet listos para prospectar. Jala solo un lote de 8 a 10 para prospectar hoy con foco total y mantener tus ratios al 100%.
           </div>
           <div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap;">
             <button class="btn-touch" onclick="pullBatch(8)" style="background:var(--mp-blue);color:#fff;border:none;font-weight:700;padding:8px 16px;font-size:12px;">
@@ -1096,7 +1096,7 @@
       <div class="card">
         <div class="card-head" style="padding-bottom:12px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
           <div>
-            <div class="card-title">📊 Acordeón Maestro • Base de 644 Comercios Enriquecidos (Apify)</div>
+            <div class="card-title">📊 Acordeón Maestro • Base Maestra (Google Sheets)</div>
             <div class="card-sub">Tu reserva fría completa con Redes, Web, Teléfono, Correo, Rating y TPV. Jala a tu gusto los 8 a 10 que quieras trabajar hoy.</div>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
@@ -1123,7 +1123,7 @@
           <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;flex:1;min-width:300px;">
             <input type="text" id="banco-search" placeholder="🔍 Buscar por nombre, contacto, teléfono, correo o giro..." style="padding:7px 12px;font-size:12px;border:1px solid #cbd5e1;border-radius:6px;min-width:260px;flex:1;" oninput="onBancoFilterChange()" />
             <select id="banco-city" style="padding:7px 10px;font-size:12px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;" onchange="onBancoFilterChange()">
-              <option value="">Todas las Ciudades (644)</option>
+              <option value="">Todas las Ciudades</option>
               <option value="Cancún">Cancún (176)</option>
               <option value="Chetumal">Chetumal (183)</option>
               <option value="Playa del Carmen">Playa del Carmen (131)</option>
@@ -1145,7 +1145,7 @@
               <option value="25" selected>25</option>
               <option value="50">50</option>
               <option value="100">100</option>
-              <option value="644">Todos (644)</option>
+              <option value="all">Ver Todos</option>
             </select>
           </div>
         </div>
@@ -1581,7 +1581,16 @@ function notify(text) {
   toastTimer = setTimeout(() => t.classList.remove("show"), 3200);
 }
 
+function updateBankCountsDynamically() {
+  const total = getAllBankLeads().length;
+  const pCount = document.getElementById("periodline-bank-count");
+  if (pCount) pCount.textContent = total;
+  const emptyCount = document.getElementById("empty-bank-count-label");
+  if (emptyCount) emptyCount.textContent = total;
+}
+
 function render() {
+  updateBankCountsDynamically();
   renderResumen();
   renderKanban();
   renderActionTable();
