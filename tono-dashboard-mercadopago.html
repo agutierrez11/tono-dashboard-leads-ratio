@@ -2488,6 +2488,7 @@ function pullToActive(id) {
   });
 
   persist();
+  mirrorEventToGoogleSheet("pull_batch", { dealIds: [id] });
   render();
   notify(`✓ <strong>${item.name}</strong> jalado a tu cartera activa de hoy.`);
 }
@@ -2527,6 +2528,7 @@ function pullSelected() {
 
   const activeIds = new Set(deals.map(d => d.id));
   let addedCount = 0;
+  const addedIds = [];
 
   selectedBancoIds.forEach(id => {
     if (!activeIds.has(id)) {
@@ -2540,12 +2542,16 @@ function pullSelected() {
           logs: []
         });
         addedCount++;
+        addedIds.push(id);
       }
     }
   });
 
   selectedBancoIds.clear();
   persist();
+  if (addedIds.length > 0) {
+    mirrorEventToGoogleSheet("pull_batch", { dealIds: addedIds });
+  }
   render();
   notify(`✓ Se jalaron <strong>${addedCount} comercios</strong> seleccionados a tu cartera activa.`);
 }
