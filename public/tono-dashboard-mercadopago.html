@@ -1007,6 +1007,9 @@
             <button class="btn-touch" onclick="pullBatch(10)" style="background:#0284c7;color:#fff;border:none;font-weight:700;font-size:11px;" title="Jalar lote de 10 comercios">
               ⚡ Jalar Lote de 10
             </button>
+            <button class="btn-touch" onclick="copyActiveBatchToClipboard()" style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;font-weight:700;font-size:11px;" title="Copiar datos del lote de hoy en formato tabla para pegar directo con Ctrl+V en tu CRM de Mercado Pago o en Excel">
+              📋 Copiar Lote para CRM
+            </button>
             <button class="btn-touch" onclick="switchTab('banco')" style="background:#f1f5f9;color:#334155;border:1px solid #cbd5e1;font-weight:600;font-size:11px;">
               📊 Abrir Acordeón (644) ➔
             </button>
@@ -2474,6 +2477,47 @@ function exportBankToCSV() {
   notify("✓ Archivo Excel CSV descargado con los 644 comercios.");
 }
 
+
+
+function copyActiveBatchToClipboard() {
+  if (!deals || deals.length === 0) {
+    notify("⚠️ Tu cartera activa está vacía. Jala un lote de 8 primero.");
+    return;
+  }
+  const headers = ["ID", "Nombre Comercio", "Contacto", "Teléfono", "Email", "Giro", "Ciudad", "Dirección", "Sitio Web", "Gancho Comercial"];
+  const rows = deals.map(d => [
+    d.id || "",
+    d.name || "",
+    d.contact || "",
+    d.phone || "",
+    d.email || "",
+    d.industry || "",
+    d.city || "",
+    d.address || "",
+    d.website || "",
+    d.hook || ""
+  ]);
+  // Tab-Separated Values (TSV) permite pegar directo en celdas de Excel o Google Sheets con Ctrl+V
+  const tsv = [headers.join("\t"), ...rows.map(r => r.join("\t"))].join("\n");
+  
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(tsv).then(() => {
+      notify(`📋 ¡${deals.length} comercios copiados! Pégalos con Ctrl+V en tu Excel o CRM.`);
+    }).catch(() => fallbackCopy(tsv));
+  } else {
+    fallbackCopy(tsv);
+  }
+
+  function fallbackCopy(text) {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+    notify(`📋 ¡${deals.length} comercios copiados! Pégalos con Ctrl+V en tu Excel o CRM.`);
+  }
+}
 
 function exportBackupJSON() {
   try {
