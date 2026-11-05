@@ -779,6 +779,9 @@
         <button id="btn-pull-sheet" onclick="pullMarkedFromSheet()" style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;padding:4px 12px;border-radius:14px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all 0.2s;" title="Jalar comercios que marcaste con 'EN_CARTERA', 'JALAR' o 'SI' en Google Sheets">
           <span>📥 Jalar Marcados del Sheet</span>
         </button>
+        <button id="btn-restore-sheet" onclick="restoreBoardFromGoogleSheet()" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:4px 12px;border-radius:14px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all 0.2s;" title="Seguro Cloud: Reconstruir todo tu tablero a como está guardado en Google Sheets">
+          <span>🛡️ Restaurar desde Sheet</span>
+        </button>
       </div>
       <div class="user-badge">
         <span class="user-dot"></span>
@@ -1026,6 +1029,9 @@
             </button>
             <button class="btn-touch" onclick="triggerRestoreBackup()" style="background:#f8fafc;color:#0f766e;border:1px solid #99f6e4;font-weight:600;font-size:11px;" title="Restaurar cartera y notas desde un archivo de respaldo">
               📥 Restaurar
+            </button>
+            <button class="btn-touch" onclick="restoreBoardFromGoogleSheet()" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;font-weight:700;font-size:11px;" title="Seguro Cloud: Reconstruir todo tu tablero a como está en Google Sheets">
+              🛡️ Reconstruir desde Sheet
             </button>
             <input type="file" id="backupFileInput" accept=".json" style="display:none;" onchange="handleRestoreBackup(event)" />
             <button class="btn-touch" onclick="clearAllData()" style="color:var(--red);border-color:rgba(239,68,68,0.3);font-size:11px;" title="Vaciar cartera activa del día para iniciar de cero">
@@ -1689,7 +1695,7 @@ let cloudSnapshotDebounce = null;
 function scheduleCloudSnapshot() {
   clearTimeout(cloudSnapshotDebounce);
   cloudSnapshotDebounce = setTimeout(() => {
-    if (Array.isArray(deals)) {
+    if (Array.isArray(deals) && deals.length > 0) {
       mirrorEventToGoogleSheet("save_snapshot", { activeDeals: deals });
     }
   }, 2500);
@@ -3101,6 +3107,63 @@ function handleRestoreBackup(event) {
     event.target.value = "";
   };
   reader.readAsText(file);
+}
+
+
+async function restoreBoardFromGoogleSheet() {
+  const btn = (typeof event !== 'undefined' && event && event.target) ? event.target.closest('button') : null;
+  const originalHtml = btn ? btn.innerHTML : '';
+  if (btn) btn.innerHTML = '⏳ Conectando con Sheet...';
+  notify('🛡️ Conectando con Google Sheets para recuperar el tablero...');
+  try {
+    const res = await fetch(GOOGLE_SHEET_API_URL + '?nocache=' + Date.now());
+    const data = await res.json();
+    if (!data || !data.success) throw new Error('No se pudo conectar con Google Sheets');
+
+    let restored = [];
+    if (Array.isArray(data.activeDealsSnapshot) && data.activeDealsSnapshot.length > 0) {
+      restored = data.activeDealsSnapshot;
+    } else {
+      const activeLeads = (data.leads || []).filter(l => {
+        const s = (l.status || '').toUpperCase();
+        return s === 'EN_CARTERA' || s === 'EN_PROCESO' || s === 'GANADO' || s === 'DESCARTADO' || s === 'PERDIDO';
+      });
+      restored = activeLeads.map(l => ({
+        id: l.id,
+        name: l.name,
+        industry: l.industry || 'General',
+        city: l.city || 'Playa del Carmen',
+        address: l.address || '',
+        contact: l.contact || 'Encargado / Dueño',
+        phone: String(l.phone || ''),
+        email: l.email || '',
+        website: l.website || '',
+        rating: Number(l.rating) || 5.0,
+        reviews: Number(l.reviews) || 0,
+        tpv: Number(l.tpv) || 500000,
+        hook: l.hook || '',
+        pain: l.pain || '',
+        stage: l.status === 'GANADO' ? 'ganado' : (l.status === 'DESCARTADO' || l.status === 'PERDIDO' ? 'perdido' : (mapRawStageToInternal(l.stage) || 'calificacion')),
+        status: l.status,
+        logs: [],
+        createdAt: new Date().toISOString()
+      }));
+    }
+
+    if (restored.length > 0) {
+      deals = restored;
+      persist();
+      render();
+      notify('🛡️ <strong>¡Tablero Restaurado!</strong> Se recuperaron ' + deals.length + ' comercios con sus etapas exactas desde Google Sheets.');
+      switchTab('resumen');
+    } else {
+      notify('⚠️ No se encontraron comercios guardados en el Sheet.');
+    }
+  } catch (err) {
+    notify('❌ Error al restaurar desde Sheet: ' + err.message);
+  } finally {
+    if (btn) btn.innerHTML = originalHtml;
+  }
 }
 
 function copyBancoToClipboard() {
