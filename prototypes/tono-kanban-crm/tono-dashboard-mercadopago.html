@@ -1490,6 +1490,16 @@ async function syncWithGoogleSheets(showNotification = false) {
       }
 
       render();
+      if (data.yammStats) {
+        const elSent = document.getElementById("yamm-sent");
+        const elOpen = document.getElementById("yamm-opened");
+        const elClick = document.getElementById("yamm-clicked");
+        const elResp = document.getElementById("yamm-responses");
+        if (elSent) elSent.textContent = data.yammStats.sent || 0;
+        if (elOpen) elOpen.textContent = data.yammStats.openRate || "—";
+        if (elClick) elClick.textContent = data.yammStats.clickRate || "—";
+        if (elResp) elResp.textContent = data.yammStats.responded || 0;
+      }
       if (pill) {
         pill.innerHTML = `🟢 Google Sheets en vivo (${data.count})`;
         if (btn) {
