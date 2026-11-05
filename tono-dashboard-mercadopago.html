@@ -1396,6 +1396,17 @@ function getAllBankLeads() {
   return [...custom, ...FALLBACK_BANK_QROO];
 }
 
+function mapRawStageToInternal(rawStage) {
+  if (!rawStage) return null;
+  const s = String(rawStage).toLowerCase().trim();
+  if (s.includes("ganad") || s.includes("cerrad")) return "ganado";
+  if (s.includes("perdid") || s.includes("descart")) return "perdido";
+  if (s.includes("closing") || s.includes("cierre") || s.includes("3.")) return "closing_deal";
+  if (s.includes("negoc") || s.includes("2.")) return "negociacion";
+  if (s.includes("calif") || s.includes("1.") || s.includes("prospect")) return "calificacion";
+  return null;
+}
+
 async function syncWithGoogleSheets(showNotification = false) {
   const pill = document.getElementById("sheet-sync-pill");
   const btn = document.getElementById("btn-sync-sheets");
@@ -1420,7 +1431,7 @@ async function syncWithGoogleSheets(showNotification = false) {
           const fresh = data.leads.find(l => l.id === deal.id);
           if (fresh) {
             deal.name = fresh.name || deal.name;
-            deal.phone = fresh.phone || deal.phone;
+            deal.phone = String(fresh.phone || deal.phone);
             deal.email = fresh.email || deal.email;
             deal.website = fresh.website || deal.website;
             deal.contact = fresh.contact || deal.contact;
@@ -1428,6 +1439,15 @@ async function syncWithGoogleSheets(showNotification = false) {
             deal.industry = fresh.industry || deal.industry;
             deal.hook = fresh.hook || deal.hook;
             deal.pain = fresh.pain || deal.pain;
+
+            // Sincronización bidireccional de Etapa y Estatus si se modificaron en el Sheet
+            if (fresh.stage) {
+              const mapped = mapRawStageToInternal(fresh.stage);
+              if (mapped) deal.stage = mapped;
+            }
+            if (fresh.status) {
+              deal.status = fresh.status;
+            }
           }
         });
         persist();
@@ -1436,6 +1456,37 @@ async function syncWithGoogleSheets(showNotification = false) {
         deals = data.activeDealsSnapshot;
         persist();
         notify(`🛡️ <strong>Seguro Cloud Activo:</strong> Tu cartera (${deals.length} comercios) se restauró sola desde Google Sheets.`);
+      }
+
+      // Incorporar comercios marcados como EN_CARTERA o EN_PROCESO directamente en Google Sheets
+      if (Array.isArray(deals)) {
+        let addedFromSheet = 0;
+        data.leads.forEach(l => {
+          if ((l.status === "EN_CARTERA" || l.status === "EN_PROCESO") && !deals.some(d => d.id === l.id)) {
+            deals.push({
+              id: l.id,
+              name: l.name,
+              industry: l.industry || "General",
+              city: l.city || "Playa del Carmen",
+              address: l.address || "",
+              contact: l.contact || "Encargado / Dueño",
+              phone: String(l.phone || ""),
+              email: l.email || "",
+              website: l.website || "",
+              rating: Number(l.rating) || 5.0,
+              reviews: Number(l.reviews) || 0,
+              tpv: Number(l.tpv) || 500000,
+              hook: l.hook || "",
+              pain: l.pain || "",
+              stage: mapRawStageToInternal(l.stage) || "calificacion",
+              status: l.status || "EN_CARTERA",
+              history: [],
+              pulledAt: new Date().toISOString()
+            });
+            addedFromSheet++;
+          }
+        });
+        if (addedFromSheet > 0) persist();
       }
 
       render();

@@ -771,7 +771,12 @@
   <!-- Main Content -->
   <main>
     <div class="top-bar">
-      <div>Ventas &nbsp;/&nbsp; <strong style="color:#111827">Panel Comercial • Quintana Roo</strong></div>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <div>Ventas &nbsp;/&nbsp; <strong style="color:#111827">Panel Comercial • Quintana Roo</strong></div>
+        <button id="btn-sync-sheets" onclick="syncWithGoogleSheets(true)" style="background:#e0f2fe;color:#0284c7;border:1px solid #bae6fd;padding:4px 12px;border-radius:14px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all 0.2s;" title="Descargar cambios recién hechos en tu Google Sheet">
+          <span id="sheet-sync-pill">🔄 Sincronizar Google Sheets</span>
+        </button>
+      </div>
       <div class="user-badge">
         <span class="user-dot"></span>
         Antonio Gutiérrez · Mercado Pago
@@ -1350,6 +1355,17 @@
 const MASTER_STORAGE_KEY = "meli-tono-active-deals-v5";
 const DAILY_GOAL_KEY = "meli_daily_activity_goal_v1";
 
+function safeClone(obj) {
+  if (typeof structuredClone === "function") {
+    try { return structuredClone(obj); } catch (e) {}
+  }
+  try {
+    return JSON.parse(JSON.stringify(obj));
+  } catch (e) {
+    return Object.assign({}, obj);
+  }
+}
+
 
 // ============================================================================
 // CONEXIÓN EN VIVO: GOOGLE SHEETS LIVE API (HEADLESS CRM)
@@ -1380,26 +1396,109 @@ function getAllBankLeads() {
   return [...custom, ...FALLBACK_BANK_QROO];
 }
 
+function mapRawStageToInternal(rawStage) {
+  if (!rawStage) return null;
+  const s = String(rawStage).toLowerCase().trim();
+  if (s.includes("ganad") || s.includes("cerrad")) return "ganado";
+  if (s.includes("perdid") || s.includes("descart")) return "perdido";
+  if (s.includes("closing") || s.includes("cierre") || s.includes("3.")) return "closing_deal";
+  if (s.includes("negoc") || s.includes("2.")) return "negociacion";
+  if (s.includes("calif") || s.includes("1.") || s.includes("prospect")) return "calificacion";
+  return null;
+}
+
 async function syncWithGoogleSheets(showNotification = false) {
   const pill = document.getElementById("sheet-sync-pill");
+  const btn = document.getElementById("btn-sync-sheets");
   if (pill) {
-    pill.innerHTML = "⏳ Sincronizando...";
-    pill.style.background = "#fef3c7";
-    pill.style.color = "#b45309";
+    pill.innerHTML = "⏳ Sincronizando con Sheet...";
+    if (btn) {
+      btn.style.background = "#fef3c7";
+      btn.style.color = "#b45309";
+      btn.style.borderColor = "#fde68a";
+    }
   }
   try {
-    const res = await fetch(GOOGLE_SHEET_API_URL);
+    const res = await fetch(GOOGLE_SHEET_API_URL + "?nocache=" + Date.now());
     const data = await res.json();
     if (data && data.success && Array.isArray(data.leads) && data.leads.length > 0) {
       sheetBankLeads = data.leads;
       localStorage.setItem(SHEET_CACHE_KEY, JSON.stringify(sheetBankLeads));
+
+      // Sincronizar en tiempo real los comercios que ya están en Cartera Activa (deals)
+      if (Array.isArray(deals) && deals.length > 0) {
+        deals.forEach(deal => {
+          const fresh = data.leads.find(l => l.id === deal.id);
+          if (fresh) {
+            deal.name = fresh.name || deal.name;
+            deal.phone = String(fresh.phone || deal.phone);
+            deal.email = fresh.email || deal.email;
+            deal.website = fresh.website || deal.website;
+            deal.contact = fresh.contact || deal.contact;
+            deal.address = fresh.address || deal.address;
+            deal.industry = fresh.industry || deal.industry;
+            deal.hook = fresh.hook || deal.hook;
+            deal.pain = fresh.pain || deal.pain;
+
+            // Sincronización bidireccional de Etapa y Estatus si se modificaron en el Sheet
+            if (fresh.stage) {
+              const mapped = mapRawStageToInternal(fresh.stage);
+              if (mapped) deal.stage = mapped;
+            }
+            if (fresh.status) {
+              deal.status = fresh.status;
+            }
+          }
+        });
+        persist();
+      } else if ((!deals || deals.length === 0) && Array.isArray(data.activeDealsSnapshot) && data.activeDealsSnapshot.length > 0) {
+        // SEGURO CONTRA BORRADO DE COOKIES: Si el navegador fue limpiado por IT de la empresa
+        deals = data.activeDealsSnapshot;
+        persist();
+        notify(`🛡️ <strong>Seguro Cloud Activo:</strong> Tu cartera (${deals.length} comercios) se restauró sola desde Google Sheets.`);
+      }
+
+      // Incorporar comercios marcados como EN_CARTERA o EN_PROCESO directamente en Google Sheets
+      if (Array.isArray(deals)) {
+        let addedFromSheet = 0;
+        data.leads.forEach(l => {
+          if ((l.status === "EN_CARTERA" || l.status === "EN_PROCESO") && !deals.some(d => d.id === l.id)) {
+            deals.push({
+              id: l.id,
+              name: l.name,
+              industry: l.industry || "General",
+              city: l.city || "Playa del Carmen",
+              address: l.address || "",
+              contact: l.contact || "Encargado / Dueño",
+              phone: String(l.phone || ""),
+              email: l.email || "",
+              website: l.website || "",
+              rating: Number(l.rating) || 5.0,
+              reviews: Number(l.reviews) || 0,
+              tpv: Number(l.tpv) || 500000,
+              hook: l.hook || "",
+              pain: l.pain || "",
+              stage: mapRawStageToInternal(l.stage) || "calificacion",
+              status: l.status || "EN_CARTERA",
+              history: [],
+              pulledAt: new Date().toISOString()
+            });
+            addedFromSheet++;
+          }
+        });
+        if (addedFromSheet > 0) persist();
+      }
+
       render();
       if (pill) {
-        pill.innerHTML = `🟢 Google Sheets: Conectado (${data.count})`;
-        pill.style.background = "#dcfce7";
-        pill.style.color = "#15803d";
+        pill.innerHTML = `🟢 Google Sheets en vivo (${data.count})`;
+        if (btn) {
+          btn.style.background = "#dcfce7";
+          btn.style.color = "#15803d";
+          btn.style.borderColor = "#bbf7d0";
+        }
       }
-      if (showNotification) notify(`🟢 Google Sheets actualizado: ${data.count} comercios cargados en vivo.`);
+      if (showNotification) notify(`🟢 Google Sheets sincronizado: ${data.count} comercios actualizados.`);
     } else {
       throw new Error("Respuesta inválida de Google Sheets");
     }
@@ -1409,12 +1508,20 @@ async function syncWithGoogleSheets(showNotification = false) {
       pill.innerHTML = sheetBankLeads.length > 0 
         ? `🟡 Google Sheets (Caché: ${sheetBankLeads.length})` 
         : "⚠️ Google Sheets Desconectado";
-      pill.style.background = "#fee2e2";
-      pill.style.color = "#b91c1c";
+      if (btn) {
+        btn.style.background = "#fee2e2";
+        btn.style.color = "#b91c1c";
+        btn.style.borderColor = "#fecaca";
+      }
     }
     if (showNotification) notify("⚠️ No se pudo sincronizar en vivo. Mostrando datos guardados en tu equipo.");
   }
 }
+
+// Sincronización automática en segundo plano al abrir el tablero
+setTimeout(() => {
+  syncWithGoogleSheets(false);
+}, 100);
 
 // Espejo en tiempo real (Dual-Write) hacia Google Sheets
 function mirrorEventToGoogleSheet(action, payload) {
@@ -1489,6 +1596,8 @@ function saveCustomBankLead(deal) {
 // (getAllBankLeads ya está definida con Google Sheets)
 
 let deals = loadActiveDeals();
+window.getActiveDeals = () => deals;
+window.setActiveDeals = (d) => { deals = d; persist(); render(); };
 let dailyActivityGoal = loadDailyGoal();
 let activeDealId = null;
 let pendingTargetStage = null;
@@ -1543,8 +1652,26 @@ function loadActiveDeals() {
 function persist() {
   try {
     localStorage.setItem(MASTER_STORAGE_KEY, JSON.stringify(deals));
+    scheduleCloudSnapshot();
   } catch (e) {}
 }
+
+let cloudSnapshotDebounce = null;
+function scheduleCloudSnapshot() {
+  clearTimeout(cloudSnapshotDebounce);
+  cloudSnapshotDebounce = setTimeout(() => {
+    if (Array.isArray(deals)) {
+      mirrorEventToGoogleSheet("save_snapshot", { activeDeals: deals });
+    }
+  }, 2500);
+}
+
+// Seguro permanente de auto-guardado en la nube cada 10 minutos
+setInterval(() => {
+  if (Array.isArray(deals) && deals.length > 0) {
+    mirrorEventToGoogleSheet("save_snapshot", { activeDeals: deals });
+  }
+}, 10 * 60 * 1000);
 
 function switchTab(tab) {
   document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
@@ -1823,12 +1950,23 @@ function renderActionTable() {
     const tr = document.createElement("tr");
     const logs = deal.logs || [];
     const hasRealizedVisit = logs.some(l => l.channel === "visita" && (l.outcome === "visita_realizada" || l.outcome === "cierre_ganado"));
+    const isLost = deal.stage === "perdido";
+    const isWon = deal.stage === "ganado";
+
+    if (isLost) {
+      tr.style.background = "rgba(239, 68, 68, 0.05)";
+      tr.style.opacity = "0.82";
+    } else if (isWon) {
+      tr.style.background = "rgba(0, 166, 80, 0.06)";
+    }
 
     tr.innerHTML = `
       <td>
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
           <strong style="font-size:13px;color:#0f172a;cursor:pointer;" onclick="openDrawer('${deal.id}')">${deal.name}</strong>
           ${deal.website ? `<a href="${deal.website}" target="_blank" rel="noopener" title="Abrir Sitio Web / Red Social" style="font-size:11px;text-decoration:none;">🌐</a>` : ''}
+          ${isLost ? `<span style="font-size:9px;font-weight:700;color:#dc2626;background:#fee2e2;padding:2px 6px;border-radius:4px;">✕ DESCARTADO</span>` : ''}
+          ${isWon ? `<span style="font-size:9px;font-weight:700;color:#16a34a;background:#dcfce7;padding:2px 6px;border-radius:4px;">★ GANADO</span>` : ''}
         </div>
         
         <div style="font-size:11px;color:#475569;margin-bottom:4px;display:flex;align-items:center;gap:4px;">
@@ -1911,17 +2049,37 @@ function openActivityModalForDeal(id, targetStage) {
   activeDealId = id;
   pendingTargetStage = targetStage || null;
 
-  document.getElementById("actTitle").textContent = `＋ Registrar Actividad • ${deal.name}`;
-  document.getElementById("actHint").textContent = "Documenta la gestión realizada (el botón solo documenta, no abre apps externas).";
+  const titleEl = document.getElementById("actTitle");
+  const hintEl = document.getElementById("actHint");
+  const channelEl = document.getElementById("actChannel");
+  const noteEl = document.getElementById("actNote");
 
-  // Reset to default Llamada
-  document.getElementById("actChannel").value = "llamada";
-  onActChannelChange("llamada");
+  if (targetStage === "ganado") {
+    titleEl.innerHTML = `🏆 <strong>Registrar Cierre Ganado ★</strong> · ${deal.name}`;
+    hintEl.innerHTML = `¡Gran trabajo, Antonio! Documenta el cierre (visita presencial, entrega de terminal Point Smart o activación) con tus notas.`;
+    channelEl.value = "visita";
+    onActChannelChange("visita");
+    const outcomeSel = document.getElementById("actOutcome");
+    outcomeSel.value = "cierre_ganado";
+    noteEl.placeholder = "Ej. Visita presencial realizada, Point Smart 4G entregada y configurada a tasa 2.7%.";
+  } else if (targetStage === "perdido") {
+    titleEl.innerHTML = `✕ <strong>Registrar Motivo de Descarte</strong> · ${deal.name}`;
+    hintEl.innerHTML = `Documenta la razón por la que no se concretó para tu bitácora comercial y estadísticas.`;
+    channelEl.value = "llamada";
+    onActChannelChange("descarte");
+    noteEl.placeholder = "Ej. Tienen contrato vigente con terminal BBVA hasta fin de año.";
+  } else {
+    titleEl.textContent = `＋ Registrar Actividad • ${deal.name}`;
+    hintEl.textContent = "Documenta la gestión realizada (el botón solo documenta, no abre apps externas).";
+    channelEl.value = "llamada";
+    onActChannelChange("llamada");
+    noteEl.placeholder = "Ej. Dejé recado con asistente; volver a marcar mañana 10am";
+  }
 
-  document.getElementById("actNote").value = "";
+  noteEl.value = "";
   document.getElementById("actError").textContent = "";
   document.getElementById("activityModal").classList.add("open");
-  setTimeout(() => document.getElementById("actNote").focus(), 30);
+  setTimeout(() => noteEl.focus(), 30);
 }
 
 function onActChannelChange(channel) {
@@ -1933,6 +2091,15 @@ function onActChannelChange(channel) {
     connectSec.style.display = "block";
     document.querySelector('input[name="callConnected"][value="no"]').checked = true;
     onCallConnectChange(false);
+  } else if (channel === "descarte") {
+    connectSec.style.display = "none";
+    outcomeSel.innerHTML = `
+      <option value="rechazo_tasa">Comisiones / Tasa más baja con su banco actual</option>
+      <option value="no_interesado">No le interesa cambiar de terminal / proveedor</option>
+      <option value="negocio_cerrado">Comercio cerrado / Traspaso / Sin actividad</option>
+      <option value="sin_contacto">Sin contacto tras múltiples intentos</option>
+      <option value="otro_descarte">Otro motivo</option>
+    `;
   } else {
     connectSec.style.display = "none";
     if (channel === "whatsapp") {
@@ -1944,16 +2111,16 @@ function onActChannelChange(channel) {
       `;
     } else if (channel === "correo_1a1") {
       outcomeSel.innerHTML = `
-        <option value="enviado">Correo 1:1 enviado</option>
+        <option value="enviado">Correo 1:1 enviado (En espera de respuesta)</option>
         <option value="respondio">Respondió al correo</option>
         <option value="visita_agendada">Visita agendada vía correo</option>
       `;
     } else if (channel === "visita") {
       outcomeSel.innerHTML = `
+        <option value="cierre_ganado">★ Cierre Ganado confirmado (Point Smart entregada / activada)</option>
         <option value="visita_realizada">Visita presencial realizada en el local</option>
         <option value="agendada">Visita agendada para fecha próxima</option>
         <option value="visita_no_concretada">Visita no concretada (No se encontró decisor)</option>
-        <option value="cierre_ganado">Cierre Ganado confirmado (Point Smart)</option>
       `;
     }
   }
@@ -2003,15 +2170,40 @@ function saveActivity(e) {
 
   // Espejo en tiempo real hacia Google Sheets (Bitacora_Actividad)
   if (typeof mirrorEventToGoogleSheet === "function") {
-    const isYes = (outcome === "acepto_verbalmente" || outcome === "interesado");
-    const isNo = (outcome === "rechazo" || outcome === "no_interesado");
+    let resultText = "No Contestó";
+    let statusText = "EN_PROCESO";
+
+    if (pendingTargetStage === "ganado" || outcome === "cierre_ganado") {
+      resultText = "SÍ (Cierre Ganado)";
+      statusText = "GANADO";
+    } else if (pendingTargetStage === "perdido" || (outcome && (outcome.includes("descarte") || outcome.includes("rechazo")))) {
+      resultText = "NO (Descarte)";
+      statusText = "DESCARTADO";
+    } else if (channel === "correo_1a1") {
+      if (outcome === "enviado") resultText = "Enviado (En espera)";
+      else if (outcome === "respondio") resultText = "SÍ (Respondió)";
+      else if (outcome === "visita_agendada") resultText = "SÍ (Cita acordada)";
+    } else if (channel === "whatsapp") {
+      if (outcome === "sin_respuesta") resultText = "Enviado (Sin respuesta)";
+      else if (outcome === "respondio" || outcome === "pidio_llamada" || outcome === "visita_agendada") resultText = "SÍ";
+    } else if (channel === "llamada") {
+      const isYes = (outcome === "acepto_verbalmente" || outcome === "interesado" || outcome === "pidio_visita" || outcome === "visita_agendada");
+      const isNo = (outcome === "rechazo" || outcome === "no_interesado" || outcome === "sin_avance");
+      resultText = isYes ? "SÍ" : isNo ? "NO" : "No Contestó";
+    } else if (channel === "visita") {
+      if (outcome === "cierre_ganado") { resultText = "SÍ (Cierre Ganado)"; statusText = "GANADO"; }
+      else if (outcome === "visita_realizada" || outcome === "agendada") resultText = "SÍ (Visita Realizada)";
+      else resultText = "NO";
+    }
+
     mirrorEventToGoogleSheet("log_touch", {
       dealId: deal.id,
       dealName: deal.name,
       city: deal.city,
       channel: channel || "Llamada",
-      result: isYes ? "SÍ" : isNo ? "NO" : "No Contestó",
-      stage: deal.stage,
+      result: resultText,
+      stage: pendingTargetStage || deal.stage,
+      status: statusText,
       hook: deal.hook || "",
       notes: comment || "",
       tpv: deal.tpv || 500000,
@@ -2019,22 +2211,18 @@ function saveActivity(e) {
     });
   }
 
-  // Si aceptó verbalmente, sugerir o avanzar a Closing Deal
-  if (outcome === "acepto_verbalmente" && deal.stage !== "closing_deal" && deal.stage !== "ganado") {
-    deal.stage = "closing_deal";
-  }
-
-  // Si fue visita agendada y estaba en calificación, avanza a negociación
-  if (outcome === "visita_agendada" && (deal.stage === "calificacion" || deal.stage === "prospecto" || deal.stage === "lead")) {
-    deal.stage = "negociacion";
-  }
-
-  // Si fue cierre ganado y se realizó visita, avanza a ganado
-  if (outcome === "cierre_ganado") {
+  // Determinar la etapa resultante
+  if (pendingTargetStage === "ganado" || outcome === "cierre_ganado") {
     deal.stage = "ganado";
-  }
-
-  if (pendingTargetStage) {
+    deal.days = 0;
+  } else if (pendingTargetStage === "perdido" || (outcome && (outcome.includes("descarte") || outcome.includes("rechazo")))) {
+    deal.stage = "perdido";
+    deal.days = 0;
+  } else if (outcome === "acepto_verbalmente" && deal.stage !== "closing_deal" && deal.stage !== "ganado") {
+    deal.stage = "closing_deal";
+  } else if (outcome === "visita_agendada" && (deal.stage === "calificacion" || deal.stage === "prospecto" || deal.stage === "lead")) {
+    deal.stage = "negociacion";
+  } else if (pendingTargetStage) {
     deal.stage = pendingTargetStage;
     deal.days = 0;
   }
@@ -2047,7 +2235,11 @@ function saveActivity(e) {
     openDrawer(deal.id); // Refresca drawer si está abierto
   }
 
-  if (channel === "llamada") {
+  if (deal.stage === "ganado") {
+    notify(`🏆 <strong>¡ENHORABUENA! Cierre Ganado registrado para ${deal.name}.</strong> ¡Sumas a tu meta mensual!`);
+  } else if (deal.stage === "perdido") {
+    notify(`✕ <strong>${deal.name}</strong> archivado en Descarte / Perdido.`);
+  } else if (channel === "llamada") {
     if (connected) {
       if (outcome === "pidio_visita" || outcome === "visita_agendada" || outcome === "acepto_verbalmente") {
         notify(`🎯 <strong>¡BOOM! +1 'SÍ' conseguido.</strong> Cita o propuesta en marcha con <strong>${deal.name}</strong>.`);
@@ -2065,28 +2257,25 @@ function saveActivity(e) {
 }
 
 // -------------------------------------------------------------
-// CAMBIO DE ETAPA Y CANDADO DE VISITA FÍSICA PARA "GANADO"
+// CAMBIO DE ETAPA EN SELECTOR DE TABLA
 // -------------------------------------------------------------
 function changeStage(id, newStage) {
   const deal = deals.find(d => d.id === id);
   if (!deal) return;
 
-  // REGLA DE ORO: Ganado solo tras registrar visita presencial realizada
   if (newStage === "ganado") {
-    const logs = deal.logs || [];
-    const hasRealizedVisit = logs.some(l => l.channel === "visita" && (l.outcome === "visita_realizada" || l.outcome === "cierre_ganado"));
-    
-    if (!hasRealizedVisit) {
-      alert("🔒 CANDADO ESTRICTO DE CIERRE:\n\nUn negocio solo puede marcarse como 'Ganado' después de realizar la visita presencial al local.\n\nUna aceptación verbal debe registrarse en la etapa 'Closing Deal (Visita Pendiente)'.");
-      renderActionTable();
-      renderKanban();
-      return;
-    }
+    openActivityModalForDeal(deal.id, "ganado");
+    return;
+  }
+
+  if (newStage === "perdido") {
+    openActivityModalForDeal(deal.id, "perdido");
+    return;
   }
 
   // Candado de actividad: Exigir al menos un contacto antes de mover
   const hasLog = (deal.logs || []).length > 0;
-  if (!hasLog && newStage !== "perdido" && newStage !== "calificacion" && newStage !== "prospecto") {
+  if (!hasLog && newStage !== "calificacion" && newStage !== "prospecto") {
     openActivityModalForDeal(deal.id, newStage);
     notify("🔒 <strong>Candado activo:</strong> Registra una actividad antes de avanzar la etapa.");
     return;
@@ -2095,8 +2284,25 @@ function changeStage(id, newStage) {
   deal.stage = newStage;
   deal.days = 0;
   persist();
+
+  // Espejo inmediato a Google Sheets
+  const statusMap = {
+    ganado: "GANADO",
+    perdido: "DESCARTADO",
+    closing_deal: "EN_PROCESO",
+    negociacion: "EN_PROCESO",
+    calificacion: "EN_CARTERA"
+  };
+  mirrorEventToGoogleSheet("update_deal", {
+    dealId: deal.id,
+    updates: {
+      stage: stageLabel(newStage),
+      status: statusMap[newStage] || "EN_PROCESO"
+    }
+  });
+
   render();
-  notify(`✓ Etapa actualizada a <strong>${stageLabel(newStage)}</strong>`);
+  notify(`✓ <strong>${deal.name}</strong> actualizado a <strong>${stageLabel(newStage)}</strong>`);
 }
 
 // -------------------------------------------------------------
@@ -2280,23 +2486,22 @@ function handleDrop(id, targetStage) {
   const deal = deals.find(d => d.id === id);
   if (!deal || deal.stage === targetStage) return;
 
-  // Candado estricto para ganado
   if (targetStage === "ganado") {
-    const logs = deal.logs || [];
-    const hasRealizedVisit = logs.some(l => l.channel === "visita" && (l.outcome === "visita_realizada" || l.outcome === "cierre_ganado"));
-    if (!hasRealizedVisit) {
-      alert("🔒 CANDADO ESTRICTO DE CIERRE:\n\nUn negocio solo puede marcarse como 'Ganado' después de realizar la visita presencial al local.\n\nUna aceptación verbal debe registrarse en la etapa 'Closing Deal'.");
-      renderKanban();
-      return;
-    }
+    openActivityModalForDeal(deal.id, "ganado");
+    return;
   }
 
-  const order = ["calificacion", "negociacion", "closing_deal", "ganado"];
+  if (targetStage === "perdido") {
+    openActivityModalForDeal(deal.id, "perdido");
+    return;
+  }
+
+  const order = ["calificacion", "negociacion", "closing_deal"];
   const currentIdx = order.indexOf(deal.stage === "prospecto" || deal.stage === "lead" ? "calificacion" : deal.stage);
   const targetIdx = order.indexOf(targetStage);
 
   const hasLog = (deal.logs || []).length > 0;
-  if (!hasLog && targetIdx > currentIdx && targetStage !== "perdido") {
+  if (!hasLog && targetIdx > currentIdx) {
     openActivityModalForDeal(deal.id, targetStage);
     notify("🔒 <strong>Candado activo:</strong> Registra la interacción con el comercio antes de avanzar.");
     return;
@@ -2306,8 +2511,25 @@ function handleDrop(id, targetStage) {
   deal.days = 0;
   deal.exception = null;
   persist();
+
+  // Espejo inmediato a Google Sheets
+  const statusMap = {
+    ganado: "GANADO",
+    perdido: "DESCARTADO",
+    closing_deal: "EN_PROCESO",
+    negociacion: "EN_PROCESO",
+    calificacion: "EN_CARTERA"
+  };
+  mirrorEventToGoogleSheet("update_deal", {
+    dealId: deal.id,
+    updates: {
+      stage: stageLabel(targetStage),
+      status: statusMap[targetStage] || "EN_PROCESO"
+    }
+  });
+
   render();
-  notify(`✓ ${deal.name} movido a <strong>${stageLabel(targetStage)}</strong>`);
+  notify(`✓ <strong>${deal.name}</strong> movido a <strong>${stageLabel(targetStage)}</strong>`);
 }
 
 // -------------------------------------------------------------
@@ -2396,11 +2618,16 @@ function renderBancoTable() {
   if (selCountEl) selCountEl.textContent = selectedBancoIds.size;
 
   pageItems.forEach(item => {
-    const isInActive = activeIds.has(item.id);
+    const activeDeal = deals.find(d => d.id === item.id);
+    const isInActive = !!activeDeal;
     const isChecked = selectedBancoIds.has(item.id);
 
     const tr = document.createElement("tr");
-    if (isInActive) tr.style.background = "rgba(0, 166, 80, 0.04)";
+    if (activeDeal) {
+      if (activeDeal.stage === "ganado") tr.style.background = "rgba(0, 166, 80, 0.08)";
+      else if (activeDeal.stage === "perdido") tr.style.background = "rgba(239, 68, 68, 0.06)";
+      else tr.style.background = "rgba(0, 166, 80, 0.04)";
+    }
 
     tr.innerHTML = `
       <td style="text-align:center;">
@@ -2434,12 +2661,23 @@ function renderBancoTable() {
         $${((item.tpv || 500000)/1000).toLocaleString()}k
       </td>
       <td style="text-align:center;">
-        ${isInActive ? `
-          <span style="display:inline-block;padding:3px 8px;border-radius:12px;background:#dcfce7;color:#15803d;font-size:10px;font-weight:700;">
-            ✓ En Cartera
-          </span>
-          <button class="btn-touch" onclick="returnToBank('${item.id}')" style="font-size:9px;color:#ef4444;border-color:rgba(239,68,68,0.3);margin-left:4px;padding:2px 5px;" title="Quitar de cartera activa">✕</button>
-        ` : `
+        ${activeDeal ? (
+          activeDeal.stage === "ganado" ? `
+            <span style="display:inline-block;padding:3px 8px;border-radius:12px;background:#bbf7d0;color:#15803d;font-size:10px;font-weight:700;">
+              ★ Ganado MP
+            </span>
+          ` : activeDeal.stage === "perdido" ? `
+            <span style="display:inline-block;padding:3px 8px;border-radius:12px;background:#fee2e2;color:#b91c1c;font-size:10px;font-weight:700;">
+              ✕ Descartado
+            </span>
+            <button class="btn-touch" onclick="returnToBank('${item.id}')" style="font-size:9px;color:#64748b;margin-left:4px;padding:2px 5px;" title="Limpiar y devolver a frío">✕</button>
+          ` : `
+            <span style="display:inline-block;padding:3px 8px;border-radius:12px;background:#dcfce7;color:#15803d;font-size:10px;font-weight:700;">
+              ✓ En Cartera (${stageLabel(activeDeal.stage)})
+            </span>
+            <button class="btn-touch" onclick="returnToBank('${item.id}')" style="font-size:9px;color:#ef4444;border-color:rgba(239,68,68,0.3);margin-left:4px;padding:2px 5px;" title="Quitar de cartera activa">✕</button>
+          `
+        ) : `
           <button class="btn-touch" onclick="pullToActive('${item.id}')" style="background:#009ee3;color:#fff;border:none;font-weight:700;font-size:11px;padding:4px 10px;">
             ＋ Jalar
           </button>
@@ -2480,7 +2718,7 @@ function pullToActive(id) {
   }
 
   deals.push({
-    ...structuredClone(item),
+    ...safeClone(item),
     stage: "calificacion",
     createdAt: new Date().toISOString(),
     days: 0,
@@ -2488,6 +2726,7 @@ function pullToActive(id) {
   });
 
   persist();
+  mirrorEventToGoogleSheet("pull_batch", { dealIds: [id] });
   render();
   notify(`✓ <strong>${item.name}</strong> jalado a tu cartera activa de hoy.`);
 }
@@ -2504,7 +2743,7 @@ function pullBatch(count) {
   const batch = available.slice(0, count);
   batch.forEach(item => {
     deals.push({
-      ...structuredClone(item),
+      ...safeClone(item),
       stage: "calificacion",
       createdAt: new Date().toISOString(),
       days: 0,
@@ -2527,25 +2766,30 @@ function pullSelected() {
 
   const activeIds = new Set(deals.map(d => d.id));
   let addedCount = 0;
+  const addedIds = [];
 
   selectedBancoIds.forEach(id => {
     if (!activeIds.has(id)) {
       const item = getAllBankLeads().find(m => m.id === id);
       if (item) {
         deals.push({
-          ...structuredClone(item),
+          ...safeClone(item),
           stage: "calificacion",
           createdAt: new Date().toISOString(),
           days: 0,
           logs: []
         });
         addedCount++;
+        addedIds.push(id);
       }
     }
   });
 
   selectedBancoIds.clear();
   persist();
+  if (addedIds.length > 0) {
+    mirrorEventToGoogleSheet("pull_batch", { dealIds: addedIds });
+  }
   render();
   notify(`✓ Se jalaron <strong>${addedCount} comercios</strong> seleccionados a tu cartera activa.`);
 }
@@ -2560,6 +2804,13 @@ function returnToBank(id) {
 
   deals = deals.filter(d => d.id !== id);
   persist();
+  mirrorEventToGoogleSheet("update_deal", {
+    dealId: id,
+    updates: {
+      status: "DISPONIBLE",
+      stage: "1. Calificación"
+    }
+  });
   render();
   notify(`${deal.name} devuelto al Acordeón Maestro.`);
 }
