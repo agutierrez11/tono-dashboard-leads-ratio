@@ -1010,6 +1010,13 @@
             <button class="btn-touch" onclick="switchTab('banco')" style="background:#f1f5f9;color:#334155;border:1px solid #cbd5e1;font-weight:600;font-size:11px;">
               📊 Abrir Acordeón (644) ➔
             </button>
+            <button class="btn-touch" onclick="exportBackupJSON()" style="background:#f8fafc;color:#0369a1;border:1px solid #bae6fd;font-weight:600;font-size:11px;" title="Descargar archivo de respaldo seguro de tu cartera, toques y notas">
+              💾 Respaldar
+            </button>
+            <button class="btn-touch" onclick="triggerRestoreBackup()" style="background:#f8fafc;color:#0f766e;border:1px solid #99f6e4;font-weight:600;font-size:11px;" title="Restaurar cartera y notas desde un archivo de respaldo">
+              📥 Restaurar
+            </button>
+            <input type="file" id="backupFileInput" accept=".json" style="display:none;" onchange="handleRestoreBackup(event)" />
             <button class="btn-touch" onclick="clearAllData()" style="color:var(--red);border-color:rgba(239,68,68,0.3);font-size:11px;" title="Vaciar cartera activa del día para iniciar de cero">
               🗑️ Vaciar Cartera
             </button>
@@ -2465,6 +2472,71 @@ function exportBankToCSV() {
   a.click();
   document.body.removeChild(a);
   notify("✓ Archivo Excel CSV descargado con los 644 comercios.");
+}
+
+
+function exportBackupJSON() {
+  try {
+    const backupData = {
+      version: "meli-tono-crm-v1",
+      exportedAt: new Date().toISOString(),
+      activeDeals: deals,
+      customLeads: typeof loadCustomBankLeads === 'function' ? loadCustomBankLeads() : [],
+      dailyGoal: dailyActivityGoal
+    };
+    const jsonStr = JSON.stringify(backupData, null, 2);
+    const blob = new Blob([jsonStr], { type: "application/json;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const dateStr = new Date().toISOString().slice(0, 10);
+    a.download = `RESPALDO_CRM_MERCADOPAGO_${dateStr}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    notify("💾 Respaldo seguro descargado en tu equipo.");
+  } catch (e) {
+    notify("❌ Error al exportar respaldo: " + e.message);
+  }
+}
+
+function triggerRestoreBackup() {
+  const input = document.getElementById("backupFileInput");
+  if (input) input.click();
+}
+
+function handleRestoreBackup(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data || (!data.activeDeals && !Array.isArray(data))) {
+        throw new Error("Formato de archivo inválido.");
+      }
+      const restoredDeals = data.activeDeals || (Array.isArray(data) ? data : []);
+      const restoredCustom = data.customLeads || [];
+      const restoredGoal = data.dailyGoal || 15;
+      
+      deals = restoredDeals;
+      localStorage.setItem(MASTER_STORAGE_KEY, JSON.stringify(deals));
+      if (restoredCustom.length > 0 && typeof CUSTOM_BANK_KEY !== 'undefined') {
+        localStorage.setItem(CUSTOM_BANK_KEY, JSON.stringify(restoredCustom));
+      }
+      if (restoredGoal && typeof DAILY_GOAL_KEY !== 'undefined') {
+        dailyActivityGoal = restoredGoal;
+        localStorage.setItem(DAILY_GOAL_KEY, restoredGoal.toString());
+      }
+      render();
+      notify(`✅ ¡Respaldo restaurado! ${deals.length} comercios activos listos.`);
+    } catch (err) {
+      notify("❌ Error al leer el respaldo: " + err.message);
+    }
+    event.target.value = "";
+  };
+  reader.readAsText(file);
 }
 
 function copyBancoToClipboard() {
