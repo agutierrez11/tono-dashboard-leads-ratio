@@ -1477,10 +1477,12 @@ async function syncWithGoogleSheets(showNotification = false) {
         });
         persist();
       } else if ((!deals || deals.length === 0) && Array.isArray(data.activeDealsSnapshot) && data.activeDealsSnapshot.length > 0) {
-        // SEGURO CONTRA BORRADO DE COOKIES: Si el navegador fue limpiado por IT de la empresa
-        deals = data.activeDealsSnapshot;
-        persist();
-        notify(`🛡️ <strong>Seguro Cloud Activo:</strong> Tu cartera (${deals.length} comercios) se restauró sola desde Google Sheets.`);
+        // SEGURO CONTRA BORRADO DE COOKIES: Solo si el usuario NO vació intencionalmente
+        if (localStorage.getItem("user_intentionally_cleared") !== "true") {
+          deals = data.activeDealsSnapshot;
+          persist();
+          notify(`🛡️ <strong>Seguro Cloud Activo:</strong> Tu cartera (${deals.length} comercios) se restauró sola desde Google Sheets.`);
+        }
       }
 
       // Incorporar comercios marcados como EN_CARTERA o EN_PROCESO directamente en Google Sheets
@@ -2802,6 +2804,7 @@ function pullToActive(id) {
     return;
   }
 
+  try { localStorage.removeItem("user_intentionally_cleared"); } catch (e) {}
   deals.push({
     ...safeClone(item),
     stage: "calificacion",
@@ -3151,6 +3154,7 @@ async function restoreBoardFromGoogleSheet() {
     }
 
     if (restored.length > 0) {
+      try { localStorage.removeItem("user_intentionally_cleared"); } catch (e) {}
       deals = restored;
       persist();
       render();
