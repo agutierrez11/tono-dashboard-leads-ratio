@@ -896,7 +896,7 @@
           <span class="ch-label">Llamadas</span>
           <span class="ch-val" style="color:var(--mp-blue);font-size:16px;" id="ch-call">0</span>
           <div style="font-size:9px;color:#64748b;margin-top:2px;" id="ch-call-sub">— conex.</div>
-          <div id="ch-call-gamification" style="display:none;margin-top:4px;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:4px;" title="🎯 SÍ (avances a cita/demo) vs 🛡️ NO (objeciones/rechazos superados)">
+          <div id="ch-call-gamification" style="display:flex;margin-top:4px;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:4px;" title="🎯 SÍ (avances a cita/demo) vs 🛡️ NO (objeciones/rechazos superados)">
             <span style="color:#00a650;background:rgba(0,166,80,0.12);padding:1px 4px;border-radius:3px;">🎯 <span id="ch-call-yes">0</span> SÍ</span>
             <span style="color:#ef4444;background:rgba(239,68,68,0.12);padding:1px 4px;border-radius:3px;">🛡️ <span id="ch-call-no">0</span> NO</span>
           </div>
@@ -977,19 +977,19 @@
         <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:12px;padding:14px 18px;">
           <div style="background:#f8fafc;padding:10px;border-radius:6px;border:1px solid #e2e8f0;text-align:center;">
             <div style="font-size:10px;color:#64748b;text-transform:uppercase;font-weight:700;">Correos Enviados</div>
-            <div style="font-size:20px;font-weight:800;color:#0f172a;margin-top:2px;" id="yamm-sent">120</div>
+            <div style="font-size:20px;font-weight:800;color:#0f172a;margin-top:2px;" id="yamm-sent">0</div>
           </div>
           <div style="background:#f8fafc;padding:10px;border-radius:6px;border:1px solid #e2e8f0;text-align:center;">
             <div style="font-size:10px;color:#64748b;text-transform:uppercase;font-weight:700;">Tasa de Apertura</div>
-            <div style="font-size:20px;font-weight:800;color:#009ee3;margin-top:2px;" id="yamm-opened">48%</div>
+            <div style="font-size:20px;font-weight:800;color:#009ee3;margin-top:2px;" id="yamm-opened">—</div>
           </div>
           <div style="background:#f8fafc;padding:10px;border-radius:6px;border:1px solid #e2e8f0;text-align:center;">
             <div style="font-size:10px;color:#64748b;text-transform:uppercase;font-weight:700;">Tasa de Clics</div>
-            <div style="font-size:20px;font-weight:800;color:#00a650;margin-top:2px;" id="yamm-clicked">18%</div>
+            <div style="font-size:20px;font-weight:800;color:#00a650;margin-top:2px;" id="yamm-clicked">—</div>
           </div>
           <div style="background:#f8fafc;padding:10px;border-radius:6px;border:1px solid #e2e8f0;text-align:center;">
             <div style="font-size:10px;color:#64748b;text-transform:uppercase;font-weight:700;">Respuestas Inbound</div>
-            <div style="font-size:20px;font-weight:800;color:#7c3aed;margin-top:2px;" id="yamm-responses">14</div>
+            <div style="font-size:20px;font-weight:800;color:#7c3aed;margin-top:2px;" id="yamm-responses">0</div>
           </div>
         </div>
       </div>
@@ -1651,7 +1651,7 @@ function renderResumen() {
     callNoEl.textContent = callsNo;
   }
   if (callGamEl) {
-    callGamEl.style.display = (callsTotal > 0) ? "flex" : "none";
+    callGamEl.style.display = "flex";
   }
 
   document.getElementById("ch-whatsapp").textContent = waTotal;
