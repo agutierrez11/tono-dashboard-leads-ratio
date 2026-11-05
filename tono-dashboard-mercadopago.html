@@ -1431,6 +1431,11 @@ async function syncWithGoogleSheets(showNotification = false) {
           }
         });
         persist();
+      } else if ((!deals || deals.length === 0) && Array.isArray(data.activeDealsSnapshot) && data.activeDealsSnapshot.length > 0) {
+        // SEGURO CONTRA BORRADO DE COOKIES: Si el navegador fue limpiado por IT de la empresa
+        deals = data.activeDealsSnapshot;
+        persist();
+        notify(`🛡️ <strong>Seguro Cloud Activo:</strong> Tu cartera (${deals.length} comercios) se restauró sola desde Google Sheets.`);
       }
 
       render();
@@ -1596,8 +1601,26 @@ function loadActiveDeals() {
 function persist() {
   try {
     localStorage.setItem(MASTER_STORAGE_KEY, JSON.stringify(deals));
+    scheduleCloudSnapshot();
   } catch (e) {}
 }
+
+let cloudSnapshotDebounce = null;
+function scheduleCloudSnapshot() {
+  clearTimeout(cloudSnapshotDebounce);
+  cloudSnapshotDebounce = setTimeout(() => {
+    if (Array.isArray(deals)) {
+      mirrorEventToGoogleSheet("save_snapshot", { activeDeals: deals });
+    }
+  }, 2500);
+}
+
+// Seguro permanente de auto-guardado en la nube cada 10 minutos
+setInterval(() => {
+  if (Array.isArray(deals) && deals.length > 0) {
+    mirrorEventToGoogleSheet("save_snapshot", { activeDeals: deals });
+  }
+}, 10 * 60 * 1000);
 
 function switchTab(tab) {
   document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
