@@ -1355,6 +1355,17 @@
 const MASTER_STORAGE_KEY = "meli-tono-active-deals-v5";
 const DAILY_GOAL_KEY = "meli_daily_activity_goal_v1";
 
+function safeClone(obj) {
+  if (typeof structuredClone === "function") {
+    try { return structuredClone(obj); } catch (e) {}
+  }
+  try {
+    return JSON.parse(JSON.stringify(obj));
+  } catch (e) {
+    return Object.assign({}, obj);
+  }
+}
+
 
 // ============================================================================
 // CONEXIÓN EN VIVO: GOOGLE SHEETS LIVE API (HEADLESS CRM)
@@ -1529,6 +1540,8 @@ function saveCustomBankLead(deal) {
 // (getAllBankLeads ya está definida con Google Sheets)
 
 let deals = loadActiveDeals();
+window.getActiveDeals = () => deals;
+window.setActiveDeals = (d) => { deals = d; persist(); render(); };
 let dailyActivityGoal = loadDailyGoal();
 let activeDealId = null;
 let pendingTargetStage = null;
@@ -2631,7 +2644,7 @@ function pullToActive(id) {
   }
 
   deals.push({
-    ...structuredClone(item),
+    ...safeClone(item),
     stage: "calificacion",
     createdAt: new Date().toISOString(),
     days: 0,
@@ -2656,7 +2669,7 @@ function pullBatch(count) {
   const batch = available.slice(0, count);
   batch.forEach(item => {
     deals.push({
-      ...structuredClone(item),
+      ...safeClone(item),
       stage: "calificacion",
       createdAt: new Date().toISOString(),
       days: 0,
@@ -2686,7 +2699,7 @@ function pullSelected() {
       const item = getAllBankLeads().find(m => m.id === id);
       if (item) {
         deals.push({
-          ...structuredClone(item),
+          ...safeClone(item),
           stage: "calificacion",
           createdAt: new Date().toISOString(),
           days: 0,
