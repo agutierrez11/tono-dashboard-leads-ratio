@@ -1642,15 +1642,25 @@ setTimeout(() => {
 }, 100);
 
 // Espejo en tiempo real (Dual-Write) hacia Google Sheets
-function mirrorEventToGoogleSheet(action, payload) {
-  if (!GOOGLE_SHEET_API_URL) return;
+function mirrorEventToGoogleSheet(action, payload, onDone) {
+  if (!GOOGLE_SHEET_API_URL) {
+    if (typeof onDone === 'function') onDone(false);
+    return;
+  }
   try {
     fetch(GOOGLE_SHEET_API_URL, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify({ action, ...payload })
-    }).catch(err => console.log("Google Sheets mirror background:", err));
-  } catch (e) {}
+    }).then(res => {
+      if (typeof onDone === 'function') onDone(true);
+    }).catch(err => {
+      console.log("Google Sheets mirror background:", err);
+      if (typeof onDone === 'function') onDone(false);
+    });
+  } catch (e) {
+    if (typeof onDone === 'function') onDone(false);
+  }
 }
 
 const FALLBACK_BANK_QROO = [];
@@ -2137,15 +2147,21 @@ function toggleMeliCrmStatus(id) {
   renderActionTable();
   renderKanban();
 
+  notify(`⏳ Guardando en Google Sheet: <strong>${deal.name}</strong>...`);
+
   // Espejo en tiempo real hacia Google Sheets (Columna Estatus)
   mirrorEventToGoogleSheet("update_deal", {
     dealId: deal.id,
     updates: {
       status: deal.status
     }
+  }, (success) => {
+    if (success) {
+      notify(`✓ Google Sheet actualizado: <strong>${deal.name}</strong> quedó como <code>${deal.status}</code>.`);
+    } else {
+      notify(`ℹ️ Guardado en el tablero. (Sheet se sincronizará en la próxima recarga).`);
+    }
   });
-
-  notify(`${deal.uploadedToMeliCrm ? '✓' : '⏳'} <strong>${deal.name}</strong> marcado como ${deal.uploadedToMeliCrm ? 'subido al CRM de Mercado Pago (espejado en Google Sheet)' : 'pendiente de subir (espejado en Google Sheet)'}.`);
 }
 
 function filterActionTableCrm(mode) {
@@ -2164,6 +2180,9 @@ function markAllActiveAsUploadedToCrm() {
   }
   if (!confirm(`¿Deseas marcar los ${pending.length} comercios como '✓ Subidos al CRM de Mercado Pago'?`)) return;
   
+  notify(`⏳ Actualizando ${pending.length} comercios en Google Sheet...`);
+  
+  let done = 0;
   pending.forEach(d => {
     d.uploadedToMeliCrm = true;
     d.uploadedAt = new Date().toISOString();
@@ -2173,12 +2192,16 @@ function markAllActiveAsUploadedToCrm() {
       updates: {
         status: d.status
       }
+    }, () => {
+      done++;
+      if (done === pending.length) {
+        notify(`✓ ¡Listo! Los ${pending.length} comercios se sellaron como 'EN_CARTERA | CRM MP OK' en Google Sheet.`);
+      }
     });
   });
   persist();
   renderActionTable();
   renderKanban();
-  notify(`✓ ${pending.length} comercios marcados como sincronizados en Tablero y Google Sheet.`);
 }
 
 function copyPendingBatchToClipboard() {
