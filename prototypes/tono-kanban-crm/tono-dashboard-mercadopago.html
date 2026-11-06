@@ -1212,9 +1212,10 @@
   <form class="modal" onsubmit="createDeal(event)">
     <h2>Agregar Comercio • Mercado Pago</h2>
     <div class="modal-sub">Regístralo en tu banco de prospección. Entrará en la columna de Prospectos.</div>
-    <div class="field">
-      <label>Nombre del Comercio *</label>
-      <input id="newName" required placeholder="Ej. Restaurante Mariscos El Faro" autocomplete="off"/>
+    <div class="field" style="position:relative;">
+      <label>Nombre del Comercio * <span style="font-size:10px;color:#009ee3;font-weight:normal;">(Búsqueda inteligente / Autocompletado)</span></label>
+      <input id="newName" required placeholder="Ej. Restaurante Mariscos El Faro" autocomplete="off" oninput="onNewNameInput(this.value)"/>
+      <div id="autocomplete-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#ffffff;border:1px solid #cbd5e1;border-radius:6px;box-shadow:0 10px 20px -3px rgba(0,0,0,0.15);max-height:220px;overflow-y:auto;z-index:9999;margin-top:2px;"></div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
       <div class="field">
@@ -1249,7 +1250,8 @@
       </div>
       <div class="field">
         <label>Teléfono / WhatsApp</label>
-        <input id="newPhone" placeholder="998 123 4567"/>
+        <input id="newPhone" placeholder="998 123 4567" oninput="onNewPhoneInput(this.value)"/>
+        <div id="phone-dup-warning" style="display:none;margin-top:4px;font-size:11px;padding:6px 10px;border-radius:5px;line-height:1.4;"></div>
       </div>
     </div>
     <div class="field">
@@ -2594,7 +2596,14 @@ function renderKanban() {
 
       card.innerHTML = `
         <div class="deal-name" style="font-weight:700;color:#0f172a;font-size:13px;line-height:1.3;">${escapeHtml(d.name)}</div>
-        <div class="deal-sub" style="font-size:11px;color:#64748b;margin-top:2px;">${escapeHtml(d.industry)} · ${escapeHtml(d.city)}</div>
+        <div class="deal-sub" style="font-size:11px;color:#64748b;margin-top:2px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;">
+          <span>${escapeHtml(d.industry)} · ${escapeHtml(d.city)}</span>
+          ${(() => {
+            const p = normalizePhone(d.phone);
+            const hasSister = p && deals.some(other => other.id !== d.id && normalizePhone(other.phone) === p);
+            return (hasSister || d.multiBranch) ? '<span style="background:#e0e7ff;color:#4338ca;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;" title="Comparte teléfono o razón con otro comercio en tu cartera">🏢 Multi-Sucursal</span>' : '';
+          })()}
+        </div>
         <div class="deal-source" style="font-size:10px;color:#64748b;margin-top:2px;">👤 ${escapeHtml(d.contact || "Encargado")} ${d.phone ? "· 📞 " + escapeHtml(d.phone) : ""}</div>
         
         ${recentNote ? `
@@ -2912,7 +2921,14 @@ function pullToActive(id) {
   persist();
   mirrorEventToGoogleSheet("pull_batch", { dealIds: [id] });
   render();
-  notify(`✓ <strong>${item.name}</strong> jalado a tu cartera activa de hoy.`);
+
+  const cleanP = normalizePhone(item.phone);
+  const sister = cleanP ? deals.find(d => d.id !== item.id && normalizePhone(d.phone) === cleanP) : null;
+  if (sister) {
+    notify(`🏢 <strong>¡Oportunidad Multi-Sucursal!</strong> ${item.name} comparte teléfono con <strong>${sister.name}</strong>. ¡Aprovecha para cotizar paquete multi-caja!`);
+  } else {
+    notify(`✓ <strong>${item.name}</strong> jalado a tu cartera activa de hoy.`);
+  }
 }
 
 function pullBatch(count) {
@@ -3330,6 +3346,199 @@ function overlayClose(e, id) {
   if (e.target.id === id) closeModal(id);
 }
 
+
+// =========================================================================
+// MOTOR MULTI-VECTOR DE DEDUPLICACIÓN Y AUTOCOMPLETADO INTELIGENTE
+// Algoritmos: Normalización E.164, Distancia Levenshtein & Contención de Tokens
+// =========================================================================
+
+function normalizePhone(p) {
+  if (!p) return "";
+  const digits = String(p).replace(/\D/g, "");
+  return digits.length >= 10 ? digits.slice(-10) : "";
+}
+
+function normalizeBusinessName(name) {
+  if (!name) return "";
+  let s = name.toLowerCase().trim();
+  s = s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  s = s.replace(/\bdra?\.?\b/gi, "doctora").replace(/\bdr\.?\b/gi, "doctor").replace(/\bav\.?\b/gi, "avenida");
+  s = s.replace(/\b(s\.?a\.? de c\.?v\.?|s\.?a\.?p\.?i\.?|s\.? de r\.?l\.?|s\.?c\.?|i\.?a\.?p\.?)\b/gi, "");
+  s = s.replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+  return s;
+}
+
+function levenshteinDistance(a, b) {
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+  const matrix = [];
+  for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+  for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+      }
+    }
+  }
+  return matrix[b.length][a.length];
+}
+
+function stringSimilarity(s1, s2) {
+  const norm1 = normalizeBusinessName(s1);
+  const norm2 = normalizeBusinessName(s2);
+  if (!norm1 || !norm2) return 0;
+  if (norm1 === norm2) return 1;
+  const maxLen = Math.max(norm1.length, norm2.length);
+  if (maxLen === 0) return 1;
+  return 1 - (levenshteinDistance(norm1, norm2) / maxLen);
+}
+
+function tokenOverlapScore(s1, s2) {
+  const norm1 = normalizeBusinessName(s1);
+  const norm2 = normalizeBusinessName(s2);
+  const t1 = new Set(norm1.split(/\s+/).filter(w => w.length > 2));
+  const t2 = new Set(norm2.split(/\s+/).filter(w => w.length > 2));
+  if (t1.size === 0 || t2.size === 0) return { containment: 0, jaccard: 0, matchCount: 0 };
+  
+  let matchCount = 0;
+  t1.forEach(token => {
+    if (t2.has(token)) matchCount++;
+  });
+  
+  const containment = matchCount / Math.min(t1.size, t2.size);
+  const unionSize = new Set([...t1, ...t2]).size;
+  const jaccard = matchCount / unionSize;
+  return { containment, jaccard, matchCount };
+}
+
+// Autocompletado reactivo tipo Google sobre la base pre-cargada
+function onNewNameInput(val) {
+  const dropdown = document.getElementById("autocomplete-dropdown");
+  if (!dropdown) return;
+  const q = (val || "").trim();
+  if (q.length < 2) {
+    dropdown.style.display = "none";
+    dropdown.innerHTML = "";
+    return;
+  }
+
+  const normQ = normalizeBusinessName(q);
+  const allLeads = getAllBankLeads();
+  const matches = [];
+
+  for (let i = 0; i < allLeads.length; i++) {
+    const l = allLeads[i];
+    const normName = normalizeBusinessName(l.name);
+    let score = 0;
+    if (normName.startsWith(normQ)) score = 1.0;
+    else if (normName.includes(normQ)) score = 0.85;
+    else {
+      const overlap = tokenOverlapScore(q, l.name);
+      if (overlap.containment >= 0.75) score = 0.8;
+      else if (stringSimilarity(q, l.name) > 0.7) score = 0.75;
+    }
+
+    if (score > 0.7) {
+      matches.push({ lead: l, score });
+      if (matches.length >= 8) break;
+    }
+  }
+
+  if (matches.length === 0) {
+    dropdown.style.display = "none";
+    dropdown.innerHTML = "";
+    return;
+  }
+
+  matches.sort((a, b) => b.score - a.score);
+
+  dropdown.innerHTML = matches.map(m => {
+    const l = m.lead;
+    const inActive = deals.some(d => d.id === l.id);
+    return `
+      <div onclick="selectAutocompleteLead('${l.id}')" style="padding:8px 12px;border-bottom:1px solid #f1f5f9;cursor:pointer;display:flex;justify-content:space-between;align-items:center;background:#fff;transition:background 0.15s;" onmouseover="this.style.background='#f0f9ff'" onmouseout="this.style.background='#fff'">
+        <div>
+          <div style="font-weight:700;color:#0f172a;font-size:12px;">${escapeHtml(l.name)} ${inActive ? '<span style="color:#00a650;font-size:10px;">(Ya en cartera)</span>' : ''}</div>
+          <div style="font-size:10px;color:#64748b;margin-top:2px;">${escapeHtml(l.city || "")} · ${escapeHtml(l.industry || "")} ${l.phone ? '· 📞 ' + escapeHtml(l.phone) : ''}</div>
+        </div>
+        <span style="font-size:10px;color:#0284c7;background:#e0f2fe;padding:2px 8px;border-radius:10px;font-weight:600;">${inActive ? 'Ver' : 'Autollenar'} ➔</span>
+      </div>
+    `;
+  }).join("");
+
+  dropdown.style.display = "block";
+}
+
+function selectAutocompleteLead(id) {
+  const l = getAllBankLeads().find(m => m.id === id);
+  const dropdown = document.getElementById("autocomplete-dropdown");
+  if (dropdown) dropdown.style.display = "none";
+  if (!l) return;
+
+  document.getElementById("newName").value = l.name || "";
+  if (l.industry) document.getElementById("newIndustry").value = l.industry;
+  if (l.city) document.getElementById("newCity").value = l.city;
+  if (l.contact) document.getElementById("newContact").value = l.contact;
+  if (l.phone) {
+    document.getElementById("newPhone").value = l.phone;
+    onNewPhoneInput(l.phone);
+  }
+
+  if (deals.some(d => d.id === l.id)) {
+    notify(`ℹ️ <strong>${l.name}</strong> ya está abierto en tu Cartera Activa de hoy.`);
+  }
+}
+
+// Detección reactiva de colisión de teléfono / sucursal
+function onNewPhoneInput(val) {
+  const warn = document.getElementById("phone-dup-warning");
+  if (!warn) return;
+  const p = normalizePhone(val);
+
+  if (p.length < 10) {
+    warn.style.display = "none";
+    warn.innerHTML = "";
+    return;
+  }
+
+  const activeMatch = deals.find(d => normalizePhone(d.phone) === p);
+  const bankMatch = getAllBankLeads().find(l => normalizePhone(l.phone) === p);
+
+  if (activeMatch) {
+    const isSameName = stringSimilarity(document.getElementById("newName").value, activeMatch.name) > 0.75;
+    if (isSameName) {
+      warn.style.display = "block";
+      warn.style.background = "#fee2e2";
+      warn.style.color = "#991b1b";
+      warn.style.border = "1px solid #fecaca";
+      warn.innerHTML = `⚠️ <strong>Comercio Duplicado:</strong> Este teléfono ya está en tu Cartera Activa con <strong>${escapeHtml(activeMatch.name)}</strong>.`;
+    } else {
+      warn.style.display = "block";
+      warn.style.background = "#eff6ff";
+      warn.style.color = "#1e40af";
+      warn.style.border = "1px solid #bfdbfe";
+      warn.innerHTML = `🏢 <strong>Posible Sucursal / Cadena:</strong> Comparte teléfono con <strong>${escapeHtml(activeMatch.name)}</strong> (ya en cartera). Se vinculará como paquete Multi-POS.`;
+    }
+  } else if (bankMatch) {
+    warn.style.display = "block";
+    warn.style.background = "#fef3c7";
+    warn.style.color = "#92400e";
+    warn.style.border = "1px solid #fde68a";
+    warn.innerHTML = `ℹ️ <strong>Teléfono en Banco Maestro:</strong> Pertenece a <strong>${escapeHtml(bankMatch.name)}</strong> (${escapeHtml(bankMatch.city)}). Puedes jalarlo directamente.`;
+  } else {
+    warn.style.display = "none";
+    warn.innerHTML = "";
+  }
+}
+
 function createDeal(e) {
   e.preventDefault();
   const name = document.getElementById("newName").value.trim();
@@ -3341,10 +3550,29 @@ function createDeal(e) {
   const phone = document.getElementById("newPhone").value.trim();
   const source = document.getElementById("newSource").value;
 
+  const cleanPhone = normalizePhone(phone);
+  
+  // Guardián contra duplicado exacto en cartera activa
+  const exactActive = deals.find(d => {
+    const sameP = cleanPhone && normalizePhone(d.phone) === cleanPhone;
+    const sameN = stringSimilarity(d.name, name) > 0.85;
+    return sameP && sameN;
+  });
+
+  if (exactActive) {
+    if (!confirm(`⚠️ '${name}' ya está en tu Cartera Activa (ID: ${exactActive.id}). ¿Deseas crearlo de todas formas como registro duplicado?`)) {
+      return;
+    }
+  }
+
+  // Detección de Sucursal / Cadena
+  const sisterDeal = cleanPhone ? deals.find(d => normalizePhone(d.phone) === cleanPhone) : null;
+  const isMultiSucursal = !!sisterDeal;
+
   const newId = "d_" + Date.now();
   const newDeal = {
     id: newId,
-    name,
+    name: isMultiSucursal ? `${name} [Sucursal]` : name,
     industry,
     city,
     contact: contact || "Director General / Encargado",
@@ -3352,10 +3580,16 @@ function createDeal(e) {
     email: "",
     website: "",
     address: city + ", Quintana Roo",
-    hook: "Buen día " + (contact || "Director") + " de " + name + ", te contacto de Mercado Pago en " + city + " para ofrecerte terminales Point Smart 4G con comisiones preferenciales y liquidación inmediata.",
-    pain: "Necesita comisiones competitivas y liquidación en fines de semana.",
+    hook: isMultiSucursal 
+      ? `Buen día ${contact || "Director"}, veo que gestionan ${sisterDeal ? sisterDeal.name : "múltiples sucursales"}. En Mercado Pago les ofrecemos un paquete multi-caja con comisiones preferenciales para todas sus terminales.`
+      : "Buen día " + (contact || "Director") + " de " + name + ", te contacto de Mercado Pago en " + city + " para ofrecerte terminales Point Smart 4G con comisiones preferenciales y liquidación inmediata.",
+    pain: isMultiSucursal 
+      ? "Gestiona múltiples cajas o sucursales; requiere panel único de conciliación y liquidación en fin de semana."
+      : "Necesita comisiones competitivas y liquidación en fines de semana.",
     source: source || "Cambaceo / Prospección en calle",
     stage: "calificacion",
+    multiBranch: isMultiSucursal,
+    sisterId: sisterDeal ? sisterDeal.id : null,
     createdAt: new Date().toISOString(),
     days: 0,
     logs: [],
