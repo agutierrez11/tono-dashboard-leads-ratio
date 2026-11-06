@@ -1532,6 +1532,12 @@ async function syncWithGoogleSheets(showNotification = false) {
             }
             if (fresh.status) {
               deal.status = fresh.status;
+              if (String(fresh.status).includes("CRM MP OK") || String(fresh.status).includes("SUBIDO")) {
+                deal.uploadedToMeliCrm = true;
+              } else if (fresh.status === "EN_CARTERA") {
+                // Si en el Sheet dice EN_CARTERA sin la coletilla CRM MP OK, se mantiene como pendiente
+                // a menos que ya se hubiera marcado localmente en la misma sesión
+              }
             }
           }
         });
@@ -1549,7 +1555,8 @@ async function syncWithGoogleSheets(showNotification = false) {
       if (Array.isArray(deals)) {
         let addedFromSheet = 0;
         data.leads.forEach(l => {
-          if ((l.status === "EN_CARTERA" || l.status === "EN_PROCESO") && !deals.some(d => d.id === l.id)) {
+          const rawStatus = String(l.status || "").toUpperCase();
+          if ((rawStatus.startsWith("EN_CARTERA") || rawStatus === "EN_PROCESO") && !deals.some(d => d.id === l.id)) {
             const initialLogs = l.lastNote ? [{
               id: "log_" + l.id + "_sheet",
               channel: l.lastNote.toLowerCase().includes("instagram") ? "instagram" : "llamada",
@@ -1575,6 +1582,7 @@ async function syncWithGoogleSheets(showNotification = false) {
               pain: l.pain || "",
               stage: mapRawStageToInternal(l.stage) || "calificacion",
               status: l.status || "EN_CARTERA",
+              uploadedToMeliCrm: rawStatus.includes("CRM MP OK") || rawStatus.includes("SUBIDO"),
               lastNote: l.lastNote || "",
               touches: Number(l.touches) || initialLogs.length,
               history: [],
@@ -2124,10 +2132,20 @@ function toggleMeliCrmStatus(id) {
   if (!deal) return;
   deal.uploadedToMeliCrm = !deal.uploadedToMeliCrm;
   deal.uploadedAt = deal.uploadedToMeliCrm ? new Date().toISOString() : null;
+  deal.status = deal.uploadedToMeliCrm ? "EN_CARTERA | CRM MP OK" : "EN_CARTERA";
   persist();
   renderActionTable();
   renderKanban();
-  notify(`${deal.uploadedToMeliCrm ? '✓' : '⏳'} <strong>${deal.name}</strong> marcado como ${deal.uploadedToMeliCrm ? 'subido al CRM de Mercado Pago' : 'pendiente de subir'}.`);
+
+  // Espejo en tiempo real hacia Google Sheets (Columna Estatus)
+  mirrorEventToGoogleSheet("update_deal", {
+    dealId: deal.id,
+    updates: {
+      status: deal.status
+    }
+  });
+
+  notify(`${deal.uploadedToMeliCrm ? '✓' : '⏳'} <strong>${deal.name}</strong> marcado como ${deal.uploadedToMeliCrm ? 'subido al CRM de Mercado Pago (espejado en Google Sheet)' : 'pendiente de subir (espejado en Google Sheet)'}.`);
 }
 
 function filterActionTableCrm(mode) {
@@ -2149,11 +2167,18 @@ function markAllActiveAsUploadedToCrm() {
   pending.forEach(d => {
     d.uploadedToMeliCrm = true;
     d.uploadedAt = new Date().toISOString();
+    d.status = "EN_CARTERA | CRM MP OK";
+    mirrorEventToGoogleSheet("update_deal", {
+      dealId: d.id,
+      updates: {
+        status: d.status
+      }
+    });
   });
   persist();
   renderActionTable();
   renderKanban();
-  notify(`✓ ${pending.length} comercios marcados como sincronizados con el CRM corporativo.`);
+  notify(`✓ ${pending.length} comercios marcados como sincronizados en Tablero y Google Sheet.`);
 }
 
 function copyPendingBatchToClipboard() {
@@ -2190,10 +2215,18 @@ function copyPendingBatchToClipboard() {
       targets.forEach(d => {
         d.uploadedToMeliCrm = true;
         d.uploadedAt = new Date().toISOString();
+        d.status = "EN_CARTERA | CRM MP OK";
+        mirrorEventToGoogleSheet("update_deal", {
+          dealId: d.id,
+          updates: {
+            status: d.status
+          }
+        });
       });
       persist();
       renderActionTable();
       renderKanban();
+      notify(`✓ ${targets.length} comercios marcados como subidos al CRM MP en Tablero y Google Sheet.`);
     }
   };
 
