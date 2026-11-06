@@ -3331,7 +3331,11 @@ function pullToActive(id) {
   });
 
   persist();
-  mirrorEventToGoogleSheet("pull_batch", { dealIds: [id] });
+  mirrorEventToGoogleSheet("pull_batch", { dealIds: [id] }, (ok) => {
+    if (ok) {
+      notify(`✅ <strong>${item.name}</strong> pintado de verde en Google Sheet.`);
+    }
+  });
   render();
 
   if (existingSister) {
@@ -3382,10 +3386,16 @@ function pullBatch(count) {
   });
 
   persist();
-  mirrorEventToGoogleSheet("pull_batch", { dealIds: batch.map(b => b.id) });
+  notify(`🔄 Sincronizando y pintando <strong>${batch.length} comercios</strong> en Google Sheets...`);
+  mirrorEventToGoogleSheet("pull_batch", { dealIds: batch.map(b => b.id) }, (ok) => {
+    if (ok) {
+      notify(`✅ <strong>${batch.length} comercios</strong> pintados de verde en Google Sheet.`);
+    } else {
+      notify(`⚠️ No se pudo confirmar el pintado en Google Sheet.`, "error");
+    }
+  });
   switchTab("resumen");
   render();
-  notify(`🚀 Se jalaron <strong>${batch.length} comercios únicos</strong> (sin teléfonos duplicados) a tu Mesa.`);
 }
 
 function pullDiversifiedBatch(count = 8) {
@@ -3452,10 +3462,16 @@ function pullDiversifiedBatch(count = 8) {
   });
 
   persist();
-  mirrorEventToGoogleSheet("pull_batch", { dealIds: batch.map(b => b.id) });
+  notify(`🔄 Sincronizando y pintando <strong>${batch.length} comercios</strong> en Google Sheets...`);
+  mirrorEventToGoogleSheet("pull_batch", { dealIds: batch.map(b => b.id) }, (ok) => {
+    if (ok) {
+      notify(`✅ <strong>Lote de ${batch.length} comercios</strong> pintado de verde en Google Sheet.`);
+    } else {
+      notify(`⚠️ No se pudo confirmar el pintado en Google Sheet.`, "error");
+    }
+  });
   switchTab("resumen");
   render();
-  notify(`🚀 Se jaló un <strong>Lote Variado de ${batch.length} comercios</strong> (mezclando Cancún, Playa y giros distintos).`);
 }
 
 async function pullMarkedFromSheet() {
@@ -3507,7 +3523,12 @@ function pullSelected() {
   selectedBancoIds.clear();
   persist();
   if (addedIds.length > 0) {
-    mirrorEventToGoogleSheet("pull_batch", { dealIds: addedIds });
+    notify(`🔄 Sincronizando y pintando <strong>${addedIds.length} comercios</strong> en Google Sheets...`);
+    mirrorEventToGoogleSheet("pull_batch", { dealIds: addedIds }, (ok) => {
+      if (ok) {
+        notify(`✅ <strong>${addedIds.length} comercios</strong> pintados de verde en Google Sheet.`);
+      }
+    });
   }
   render();
   notify(`✓ Se jalaron <strong>${addedCount} comercios</strong> seleccionados a tu cartera activa.`);
