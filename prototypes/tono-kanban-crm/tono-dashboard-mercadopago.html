@@ -2494,6 +2494,30 @@ function openDrawer(id) {
   const timeline = document.getElementById("drawerTimeline");
   timeline.innerHTML = "";
 
+  // Banner explicativo si comparte teléfono con otras sucursales o comercios
+  const cleanPhoneNum = normalizePhone(deal.phone);
+  const sisterLeads = cleanPhoneNum ? getAllBankLeads().filter(other => other.id !== deal.id && normalizePhone(other.phone) === cleanPhoneNum) : [];
+  if (sisterLeads.length > 0) {
+    const sisterBox = document.createElement("div");
+    sisterBox.style.cssText = "background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:10px 12px;margin-bottom:12px;";
+    sisterBox.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+        <span style="font-weight:700;color:#1e40af;font-size:11px;">🏢 OPORTUNIDAD MULTI-SUCURSAL (Mismo Teléfono: ${escapeHtml(deal.phone)})</span>
+        <span style="font-size:9px;background:#dbeafe;color:#1e40af;padding:2px 6px;border-radius:4px;font-weight:700;">${sisterLeads.length} sucursal(es) vinculada(s)</span>
+      </div>
+      <div style="font-size:11px;color:#334155;line-height:1.4;">
+        Este mismo número administra también:
+        <ul style="margin:4px 0 0 14px;padding:0;color:#0f172a;">
+          ${sisterLeads.map(s => `<li><strong>${escapeHtml(s.name)}</strong> (${escapeHtml(s.city)}) - ${escapeHtml(s.address || "Misma zona")}</li>`).join("")}
+        </ul>
+      </div>
+      <div style="margin-top:6px;font-size:10px;color:#2563eb;font-weight:600;">
+        💡 Tip de Venta: Ofrece un paquete comisionario unificado para todas sus terminales Point Smart 4G.
+      </div>
+    `;
+    timeline.appendChild(sisterBox);
+  }
+
   // Si tiene una nota proveniente del Sheet (lastNote) y no está en los logs, mostrarla al inicio
   if (deal.lastNote && !logs.some(l => (l.comment || l.notes) === deal.lastNote)) {
     const sheetNoteItem = document.createElement("div");
@@ -2723,6 +2747,19 @@ function renderKanban() {
           })()}
         </div>
         <div class="deal-source" style="font-size:10px;color:#64748b;margin-top:2px;">👤 ${escapeHtml(d.contact || "Encargado")} ${d.phone ? "· 📞 " + escapeHtml(d.phone) : ""}</div>
+        ${(() => {
+          const p = normalizePhone(d.phone);
+          const sister = p ? deals.find(other => other.id !== d.id && normalizePhone(other.phone) === p) : null;
+          if (sister) {
+            return `
+              <div style="margin-top:6px;font-size:10px;color:#1e40af;background:#eff6ff;border:1px solid #bfdbfe;padding:4px 7px;border-radius:4px;display:flex;align-items:center;justify-content:space-between;gap:4px;">
+                <span>🏢 <strong>Mismo contacto que:</strong> ${escapeHtml(sister.name.length > 22 ? sister.name.slice(0, 22) + '...' : sister.name)}</span>
+                <span style="font-size:9px;font-weight:700;color:#1e40af;background:#dbeafe;padding:1px 5px;border-radius:3px;white-space:nowrap;">Mismo Dueño</span>
+              </div>
+            `;
+          }
+          return "";
+        })()}
         
         ${recentNote ? `
           <div style="margin-top:7px;font-size:11px;color:#1e293b;background:#f8fafc;border-left:3px solid #009ee3;padding:5px 8px;border-radius:0 4px 4px 0;line-height:1.3;box-shadow:inset 0 0 0 1px #e2e8f0;">
