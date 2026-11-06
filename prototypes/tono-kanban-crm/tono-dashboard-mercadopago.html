@@ -1009,9 +1009,17 @@
         <div class="card-head" style="padding-bottom:12px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
           <div>
             <div class="card-title" id="active-table-title">Tus Comercios en Curso • Cartera Activa de Hoy (0)</div>
-            <div class="card-sub">Tu mesa de trabajo táctica. Solo los 8-10 negocios que estás prospectando hoy (sin ensuciar tus ratios).</div>
+            <div class="card-sub">Tu mesa de trabajo táctica. Los comercios en prospección activa con su historial y acciones rápidas.</div>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <!-- Buscador para Mesa de Trabajo -->
+            <div style="position:relative;min-width:220px;">
+              <input type="text" id="action-table-search" placeholder="🔍 Filtrar cartera activa..." 
+                style="padding:5px 26px 5px 28px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;width:100%;background:#fff;"
+                oninput="onActionTableSearch(this.value)" />
+              <span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:11px;color:#94a3b8;pointer-events:none;">🔍</span>
+              <button id="action-search-clear" onclick="clearActionTableSearch()" style="display:none;position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:#94a3b8;cursor:pointer;font-size:11px;">✕</button>
+            </div>
             <button class="btn-touch" onclick="pullBatch(8)" style="background:var(--mp-blue);color:#fff;border:none;font-weight:700;font-size:11px;" title="Jalar lote de 8 comercios recomendados del acordeón">
               ⚡ Jalar Lote de 8 Hoy
             </button>
@@ -1087,15 +1095,28 @@
     <!-- VISTA 2: TABLERO KANBAN CON CANDADO DE ACTIVIDAD                  -->
     <!-- ================================================================= -->
     <section id="view-kanban" class="panel">
-      <div class="kanban-tools">
-        <div class="lock-legend">
+      <div class="kanban-tools" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+        <div class="lock-legend" style="margin-bottom:0;">
           <span>🔒</span>
-          <span><strong>Candado de Etapa activo:</strong> Para arrastrar una ficha a la siguiente etapa, debes registrar primero un contacto real en su etapa actual.</span>
+          <span><strong>Candado de Etapa:</strong> Requiere registrar al menos 1 toque para avanzar de etapa.</span>
         </div>
-        <div style="display:flex;gap:8px;">
-          <button class="btn-touch" onclick="resetDemo()">Restablecer Ejemplos</button>
-          <button class="btn-touch" style="color:var(--red);border-color:rgba(239,68,68,0.3)" onclick="clearAllData()">🗑️ Borrar Pruebas (Pizarra en Blanco)</button>
-          <button class="add-btn" onclick="openNewModal()" style="padding:6px 10px;font-size:11px;">
+
+        <!-- Barra de Búsqueda Instantánea para Tablero Kanban -->
+        <div style="display:flex;align-items:center;gap:8px;flex:1;max-width:380px;min-width:260px;position:relative;">
+          <input type="text" id="kanban-search-input" placeholder="🔍 Buscar comercio en Kanban (nombre, tel, giro, nota)..." 
+            style="width:100%;padding:7px 32px 7px 32px;font-size:12px;border:1px solid #cbd5e1;border-radius:6px;background:#ffffff;outline:none;box-shadow:inset 0 1px 2px rgba(0,0,0,0.04);transition:all 0.2s;"
+            onfocus="this.style.borderColor='#009ee3';this.style.boxShadow='0 0 0 3px rgba(0,158,227,0.15)';"
+            onblur="this.style.borderColor='#cbd5e1';this.style.boxShadow='inset 0 1px 2px rgba(0,0,0,0.04)';"
+            oninput="onKanbanFilterInput(this.value)" />
+          <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;color:#94a3b8;pointer-events:none;">🔍</span>
+          <button id="kanban-search-clear" onclick="clearKanbanFilter()" style="display:none;position:absolute;right:8px;top:50%;transform:translateY(-50%);background:#f1f5f9;border:none;color:#64748b;cursor:pointer;font-size:11px;font-weight:700;padding:2px 6px;border-radius:10px;">✕</button>
+          <span id="kanban-search-badge" style="display:none;font-size:11px;font-weight:700;color:#0284c7;background:#e0f2fe;padding:3px 8px;border-radius:12px;white-space:nowrap;"></span>
+        </div>
+
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="btn-touch" onclick="resetDemo()" style="font-size:11px;">Restablecer</button>
+          <button class="btn-touch" style="color:var(--red);border-color:rgba(239,68,68,0.3);font-size:11px;" onclick="clearAllData()">🗑️ Vaciar Cartera</button>
+          <button class="add-btn" onclick="openNewModal()" style="padding:6px 12px;font-size:11px;">
             ＋ Nuevo Comercio
           </button>
         </div>
@@ -2077,7 +2098,14 @@ function renderActionTable() {
   if (!tbody) return;
   tbody.innerHTML = "";
 
-  deals.forEach(deal => {
+  const displayedDeals = deals.filter(d => matchDealSearch(d, actionTableFilterQuery));
+  
+  if (displayedDeals.length === 0 && actionTableFilterQuery) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:32px 10px;color:#94a3b8;font-size:12px;">🔍 No se encontraron comercios en tu cartera activa con "<strong>${escapeHtml(actionTableFilterQuery)}</strong>". <button class="btn-touch" onclick="clearActionTableSearch()" style="margin-left:8px;font-size:10px;">Limpiar búsqueda</button></td></tr>`;
+    return;
+  }
+
+  displayedDeals.forEach(deal => {
     const tr = document.createElement("tr");
     const logs = deal.logs || [];
     const hasRealizedVisit = logs.some(l => l.channel === "visita" && (l.outcome === "visita_realizada" || l.outcome === "cierre_ganado"));
@@ -2546,6 +2574,90 @@ const COLS = [
   { key: "perdido", name: "Descarte / Perdido", color: "var(--red)" }
 ];
 
+
+// =========================================================================
+// BARRA DE BÚSQUEDA Y FILTRADO INSTANTÁNEO MULTI-VISTA (KANBAN & MESA)
+// =========================================================================
+let kanbanFilterQuery = "";
+let actionTableFilterQuery = "";
+
+function onKanbanFilterInput(val) {
+  kanbanFilterQuery = (val || "").trim().toLowerCase();
+  const clearBtn = document.getElementById("kanban-search-clear");
+  const badge = document.getElementById("kanban-search-badge");
+  
+  if (clearBtn) clearBtn.style.display = kanbanFilterQuery ? "block" : "none";
+  renderKanban();
+  
+  if (badge) {
+    if (kanbanFilterQuery) {
+      const matched = deals.filter(d => matchDealSearch(d, kanbanFilterQuery)).length;
+      badge.style.display = "inline-block";
+      badge.textContent = `${matched} de ${deals.length}`;
+    } else {
+      badge.style.display = "none";
+    }
+  }
+}
+
+function clearKanbanFilter() {
+  const input = document.getElementById("kanban-search-input");
+  if (input) input.value = "";
+  onKanbanFilterInput("");
+  if (input) input.focus();
+}
+
+function onActionTableSearch(val) {
+  actionTableFilterQuery = (val || "").trim().toLowerCase();
+  const clearBtn = document.getElementById("action-search-clear");
+  if (clearBtn) clearBtn.style.display = actionTableFilterQuery ? "block" : "none";
+  renderActionTable();
+}
+
+function clearActionTableSearch() {
+  const input = document.getElementById("action-table-search");
+  if (input) input.value = "";
+  onActionTableSearch("");
+  if (input) input.focus();
+}
+
+function matchDealSearch(d, q) {
+  if (!q) return true;
+  const name = (d.name || "").toLowerCase();
+  const phone = (d.phone || "").toLowerCase();
+  const contact = (d.contact || "").toLowerCase();
+  const city = (d.city || "").toLowerCase();
+  const industry = (d.industry || "").toLowerCase();
+  const note = (d.lastNote || "").toLowerCase();
+  const email = (d.email || "").toLowerCase();
+  return name.includes(q) || phone.includes(q) || contact.includes(q) || city.includes(q) || industry.includes(q) || note.includes(q) || email.includes(q);
+}
+
+// Atajo de teclado global: Presionar '/' para buscar en la vista activa
+document.addEventListener("keydown", (e) => {
+  if (e.key === "/" && document.activeElement.tagName !== "INPUT" && document.activeElement.tagName !== "TEXTAREA") {
+    e.preventDefault();
+    const kanbanView = document.getElementById("view-kanban");
+    const bancoView = document.getElementById("view-banco");
+    if (kanbanView && kanbanView.classList.contains("active")) {
+      const ki = document.getElementById("kanban-search-input");
+      if (ki) { ki.focus(); ki.select(); }
+    } else if (bancoView && bancoView.classList.contains("active")) {
+      const bi = document.getElementById("banco-search");
+      if (bi) { bi.focus(); bi.select(); }
+    } else {
+      const ai = document.getElementById("action-table-search");
+      if (ai) { ai.focus(); ai.select(); }
+    }
+  } else if (e.key === "Escape") {
+    if (document.activeElement && document.activeElement.id === "kanban-search-input") {
+      clearKanbanFilter();
+    } else if (document.activeElement && document.activeElement.id === "action-table-search") {
+      clearActionTableSearch();
+    }
+  }
+});
+
 function renderKanban() {
   const board = document.getElementById("kanban-board");
   if (!board) return;
@@ -2556,11 +2668,17 @@ function renderKanban() {
     colDiv.className = "kanban-col";
     colDiv.dataset.stage = col.key;
 
-    const list = deals.filter(d => {
-      if (col.key === "calificacion") {
-        return d.stage === "calificacion" || d.stage === "prospecto" || d.stage === "lead";
-      }
+    const totalInStage = deals.filter(d => {
+      if (col.key === "calificacion") return d.stage === "calificacion" || d.stage === "prospecto" || d.stage === "lead";
       return d.stage === col.key;
+    }).length;
+
+    const list = deals.filter(d => {
+      const inStage = (col.key === "calificacion") 
+        ? (d.stage === "calificacion" || d.stage === "prospecto" || d.stage === "lead")
+        : (d.stage === col.key);
+      if (!inStage) return false;
+      return matchDealSearch(d, kanbanFilterQuery);
     });
 
     colDiv.innerHTML = `
@@ -2568,7 +2686,7 @@ function renderKanban() {
         <span class="col-title">
           <i class="col-dot" style="background:${col.color}"></i> ${col.name}
         </span>
-        <span class="col-count">${list.length}</span>
+        <span class="col-count">${kanbanFilterQuery ? `${list.length}/${totalInStage}` : list.length}</span>
       </div>
       <div class="cards-holder" style="min-height:500px;"></div>
     `;
