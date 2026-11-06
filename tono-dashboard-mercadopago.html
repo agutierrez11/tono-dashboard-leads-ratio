@@ -846,8 +846,8 @@
             <span>Nuevos Prospectos Hoy</span>
             <span class="kpi-icon purplebg">🎯</span>
           </div>
-          <div class="kpi-val" id="kpi-new-prospects">0 <span style="font-size:13px;color:#64748b;font-weight:500;">/ 8</span></div>
-          <div class="kpi-foot">Meta: 8 nuevos al día · 40/sem</div>
+          <div class="kpi-val" id="kpi-new-prospects">0</div>
+          <div class="kpi-foot" id="kpi-new-foot">Cartera activa en trabajo</div>
         </div>
 
         <!-- KPI 4: Cierres Ganados Confirmados -->
@@ -1508,6 +1508,9 @@ async function syncWithGoogleSheets(showNotification = false) {
               stage: mapRawStageToInternal(l.stage) || "calificacion",
               status: l.status || "EN_CARTERA",
               history: [],
+              logs: [],
+              days: 0,
+              createdAt: new Date().toISOString(),
               pulledAt: new Date().toISOString()
             });
             addedFromSheet++;
@@ -1828,9 +1831,20 @@ function renderResumen() {
   // KPI 2: Comercios Únicos Trabajados Hoy
   document.getElementById("kpi-unique-worked").textContent = uniqueWorkedToday.size;
 
-  // KPI 3: Nuevos Prospectos Hoy (Comercios jalados o creados hoy)
-  const newProspectsToday = deals.filter(d => (d.createdAt || "").slice(0, 10) === todayStr || !d.createdAt).length;
-  document.getElementById("kpi-new-prospects").innerHTML = `${newProspectsToday} <span style="font-size:13px;color:#64748b;font-weight:500;">/ 8</span>`;
+  // KPI 3: Total Cartera Activa y Nuevos Prospectos
+  const totalActive = deals.length;
+  const kpiEl = document.getElementById("kpi-new-prospects");
+  const footEl = document.getElementById("kpi-new-foot");
+  if (kpiEl) {
+    if (totalActive >= 8) {
+      kpiEl.innerHTML = `${totalActive} <span style="font-size:12px;color:#00a650;font-weight:700;">(Meta superada ✓)</span>`;
+    } else {
+      kpiEl.innerHTML = `${totalActive} <span style="font-size:13px;color:#64748b;font-weight:500;">/ 8 min</span>`;
+    }
+  }
+  if (footEl) {
+    footEl.textContent = `${totalActive} comercios listos en cartera activa`;
+  }
 
   // KPI 4: Cierres Ganados MP
   const wonCount = deals.filter(d => d.stage === "ganado").length;
@@ -2820,6 +2834,7 @@ function pullToActive(id) {
 }
 
 function pullBatch(count) {
+  try { localStorage.removeItem("user_intentionally_cleared"); } catch (e) {}
   const activeIds = new Set(deals.map(d => d.id));
   const available = getAllBankLeads().filter(m => !activeIds.has(m.id));
 
@@ -2847,6 +2862,7 @@ function pullBatch(count) {
 }
 
 function pullDiversifiedBatch(count = 8) {
+  try { localStorage.removeItem("user_intentionally_cleared"); } catch (e) {}
   const activeIds = new Set(deals.map(d => d.id));
   const available = getAllBankLeads().filter(m => !activeIds.has(m.id));
 
