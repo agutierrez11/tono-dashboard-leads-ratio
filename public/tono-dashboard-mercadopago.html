@@ -407,6 +407,39 @@
   .btn-touch.call:hover { background: rgba(0, 158, 227, 0.08); }
   .btn-touch.visit { color: var(--purple); border-color: rgba(121, 91, 210, 0.3); }
   .btn-touch.visit:hover { background: rgba(121, 91, 210, 0.08); }
+  /* Selector de Período Temporal */
+  .period-toggle-group {
+    display: inline-flex;
+    background: #f1f5f9;
+    padding: 3px;
+    border-radius: 8px;
+    gap: 4px;
+    border: 1px solid #e2e8f0;
+  }
+  .btn-period {
+    background: transparent;
+    border: none;
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .btn-period:hover {
+    color: #0f172a;
+    background: rgba(255, 255, 255, 0.7);
+  }
+  .btn-period.active {
+    background: #ffffff;
+    color: var(--mp-blue);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    font-weight: 700;
+  }
   .stage-select {
     border: 1px solid #dfe5ef;
     border-radius: 6px;
@@ -818,12 +851,33 @@
     <!-- VISTA 1: RESUMEN EJECUTIVO Y OPERATIVO                            -->
     <!-- ================================================================= -->
     <section id="view-resumen" class="panel active">
+      <!-- Selector de Período Temporal (Hoy / Semana / Mes) -->
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:14px;padding:10px 16px;background:#ffffff;border:1px solid var(--line);border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Horizonte Temporal:</span>
+          <div class="period-toggle-group">
+            <button id="btn-period-day" class="btn-period active" onclick="setMetricsPeriod('day')" title="Ver esfuerzo comercial de hoy">
+              📅 Hoy
+            </button>
+            <button id="btn-period-week" class="btn-period" onclick="setMetricsPeriod('week')" title="Ver esfuerzo acumulado en la semana de lunes a viernes">
+              📆 Esta Semana (Lun-Vie)
+            </button>
+            <button id="btn-period-month" class="btn-period" onclick="setMetricsPeriod('month')" title="Ver esfuerzo acumulado en el mes de Noviembre">
+              📊 Este Mes (Noviembre)
+            </button>
+          </div>
+        </div>
+        <div id="period-context-badge" style="font-size:11px;font-weight:600;color:#0284c7;background:#e0f2fe;padding:4px 12px;border-radius:6px;border:1px solid #bae6fd;">
+          🎯 Meta diaria: <strong>15 toques</strong>
+        </div>
+      </div>
+
       <!-- 4 KPIs -->
       <div class="grid4">
         <!-- KPI 1: Toques / Esfuerzo de Hoy -->
         <div class="card kpi">
           <div class="kpi-top">
-            <span>Toques Registrados Hoy</span>
+            <span id="kpi-touches-title">Toques Registrados Hoy</span>
             <span class="kpi-icon bluebg">⚡</span>
           </div>
           <div class="kpi-val" id="kpi-touches">0 <span style="font-size:13px;color:#64748b;font-weight:500;">/ 15</span></div>
@@ -833,11 +887,11 @@
         <!-- KPI 2: Comercios Únicos Trabajados -->
         <div class="card kpi">
           <div class="kpi-top">
-            <span>Comercios Únicos Trabajados</span>
+            <span id="kpi-unique-title">Comercios Únicos Trabajados</span>
             <span class="kpi-icon tealbg">👥</span>
           </div>
           <div class="kpi-val" id="kpi-unique-worked">0</div>
-          <div class="kpi-foot">Deduplicados por ID en el periodo</div>
+          <div class="kpi-foot" id="kpi-unique-foot">Deduplicados por ID en el periodo</div>
         </div>
 
         <!-- KPI 3: Ritmo de Prospección (8/día) -->
@@ -867,8 +921,8 @@
         <div class="card">
           <div class="card-head">
             <div>
-              <div class="card-title">Meta de Actividad Diaria</div>
-              <div class="card-sub">Toques comerciales registrados hoy contra tu ritmo de <span id="lbl-goal-sub">15</span></div>
+              <div class="card-title" id="gauge-card-title">Meta de Actividad Diaria</div>
+              <div class="card-sub" id="gauge-card-sub">Toques comerciales registrados hoy contra tu ritmo de <span id="lbl-goal-sub">15</span></div>
             </div>
             <span class="pill" id="gauge-pill">Arranque</span>
           </div>
@@ -884,11 +938,11 @@
 
               <!-- Marca sutil 8 toques (Ritmo Base) -->
               <line x1="109" y1="12" x2="108" y2="28" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round"/>
-              <text x="110" y="8" text-anchor="middle" font-size="8" fill="#64748b" font-weight="700">8 (Base)</text>
+              <text id="gauge-tick-1-label" x="110" y="8" text-anchor="middle" font-size="8" fill="#64748b" font-weight="700">8 (Base)</text>
 
               <!-- Marca sutil 12 toques (Ritmo Alto) -->
               <line x1="168" y1="46" x2="157" y2="58" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round"/>
-              <text x="176" y="42" text-anchor="middle" font-size="8" fill="#64748b" font-weight="700">12 (Alto)</text>
+              <text id="gauge-tick-2-label" x="176" y="42" text-anchor="middle" font-size="8" fill="#64748b" font-weight="700">12 (Alto)</text>
 
               <!-- Número central -->
               <text x="100" y="82" text-anchor="middle" class="gauge-num" id="gauge-val" style="font-size:36px;font-weight:800;fill:#0f172a;">0</text>
@@ -1867,59 +1921,192 @@ function render() {
 }
 
 // -------------------------------------------------------------
-// MOTOR DE MÉTRICAS COMERCIALES Y TACÓMETRO DINÁMICO
+// MOTOR DE MÉTRICAS COMERCIALES Y TACÓMETRO DINÁMICO (MULTI-HORIZONTE: HOY / SEMANA / MES)
 // -------------------------------------------------------------
-// Helper robusto para comparar fechas en la zona horaria local del navegador (evita el bug de UTC después de las 7pm)
-function isDateToday(val) {
-  if (!val) return true; // Si no tiene fecha pero está en logs o es reciente, atribuir a hoy
-  try {
-    const now = new Date();
-    const todayYMD = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
-    
-    if (typeof val === "string") {
-      if (val.includes("T") || val.includes("Z") || val.includes("GMT") || val.includes(" ")) {
-        const d = new Date(val);
-        if (!isNaN(d.getTime())) {
-          const itemYMD = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-          if (itemYMD === todayYMD) return true;
-        }
-      }
-      const m = val.match(/^(\d{4})-(\d{2})-(\d{2})/);
-      if (m && m[0] === todayYMD) return true;
-      const utcTodayYMD = now.toISOString().slice(0, 10);
-      if (m && m[0] === utcTodayYMD) return true;
-    } else if (val instanceof Date) {
-      const itemYMD = val.getFullYear() + "-" + String(val.getMonth() + 1).padStart(2, "0") + "-" + String(val.getDate()).padStart(2, "0");
-      if (itemYMD === todayYMD) return true;
-    }
-    return false;
-  } catch (e) {
-    return true;
+let currentMetricsPeriod = "day";
+try {
+  const savedPeriod = localStorage.getItem("tono_metrics_period");
+  if (savedPeriod && ["day", "week", "month"].includes(savedPeriod)) {
+    currentMetricsPeriod = savedPeriod;
   }
+} catch (e) {}
+
+// Helper para calcular días hábiles (Lunes a Viernes) en el mes
+function getWorkingDaysInMonth(year, month) {
+  const totalDays = new Date(year, month + 1, 0).getDate();
+  let count = 0;
+  for (let day = 1; day <= totalDays; day++) {
+    const dayOfWeek = new Date(year, month, day).getDay();
+    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+      count++;
+    }
+  }
+  return count > 0 ? count : 21;
+}
+
+// Helper para obtener inicio y fin de la semana en curso (Lunes a Domingo)
+function getWeekBounds(refDate = new Date()) {
+  const d = new Date(refDate);
+  const day = d.getDay(); // 0: Domingo, 1: Lunes ... 6: Sábado
+  const diffToMon = day === 0 ? -6 : 1 - day;
+  const mon = new Date(d.getFullYear(), d.getMonth(), d.getDate() + diffToMon, 0, 0, 0, 0);
+  const sun = new Date(d.getFullYear(), d.getMonth(), d.getDate() + diffToMon + 6, 23, 59, 59, 999);
+  return { start: mon, end: sun };
+}
+
+function parseDateSafe(val) {
+  if (!val) return null;
+  if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
+  if (typeof val === "string") {
+    const m = val.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) {
+      const d = new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10), 12, 0, 0);
+      return isNaN(d.getTime()) ? null : d;
+    }
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  return null;
+}
+
+// Filtro universal de fechas según el horizonte temporal activo
+function isDateInSelectedPeriod(val, period = currentMetricsPeriod) {
+  if (!val) return true;
+  const d = parseDateSafe(val);
+  if (!d) return true;
+
+  const now = new Date();
+  if (period === "day") {
+    return d.getFullYear() === now.getFullYear() &&
+           d.getMonth() === now.getMonth() &&
+           d.getDate() === now.getDate();
+  } else if (period === "week") {
+    const { start, end } = getWeekBounds(now);
+    return d >= start && d <= end;
+  } else if (period === "month") {
+    return d.getFullYear() === now.getFullYear() &&
+           d.getMonth() === now.getMonth();
+  }
+  return true;
+}
+
+// Compatibilidad retroactiva
+function isDateToday(val) {
+  return isDateInSelectedPeriod(val, "day");
+}
+
+// Selector de horizonte temporal
+function setMetricsPeriod(period) {
+  if (!["day", "week", "month"].includes(period)) period = "day";
+  currentMetricsPeriod = period;
+  try {
+    localStorage.setItem("tono_metrics_period", period);
+  } catch (e) {}
+
+  ["day", "week", "month"].forEach(p => {
+    const btn = document.getElementById("btn-period-" + p);
+    if (btn) {
+      if (p === period) btn.classList.add("active");
+      else btn.classList.remove("active");
+    }
+  });
+
+  renderResumen();
 }
 
 function renderResumen() {
-  const todayStr = new Date().toISOString().slice(0, 10);
-  
-  // 1. Toques brutos registrados hoy (todas las actividades con fecha de hoy)
-  let totalTouchesToday = 0;
+  const now = new Date();
+  const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+  const currentMonthName = monthNames[now.getMonth()];
+  const workingDaysInCurrentMonth = getWorkingDaysInMonth(now.getFullYear(), now.getMonth());
+
+  // Actualizar botones de período
+  ["day", "week", "month"].forEach(p => {
+    const btn = document.getElementById("btn-period-" + p);
+    if (btn) {
+      if (p === currentMetricsPeriod) btn.classList.add("active");
+      else btn.classList.remove("active");
+    }
+  });
+
+  // Cálculo de Metas según el período y la restricción laboral (Lunes a Viernes)
+  let periodGoal = dailyActivityGoal;
+  let tickBase = 8;
+  let tickAlto = 12;
+  let periodTitle = "Hoy";
+  let periodContextText = `📅 Visualizando: Hoy (Meta diaria: ${dailyActivityGoal} toques)`;
+  let touchesTitle = "Toques Registrados Hoy";
+  let gaugeTitle = "Ritmo Comercial · Hoy";
+  let gaugeSub = `Tacómetro calibrado a ${dailyActivityGoal} toques diarios (Meta comercial)`;
+  let gaugeTag = "HOY ✏️";
+  let uniqueFoot = "Comercios únicos tocados hoy";
+
+  if (currentMetricsPeriod === "week") {
+    // Semana laboral: Lunes a Viernes = 5 días hábiles
+    periodGoal = dailyActivityGoal * 5;
+    tickBase = 8 * 5;
+    tickAlto = 12 * 5;
+    periodTitle = "Esta Semana";
+    periodContextText = `📆 Visualizando: Esta Semana (Lun-Vie · 5 días hábiles · Meta: ${periodGoal} toques)`;
+    touchesTitle = "Toques Registrados en la Semana";
+    gaugeTitle = "Ritmo Comercial · Esta Semana";
+    gaugeSub = `Tacómetro semanal calibrado a ${periodGoal} toques (5 días hábiles Lun-Vie)`;
+    gaugeTag = "SEMANA 📆";
+    uniqueFoot = "Comercios únicos tocados esta semana";
+  } else if (currentMetricsPeriod === "month") {
+    // Mes laboral: Días hábiles Lunes a Viernes del mes en curso (ej. Noviembre: 21 días)
+    periodGoal = dailyActivityGoal * workingDaysInCurrentMonth;
+    tickBase = 8 * workingDaysInCurrentMonth;
+    tickAlto = 12 * workingDaysInCurrentMonth;
+    periodTitle = `Este Mes (${currentMonthName})`;
+    periodContextText = `📊 Visualizando: Mes de ${currentMonthName} (${workingDaysInCurrentMonth} días hábiles · Meta: ${periodGoal} toques)`;
+    touchesTitle = `Toques Registrados en ${currentMonthName}`;
+    gaugeTitle = `Ritmo Comercial · Mes de ${currentMonthName}`;
+    gaugeSub = `Tacómetro mensual calibrado a ${periodGoal} toques (${workingDaysInCurrentMonth} días hábiles Lun-Vie)`;
+    gaugeTag = "MES 📊";
+    uniqueFoot = `Comercios únicos tocados en ${currentMonthName}`;
+  }
+
+  // Actualizar textos y badges contextuales
+  const badgeEl = document.getElementById("period-context-badge");
+  if (badgeEl) badgeEl.textContent = periodContextText;
+
+  const kpiTouchesTitleEl = document.getElementById("kpi-touches-title");
+  if (kpiTouchesTitleEl) kpiTouchesTitleEl.textContent = touchesTitle;
+
+  const kpiUniqueFootEl = document.getElementById("kpi-unique-foot");
+  if (kpiUniqueFootEl) kpiUniqueFootEl.textContent = uniqueFoot;
+
+  const gaugeCardTitleEl = document.getElementById("gauge-card-title");
+  if (gaugeCardTitleEl) gaugeCardTitleEl.textContent = gaugeTitle;
+
+  const gaugeCardSubEl = document.getElementById("gauge-card-sub");
+  if (gaugeCardSubEl) gaugeCardSubEl.textContent = gaugeSub;
+
+  const tick1LabelEl = document.getElementById("gauge-tick-1-label");
+  if (tick1LabelEl) tick1LabelEl.textContent = `${tickBase} (Base)`;
+
+  const tick2LabelEl = document.getElementById("gauge-tick-2-label");
+  if (tick2LabelEl) tick2LabelEl.textContent = `${tickAlto} (Alto)`;
+
+  // 1. Toques brutos y desglose por canal en el período seleccionado
+  let totalTouchesInPeriod = 0;
   let callsTotal = 0, callsConnected = 0, callsYes = 0, callsNo = 0;
   let waTotal = 0, waResponses = 0;
   let emailTotal = 0, emailResponses = 0;
   let visitScheduled = 0, visitRealized = 0;
 
-  // Deduplicación estricta de comercios únicos trabajados hoy
-  const uniqueWorkedToday = new Set();
+  const uniqueWorkedInPeriod = new Set();
 
   deals.forEach(d => {
-    let dealHasActivityToday = false;
+    let dealHasActivityInPeriod = false;
     const dLogs = d.logs || [];
 
     if (dLogs.length > 0) {
       dLogs.forEach(log => {
-        if (isDateToday(log.date)) {
-          totalTouchesToday++;
-          dealHasActivityToday = true;
+        if (isDateInSelectedPeriod(log.date, currentMetricsPeriod)) {
+          totalTouchesInPeriod++;
+          dealHasActivityInPeriod = true;
 
           const ch = (log.channel || log.type || "").toLowerCase();
           if (ch.includes("llamada")) {
@@ -1953,10 +2140,10 @@ function renderResumen() {
       });
     } else if (d.lastNote || (Number(d.touches) || 0) > 0) {
       const noteDate = d.updatedAt || d.pulledAt || d.createdAt;
-      if (isDateToday(noteDate)) {
+      if (isDateInSelectedPeriod(noteDate, currentMetricsPeriod)) {
         const touchCount = Number(d.touches) || 1;
-        totalTouchesToday += touchCount;
-        dealHasActivityToday = true;
+        totalTouchesInPeriod += touchCount;
+        dealHasActivityInPeriod = true;
 
         const noteLower = (d.lastNote || "").toLowerCase();
         if (noteLower.includes("instagram") || noteLower.includes("whatsapp") || noteLower.includes("redes") || noteLower.includes("mensaje")) {
@@ -1971,22 +2158,30 @@ function renderResumen() {
       }
     }
 
-    if (dealHasActivityToday) {
-      uniqueWorkedToday.add(d.id);
+    if (dealHasActivityInPeriod) {
+      uniqueWorkedInPeriod.add(d.id);
     }
   });
 
-  // KPI 1: Toques Registrados Hoy
-  document.getElementById("kpi-touches").innerHTML = `${totalTouchesToday} <span style="font-size:13px;color:#64748b;font-weight:500;">/ ${dailyActivityGoal}</span>`;
+  // KPI 1: Toques Registrados
+  const kpiTouchesEl = document.getElementById("kpi-touches");
+  if (kpiTouchesEl) {
+    kpiTouchesEl.innerHTML = `${totalTouchesInPeriod} <span style="font-size:13px;color:#64748b;font-weight:500;">/ ${periodGoal}</span>`;
+  }
   const kpiSub = document.getElementById("kpi-touches-sub");
-  if (totalTouchesToday > dailyActivityGoal) {
-    kpiSub.innerHTML = `<strong style="color:#00a650">+${totalTouchesToday - dailyActivityGoal} toques extra</strong> (${Math.round((totalTouchesToday / dailyActivityGoal) * 100)}% de meta)`;
-  } else {
-    kpiSub.textContent = "Esfuerzo real acumulado hoy";
+  if (kpiSub) {
+    if (totalTouchesInPeriod > periodGoal) {
+      kpiSub.innerHTML = `<strong style="color:#00a650">+${totalTouchesInPeriod - periodGoal} toques extra</strong> (${Math.round((totalTouchesInPeriod / periodGoal) * 100)}% de meta)`;
+    } else {
+      kpiSub.textContent = `Esfuerzo real acumulado (${periodTitle.toLowerCase()})`;
+    }
   }
 
-  // KPI 2: Comercios Únicos Trabajados Hoy
-  document.getElementById("kpi-unique-worked").textContent = uniqueWorkedToday.size;
+  // KPI 2: Comercios Únicos Trabajados
+  const kpiUniqueEl = document.getElementById("kpi-unique-worked");
+  if (kpiUniqueEl) {
+    kpiUniqueEl.textContent = uniqueWorkedInPeriod.size;
+  }
 
   // KPI 3: Total Cartera Activa y Nuevos Prospectos
   const totalActive = deals.length;
@@ -2005,11 +2200,14 @@ function renderResumen() {
 
   // KPI 4: Cierres Ganados MP
   const wonCount = deals.filter(d => d.stage === "ganado").length;
-  document.getElementById("kpi-won").innerHTML = `${wonCount} <span style="font-size:12px;color:#6b7280;font-weight:500">/ 2 Meta Nov</span>`;
+  const kpiWonEl = document.getElementById("kpi-won");
+  if (kpiWonEl) {
+    kpiWonEl.innerHTML = `${wonCount} <span style="font-size:12px;color:#6b7280;font-weight:500">/ 2 Meta Nov</span>`;
+  }
 
   // TACÓMETRO SVG DINÁMICO
   const arcLength = 251.33;
-  const progressRatio = Math.min(1, totalTouchesToday / dailyActivityGoal);
+  const progressRatio = Math.min(1, totalTouchesInPeriod / periodGoal);
   const strokeOffset = arcLength * (1 - progressRatio);
 
   const gaugeProgress = document.getElementById("gauge-progress");
@@ -2020,29 +2218,30 @@ function renderResumen() {
   const gaugeText = document.getElementById("gauge-text");
 
   if (gaugeProgress) {
-    gaugeProgress.style.strokeDashoffset = strokeOffset.toFixed(2);
-    
-    // Color evolutivo según avance real
-    if (totalTouchesToday === 0) {
-      gaugeProgress.style.strokeDashoffset = arcLength.toFixed(2); // Completamente vacío (se ve aro gris)
-    } else if (totalTouchesToday < 8) {
-      gaugeProgress.style.stroke = "#009ee3"; // Azul inicial
-    } else if (totalTouchesToday < 12) {
-      gaugeProgress.style.stroke = "#f59e0b"; // Ámbar base
+    if (totalTouchesInPeriod === 0) {
+      gaugeProgress.style.strokeDashoffset = arcLength.toFixed(2);
+      gaugeProgress.style.stroke = "#cbd5e1";
     } else {
-      gaugeProgress.style.stroke = "#00a650"; // Verde meta
+      gaugeProgress.style.strokeDashoffset = strokeOffset.toFixed(2);
+      if (totalTouchesInPeriod < tickBase) {
+        gaugeProgress.style.stroke = "#009ee3";
+      } else if (totalTouchesInPeriod < tickAlto) {
+        gaugeProgress.style.stroke = "#f59e0b";
+      } else {
+        gaugeProgress.style.stroke = "#00a650";
+      }
     }
   }
 
-  if (gaugeVal) gaugeVal.textContent = totalTouchesToday;
-  if (gaugeGoalLabel) gaugeGoalLabel.textContent = `/ ${dailyActivityGoal} TOQUES HOY ✏️`;
+  if (gaugeVal) gaugeVal.textContent = totalTouchesInPeriod;
+  if (gaugeGoalLabel) gaugeGoalLabel.textContent = `/ ${periodGoal} TOQUES ${gaugeTag}`;
   const subGoalEl = document.getElementById("lbl-goal-sub");
-  if (subGoalEl) subGoalEl.textContent = dailyActivityGoal;
+  if (subGoalEl) subGoalEl.textContent = periodGoal;
 
-  if (totalTouchesToday > dailyActivityGoal) {
+  if (totalTouchesInPeriod > periodGoal) {
     if (gaugeExtra) {
       gaugeExtra.style.display = "block";
-      gaugeExtra.textContent = `+${totalTouchesToday - dailyActivityGoal} extra (${Math.round((totalTouchesToday/dailyActivityGoal)*100)}%)`;
+      gaugeExtra.textContent = `+${totalTouchesInPeriod - periodGoal} extra (${Math.round((totalTouchesInPeriod / periodGoal) * 100)}%)`;
     }
     if (gaugePill) {
       gaugePill.textContent = "Ritmo Élite";
@@ -2050,9 +2249,9 @@ function renderResumen() {
       gaugePill.style.color = "var(--mp-green)";
     }
     if (gaugeText) {
-      gaugeText.innerHTML = `<strong>¡Meta diaria superada!</strong> Has registrado ${totalTouchesToday} toques reales hoy.`;
+      gaugeText.innerHTML = `<strong>¡Meta del período superada!</strong> Has registrado ${totalTouchesInPeriod} toques reales (${periodTitle.toLowerCase()}).`;
     }
-  } else if (totalTouchesToday >= 12) {
+  } else if (totalTouchesInPeriod >= tickAlto) {
     if (gaugeExtra) gaugeExtra.style.display = "none";
     if (gaugePill) {
       gaugePill.textContent = "Ritmo Alto";
@@ -2060,9 +2259,9 @@ function renderResumen() {
       gaugePill.style.color = "var(--mp-green)";
     }
     if (gaugeText) {
-      gaugeText.innerHTML = "<strong>Ritmo de Alta Conversión.</strong> Tubería con densidad óptima para cerrar.";
+      gaugeText.innerHTML = `<strong>Ritmo de Alta Conversión (${totalTouchesInPeriod}/${periodGoal}).</strong> Tubería con densidad óptima para cerrar.`;
     }
-  } else if (totalTouchesToday >= 8) {
+  } else if (totalTouchesInPeriod >= tickBase) {
     if (gaugeExtra) gaugeExtra.style.display = "none";
     if (gaugePill) {
       gaugePill.textContent = "Ritmo Base";
@@ -2070,7 +2269,7 @@ function renderResumen() {
       gaugePill.style.color = "#d97706";
     }
     if (gaugeText) {
-      gaugeText.innerHTML = "<strong>Ritmo Base superado (8 toques).</strong> Empuja a los 12-15 para detonar cierres.";
+      gaugeText.innerHTML = `<strong>Ritmo Base superado (${totalTouchesInPeriod} toques).</strong> Empuja a los ${periodGoal} para detonar cierres.`;
     }
   } else {
     if (gaugeExtra) gaugeExtra.style.display = "none";
@@ -2080,13 +2279,15 @@ function renderResumen() {
       gaugePill.style.color = "var(--red)";
     }
     if (gaugeText) {
-      gaugeText.innerHTML = "<strong>Mínimo 8 toques</strong> para ritmo base · 12-15 para alta conversión de cierre.";
+      gaugeText.innerHTML = `<strong>Mínimo ${tickBase} toques</strong> para ritmo base · ${tickAlto}-${periodGoal} para alta conversión de cierre.`;
     }
   }
 
   // DESGLOSE TÁCTICO DE CANALES CON GUARDAS DE DIVISIÓN POR CERO
-  document.getElementById("ch-call").textContent = callsTotal;
-  document.getElementById("ch-call-sub").textContent = callsTotal > 0 ? `${Math.round((callsConnected/callsTotal)*100)}% conex. (${callsConnected}/${callsTotal})` : "— conex.";
+  const chCall = document.getElementById("ch-call");
+  if (chCall) chCall.textContent = callsTotal;
+  const chCallSub = document.getElementById("ch-call-sub");
+  if (chCallSub) chCallSub.textContent = callsTotal > 0 ? `${Math.round((callsConnected/callsTotal)*100)}% conex. (${callsConnected}/${callsTotal})` : "— conex.";
   const callYesEl = document.getElementById("ch-call-yes");
   const callNoEl = document.getElementById("ch-call-no");
   const callGamEl = document.getElementById("ch-call-gamification");
@@ -2098,35 +2299,53 @@ function renderResumen() {
     callGamEl.style.display = "flex";
   }
 
-  document.getElementById("ch-whatsapp").textContent = waTotal;
-  document.getElementById("ch-wa-sub").textContent = waTotal > 0 ? `${Math.round((waResponses/waTotal)*100)}% resp.` : "— resp.";
+  const chWa = document.getElementById("ch-whatsapp");
+  if (chWa) chWa.textContent = waTotal;
+  const chWaSub = document.getElementById("ch-wa-sub");
+  if (chWaSub) chWaSub.textContent = waTotal > 0 ? `${Math.round((waResponses/waTotal)*100)}% resp.` : "— resp.";
 
-  document.getElementById("ch-email").textContent = emailTotal;
-  document.getElementById("ch-email-sub").textContent = emailTotal > 0 ? `${Math.round((emailResponses/emailTotal)*100)}% resp.` : "— resp.";
+  const chEmail = document.getElementById("ch-email");
+  if (chEmail) chEmail.textContent = emailTotal;
+  const chEmailSub = document.getElementById("ch-email-sub");
+  if (chEmailSub) chEmailSub.textContent = emailTotal > 0 ? `${Math.round((emailResponses/emailTotal)*100)}% resp.` : "— resp.";
 
-  document.getElementById("ch-cambaceo").textContent = visitRealized;
-  document.getElementById("ch-visit-sub").textContent = `${wonCount} ganados`;
+  const chCambaceo = document.getElementById("ch-cambaceo");
+  if (chCambaceo) chCambaceo.textContent = visitRealized;
+  const chVisitSub = document.getElementById("ch-visit-sub");
+  if (chVisitSub) chVisitSub.textContent = `${wonCount} ganados`;
 
   // METAS SEMANALES POR ETAPA
   const califCount = deals.filter(d => d.stage === "calificacion" || d.stage === "prospecto" || d.stage === "lead").length;
   const negocCount = deals.filter(d => d.stage === "negociacion").length;
   const closingCount = deals.filter(d => d.stage === "closing_deal").length;
 
-  document.getElementById("funnel-n-1").textContent = califCount;
-  document.getElementById("funnel-r-1").textContent = `${califCount} / 40`;
-  document.getElementById("funnel-fill-1").style.width = Math.min(100, (califCount / 40) * 100) + "%";
+  const fN1 = document.getElementById("funnel-n-1");
+  if (fN1) fN1.textContent = califCount;
+  const fR1 = document.getElementById("funnel-r-1");
+  if (fR1) fR1.textContent = `${califCount} / 40`;
+  const fF1 = document.getElementById("funnel-fill-1");
+  if (fF1) fF1.style.width = Math.min(100, (califCount / 40) * 100) + "%";
 
-  document.getElementById("funnel-n-2").textContent = negocCount;
-  document.getElementById("funnel-r-2").textContent = `${negocCount} / 12`;
-  document.getElementById("funnel-fill-2").style.width = Math.min(100, (negocCount / 12) * 100) + "%";
+  const fN2 = document.getElementById("funnel-n-2");
+  if (fN2) fN2.textContent = negocCount;
+  const fR2 = document.getElementById("funnel-r-2");
+  if (fR2) fR2.textContent = `${negocCount} / 12`;
+  const fF2 = document.getElementById("funnel-fill-2");
+  if (fF2) fF2.style.width = Math.min(100, (negocCount / 12) * 100) + "%";
 
-  document.getElementById("funnel-n-3").textContent = closingCount;
-  document.getElementById("funnel-r-3").textContent = `${closingCount} / 3`;
-  document.getElementById("funnel-fill-3").style.width = Math.min(100, (closingCount / 3) * 100) + "%";
+  const fN3 = document.getElementById("funnel-n-3");
+  if (fN3) fN3.textContent = closingCount;
+  const fR3 = document.getElementById("funnel-r-3");
+  if (fR3) fR3.textContent = `${closingCount} / 3`;
+  const fF3 = document.getElementById("funnel-fill-3");
+  if (fF3) fF3.style.width = Math.min(100, (closingCount / 3) * 100) + "%";
 
-  document.getElementById("funnel-n-4").textContent = wonCount;
-  document.getElementById("funnel-r-4").textContent = `${wonCount} / 2 Meta`;
-  document.getElementById("funnel-fill-4").style.width = Math.min(100, (wonCount / 2) * 100) + "%";
+  const fN4 = document.getElementById("funnel-n-4");
+  if (fN4) fN4.textContent = wonCount;
+  const fR4 = document.getElementById("funnel-r-4");
+  if (fR4) fR4.textContent = `${wonCount} / 2 Meta`;
+  const fF4 = document.getElementById("funnel-fill-4");
+  if (fF4) fF4.style.width = Math.min(100, (wonCount / 2) * 100) + "%";
 }
 
 // -------------------------------------------------------------
