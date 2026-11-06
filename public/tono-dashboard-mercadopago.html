@@ -1464,6 +1464,19 @@ async function syncWithGoogleSheets(showNotification = false) {
             deal.industry = fresh.industry || deal.industry;
             deal.hook = fresh.hook || deal.hook;
             deal.pain = fresh.pain || deal.pain;
+            deal.lastNote = fresh.lastNote || deal.lastNote;
+            deal.touches = Number(fresh.touches) || (deal.logs ? deal.logs.length : 0);
+
+            // Reconstruir logs locales desde las notas del Sheet si están vacíos
+            if ((!deal.logs || deal.logs.length === 0) && fresh.lastNote) {
+              deal.logs = [{
+                id: "log_" + deal.id + "_sheet",
+                channel: fresh.lastNote.toLowerCase().includes("instagram") ? "instagram" : "llamada",
+                outcome: "contacto_registrado",
+                comment: fresh.lastNote,
+                date: fresh.updatedAt ? new Date(fresh.updatedAt).toISOString() : new Date().toISOString()
+              }];
+            }
 
             // Sincronización bidireccional de Etapa y Estatus si se modificaron en el Sheet
             if (fresh.stage) {
@@ -1490,6 +1503,14 @@ async function syncWithGoogleSheets(showNotification = false) {
         let addedFromSheet = 0;
         data.leads.forEach(l => {
           if ((l.status === "EN_CARTERA" || l.status === "EN_PROCESO") && !deals.some(d => d.id === l.id)) {
+            const initialLogs = l.lastNote ? [{
+              id: "log_" + l.id + "_sheet",
+              channel: l.lastNote.toLowerCase().includes("instagram") ? "instagram" : "llamada",
+              outcome: "contacto_registrado",
+              comment: l.lastNote,
+              date: l.updatedAt ? new Date(l.updatedAt).toISOString() : new Date().toISOString()
+            }] : [];
+
             deals.push({
               id: l.id,
               name: l.name,
@@ -1507,8 +1528,10 @@ async function syncWithGoogleSheets(showNotification = false) {
               pain: l.pain || "",
               stage: mapRawStageToInternal(l.stage) || "calificacion",
               status: l.status || "EN_CARTERA",
+              lastNote: l.lastNote || "",
+              touches: Number(l.touches) || initialLogs.length,
               history: [],
-              logs: [],
+              logs: initialLogs,
               days: 0,
               createdAt: new Date().toISOString(),
               pulledAt: new Date().toISOString()
@@ -1680,7 +1703,7 @@ function loadActiveDeals() {
     if (!raw) return []; // Empezar limpio por defecto
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    if (parsed.length > 50 || parsed.some(d => d.id === "d1")) {
+    if (parsed.some(d => d.id === "d1")) {
       return [];
     }
     return parsed;
@@ -2218,6 +2241,8 @@ function saveActivity(e) {
     comment,
     date: new Date().toISOString()
   });
+  deal.lastNote = comment || deal.lastNote;
+  deal.touches = deal.logs.length;
 
   // Espejo en tiempo real hacia Google Sheets (Bitacora_Actividad)
   if (typeof mirrorEventToGoogleSheet === "function") {
