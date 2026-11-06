@@ -3064,10 +3064,21 @@ function pullToActive(id) {
     return;
   }
 
+  // GUARDA DE DEDUPLICACIÓN TELEFÓNICA: Advertir si ya hay un comercio con ese teléfono en cartera
+  const cleanP = normalizePhone(item.phone);
+  const existingSister = cleanP ? deals.find(d => normalizePhone(d.phone) === cleanP) : null;
+  if (existingSister) {
+    if (!confirm(`⚠️ ALERTA DE CONTACTO DUPLICADO / MULTI-SUCURSAL:\n\nEl teléfono (${item.phone}) de '${item.name}' ya lo tienes en tu Cartera Activa con '${existingSister.name}'.\n\n¿Deseas agregarlo de todas formas como segunda sucursal para cotizar paquete multi-terminal?`)) {
+      return;
+    }
+  }
+
   try { localStorage.removeItem("user_intentionally_cleared"); } catch (e) {}
   deals.push({
     ...safeClone(item),
     stage: "calificacion",
+    multiBranch: !!existingSister,
+    sisterId: existingSister ? existingSister.id : null,
     createdAt: new Date().toISOString(),
     days: 0,
     logs: []
@@ -3077,10 +3088,8 @@ function pullToActive(id) {
   mirrorEventToGoogleSheet("pull_batch", { dealIds: [id] });
   render();
 
-  const cleanP = normalizePhone(item.phone);
-  const sister = cleanP ? deals.find(d => d.id !== item.id && normalizePhone(d.phone) === cleanP) : null;
-  if (sister) {
-    notify(`🏢 <strong>¡Oportunidad Multi-Sucursal!</strong> ${item.name} comparte teléfono con <strong>${sister.name}</strong>. ¡Aprovecha para cotizar paquete multi-caja!`);
+  if (existingSister) {
+    notify(`🏢 <strong>¡Sucursal Agregada!</strong> ${item.name} comparte teléfono con <strong>${existingSister.name}</strong>. Cotiza paquete multi-caja.`);
   } else {
     notify(`✓ <strong>${item.name}</strong> jalado a tu cartera activa de hoy.`);
   }
@@ -3089,14 +3098,33 @@ function pullToActive(id) {
 function pullBatch(count) {
   try { localStorage.removeItem("user_intentionally_cleared"); } catch (e) {}
   const activeIds = new Set(deals.map(d => d.id));
-  const available = getAllBankLeads().filter(m => !activeIds.has(m.id));
+  const activePhones = new Set(deals.map(d => normalizePhone(d.phone)).filter(Boolean));
+
+  // FILTRO ANTI-DUPLICADO: Excluir IDs activos, teléfonos ya en cartera y estatus especiales
+  const available = getAllBankLeads().filter(m => {
+    if (activeIds.has(m.id)) return false;
+    const p = normalizePhone(m.phone);
+    if (p && activePhones.has(p)) return false; // Bloquea si ya tienes otro local con el mismo celular
+    if (m.status === "DESCARTADO" || m.status === "SUCURSAL_VINCULADA" || m.status === "DUPLICADO_FUSIONADO") return false;
+    return true;
+  });
 
   if (available.length === 0) {
-    notify("Todos los comercios ya están en tu cartera activa.");
+    notify("Todos los comercios disponibles ya están en tu cartera activa.");
     return;
   }
 
-  const batch = available.slice(0, count);
+  const batch = [];
+  const pickedPhonesInBatch = new Set();
+
+  for (const item of available) {
+    if (batch.length >= count) break;
+    const p = normalizePhone(item.phone);
+    if (p && pickedPhonesInBatch.has(p)) continue; // No meter 2 sucursales en el mismo lote
+    batch.push(item);
+    if (p) pickedPhonesInBatch.add(p);
+  }
+
   batch.forEach(item => {
     deals.push({
       ...safeClone(item),
@@ -3111,7 +3139,7 @@ function pullBatch(count) {
   mirrorEventToGoogleSheet("pull_batch", { dealIds: batch.map(b => b.id) });
   switchTab("resumen");
   render();
-  notify(`🚀 Se jalaron <strong>${batch.length} comercios</strong> a tu Mesa de Acción de hoy.`);
+  notify(`🚀 Se jalaron <strong>${batch.length} comercios únicos</strong> (sin teléfonos duplicados) a tu Mesa.`);
 }
 
 function pullDiversifiedBatch(count = 8) {
