@@ -1765,13 +1765,27 @@ function editDailyGoal() {
 function loadActiveDeals() {
   try {
     const raw = localStorage.getItem(MASTER_STORAGE_KEY);
-    if (!raw) return []; // Empezar limpio por defecto
+    if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
     if (parsed.some(d => d.id === "d1")) {
       return [];
     }
-    return parsed;
+    // BARRIDO AUTOMÁTICO DE DEDUPLICACIÓN ACTIVA:
+    // Excluir MP-QR-0025 si ya existe MP-QR-0026 o cualquier colisión de teléfono
+    const seenPhones = new Set();
+    const cleanList = [];
+    parsed.forEach(deal => {
+      if (deal.id === "MP-QR-0025") return; // Angie's Spa descartado permanentemente en favor de Eclipse
+      const p = normalizePhone(deal.phone);
+      if (p && seenPhones.has(p)) {
+        console.warn("Auto-deduplicated active phone collision:", deal.id, deal.name);
+        return;
+      }
+      if (p) seenPhones.add(p);
+      cleanList.push(deal);
+    });
+    return cleanList;
   } catch (e) {
     return [];
   }
@@ -3377,37 +3391,53 @@ function pullBatch(count) {
 function pullDiversifiedBatch(count = 8) {
   try { localStorage.removeItem("user_intentionally_cleared"); } catch (e) {}
   const activeIds = new Set(deals.map(d => d.id));
-  const available = getAllBankLeads().filter(m => !activeIds.has(m.id));
+  const activePhones = new Set(deals.map(d => normalizePhone(d.phone)).filter(Boolean));
+
+  // FILTRO ESTRICTO ANTI-DUPLICADOS Y SUCURSALES HERMANAS
+  const available = getAllBankLeads().filter(m => {
+    if (activeIds.has(m.id)) return false;
+    if (m.status === "DESCARTADO" || m.status === "SUCURSAL_VINCULADA" || m.status === "DUPLICADO_FUSIONADO") return false;
+    const p = normalizePhone(m.phone);
+    if (p && activePhones.has(p)) return false;
+    return true;
+  });
 
   if (available.length === 0) {
-    notify("Todos los comercios ya están en tu cartera activa.");
+    notify("Todos los comercios disponibles ya están en tu cartera activa.");
     return;
   }
 
   const cities = ["Cancún", "Playa del Carmen", "Chetumal", "Tulum", "Bacalar"];
   const batch = [];
   const pickedIds = new Set();
+  const pickedPhonesInBatch = new Set();
 
   for (let round = 0; round < count && batch.length < count; round++) {
     for (const city of cities) {
       if (batch.length >= count) break;
-      const found = available.find(m => 
-        !pickedIds.has(m.id) && 
-        m.city && m.city.toLowerCase().includes(city.toLowerCase()) && 
-        !batch.some(b => b.industry === m.industry && b.city === m.city)
-      );
+      const found = available.find(m => {
+        if (pickedIds.has(m.id)) return false;
+        const p = normalizePhone(m.phone);
+        if (p && pickedPhonesInBatch.has(p)) return false;
+        return m.city && m.city.toLowerCase().includes(city.toLowerCase()) && 
+          !batch.some(b => b.industry === m.industry && b.city === m.city);
+      });
       if (found) {
         batch.push(found);
         pickedIds.add(found.id);
+        const p = normalizePhone(found.phone);
+        if (p) pickedPhonesInBatch.add(p);
       }
     }
   }
 
   for (const m of available) {
     if (batch.length >= count) break;
-    if (!pickedIds.has(m.id)) {
+    const p = normalizePhone(m.phone);
+    if (!pickedIds.has(m.id) && (!p || !pickedPhonesInBatch.has(p))) {
       batch.push(m);
       pickedIds.add(m.id);
+      if (p) pickedPhonesInBatch.add(p);
     }
   }
 
