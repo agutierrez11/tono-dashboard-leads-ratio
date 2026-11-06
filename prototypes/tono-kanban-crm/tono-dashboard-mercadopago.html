@@ -1790,6 +1790,35 @@ function render() {
 // -------------------------------------------------------------
 // MOTOR DE MÉTRICAS COMERCIALES Y TACÓMETRO DINÁMICO
 // -------------------------------------------------------------
+// Helper robusto para comparar fechas en la zona horaria local del navegador (evita el bug de UTC después de las 7pm)
+function isDateToday(val) {
+  if (!val) return true; // Si no tiene fecha pero está en logs o es reciente, atribuir a hoy
+  try {
+    const now = new Date();
+    const todayYMD = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
+    
+    if (typeof val === "string") {
+      if (val.includes("T") || val.includes("Z") || val.includes("GMT") || val.includes(" ")) {
+        const d = new Date(val);
+        if (!isNaN(d.getTime())) {
+          const itemYMD = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+          if (itemYMD === todayYMD) return true;
+        }
+      }
+      const m = val.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (m && m[0] === todayYMD) return true;
+      const utcTodayYMD = now.toISOString().slice(0, 10);
+      if (m && m[0] === utcTodayYMD) return true;
+    } else if (val instanceof Date) {
+      const itemYMD = val.getFullYear() + "-" + String(val.getMonth() + 1).padStart(2, "0") + "-" + String(val.getDate()).padStart(2, "0");
+      if (itemYMD === todayYMD) return true;
+    }
+    return false;
+  } catch (e) {
+    return true;
+  }
+}
+
 function renderResumen() {
   const todayStr = new Date().toISOString().slice(0, 10);
   
@@ -1804,42 +1833,68 @@ function renderResumen() {
   const uniqueWorkedToday = new Set();
 
   deals.forEach(d => {
-    (d.logs || []).forEach(log => {
-      const logDate = (log.date || "").slice(0, 10);
-      if (logDate === todayStr || !log.date) {
-        totalTouchesToday++;
-        uniqueWorkedToday.add(d.id);
+    let dealHasActivityToday = false;
+    const dLogs = d.logs || [];
 
-        const ch = (log.channel || log.type || "").toLowerCase();
-        if (ch.includes("llamada")) {
-          callsTotal++;
-          if (log.connected === true || log.outcome === "conectada" || log.outcome === "visita_agendada" || log.outcome === "acepto_verbalmente" || log.outcome === "pidio_visita") {
-            callsConnected++;
-            if (log.outcome === "pidio_visita" || log.outcome === "visita_agendada" || log.outcome === "acepto_verbalmente" || log.outcome === "cierre_ganado") {
-              callsYes++;
+    if (dLogs.length > 0) {
+      dLogs.forEach(log => {
+        if (isDateToday(log.date)) {
+          totalTouchesToday++;
+          dealHasActivityToday = true;
+
+          const ch = (log.channel || log.type || "").toLowerCase();
+          if (ch.includes("llamada")) {
+            callsTotal++;
+            if (log.connected === true || log.outcome === "conectada" || log.outcome === "visita_agendada" || log.outcome === "acepto_verbalmente" || log.outcome === "pidio_visita") {
+              callsConnected++;
+              if (log.outcome === "pidio_visita" || log.outcome === "visita_agendada" || log.outcome === "acepto_verbalmente" || log.outcome === "cierre_ganado") {
+                callsYes++;
+              } else {
+                callsNo++;
+              }
+            }
+          } else if (ch.includes("whatsapp") || ch.includes("instagram") || ch.includes("redes") || ch.includes("mensaje") || ch.includes("inbox")) {
+            waTotal++;
+            if (log.outcome === "respondio" || log.outcome === "pidio_llamada" || log.outcome === "visita_agendada") {
+              waResponses++;
+            }
+          } else if (ch.includes("correo") || ch.includes("email")) {
+            emailTotal++;
+            if (log.outcome === "respondio" || log.outcome === "visita_agendada") {
+              emailResponses++;
+            }
+          } else if (ch.includes("visita") || ch.includes("cambaceo")) {
+            if (log.outcome === "visita_realizada" || log.outcome === "cierre_ganado") {
+              visitRealized++;
             } else {
-              callsNo++;
+              visitScheduled++;
             }
           }
-        } else if (ch.includes("whatsapp")) {
-          waTotal++;
-          if (log.outcome === "respondio" || log.outcome === "pidio_llamada" || log.outcome === "visita_agendada") {
-            waRespuestas++;
-          }
-        } else if (ch.includes("correo")) {
-          emailTotal++;
-          if (log.outcome === "respondio" || log.outcome === "visita_agendada") {
-            emailResponses++;
-          }
-        } else if (ch.includes("visita") || ch.includes("cambaceo")) {
-          if (log.outcome === "visita_realizada" || log.outcome === "cierre_ganado") {
-            visitRealized++;
-          } else {
-            visitScheduled++;
-          }
+        }
+      });
+    } else if (d.lastNote || (Number(d.touches) || 0) > 0) {
+      const noteDate = d.updatedAt || d.pulledAt || d.createdAt;
+      if (isDateToday(noteDate)) {
+        const touchCount = Number(d.touches) || 1;
+        totalTouchesToday += touchCount;
+        dealHasActivityToday = true;
+
+        const noteLower = (d.lastNote || "").toLowerCase();
+        if (noteLower.includes("instagram") || noteLower.includes("whatsapp") || noteLower.includes("redes") || noteLower.includes("mensaje")) {
+          waTotal += touchCount;
+        } else if (noteLower.includes("correo") || noteLower.includes("email")) {
+          emailTotal += touchCount;
+        } else if (noteLower.includes("visita")) {
+          visitScheduled += touchCount;
+        } else {
+          callsTotal += touchCount;
         }
       }
-    });
+    }
+
+    if (dealHasActivityToday) {
+      uniqueWorkedToday.add(d.id);
+    }
   });
 
   // KPI 1: Toques Registrados Hoy
@@ -2350,7 +2405,7 @@ function changeStage(id, newStage) {
   }
 
   // Candado de actividad: Exigir al menos un contacto antes de mover
-  const hasLog = (deal.logs || []).length > 0;
+  const hasLog = ((deal.logs || []).length > 0) || (Number(deal.touches) || 0) > 0 || !!deal.lastNote;
   if (!hasLog && newStage !== "calificacion" && newStage !== "prospecto") {
     openActivityModalForDeal(deal.id, newStage);
     notify("🔒 <strong>Candado activo:</strong> Registra una actividad antes de avanzar la etapa.");
@@ -2403,7 +2458,8 @@ function openDrawer(id) {
     warnEl.style.display = (deal.stage === "closing_deal" && !hasRealizedVisit) ? "block" : "none";
   }
 
-  document.getElementById("drawerTouchesCount").textContent = `${logs.length} toques registrados`;
+  const drawerTouches = Math.max(logs.length, Number(deal.touches) || (deal.lastNote ? 1 : 0));
+  document.getElementById("drawerTouchesCount").textContent = `${drawerTouches} ${drawerTouches === 1 ? 'toque registrado' : 'toques registrados'}`;
 
   const timeline = document.getElementById("drawerTimeline");
   timeline.innerHTML = "";
@@ -2519,7 +2575,8 @@ function renderKanban() {
 
     list.forEach(d => {
       const isClosed = d.stage === "ganado" || d.stage === "perdido";
-      const hasLog = (d.logs || []).length > 0;
+      const touchCount = Math.max((d.logs || []).length, Number(d.touches) || (d.lastNote ? 1 : 0));
+      const hasLog = touchCount > 0;
       const days = d.days || 0;
       const isOverdue = !isClosed && days > 7 && !d.exception;
       const isWarn = !isClosed && days >= 5 && days <= 7;
@@ -2527,7 +2584,7 @@ function renderKanban() {
       // Obtener el comentario / nota más reciente
       const lastLog = (d.logs && d.logs.length > 0) ? d.logs[d.logs.length - 1] : null;
       const recentNote = (lastLog && (lastLog.comment || lastLog.notes)) ? (lastLog.comment || lastLog.notes) : (d.lastNote || "");
-      const recentAction = lastLog ? (lastLog.outcome || lastLog.channel || "Toque registrado") : "";
+      const recentAction = lastLog ? (lastLog.outcome || lastLog.channel || "Toque registrado") : (d.lastNote ? "Nota registrada" : "");
 
       const card = document.createElement("div");
       card.className = "deal-card" + (isOverdue ? " overdue" : isWarn ? " warning" : "") + (d.exception ? " exception" : "");
@@ -2554,7 +2611,7 @@ function renderKanban() {
           <span class="age-pill ${isOverdue ? "late" : isWarn ? "warn" : ""} ${days === 0 ? "new" : ""}">${isOverdue ? "⚠ " : ""}${days === 0 ? "Hoy" : days + " d en etapa"}</span>
           ${!isClosed ? `
             <span class="gate-status ${hasLog ? "ready" : "locked"}">
-              ${hasLog ? `✓ ${d.logs.length} toques` : "🔒 Sin toques"}
+              ${hasLog ? `✓ ${touchCount} ${touchCount === 1 ? 'toque' : 'toques'}` : "🔒 Sin toques"}
             </span>
           ` : `
             <span class="gate-status ${d.stage === "ganado" ? "won" : "lost"}">
@@ -2565,7 +2622,7 @@ function renderKanban() {
 
         <div style="margin-top:8px;padding-top:6px;border-top:1px dashed #e2e8f0;display:flex;justify-content:space-between;align-items:center;font-size:10px;color:#009ee3;">
           <span style="font-weight:600;">📋 Ver comentarios y acciones ➔</span>
-          <span style="color:#64748b;">${hasLog ? d.logs.length + ' acciones' : '0 acciones'}</span>
+          <span style="color:#64748b;">${hasLog ? touchCount + (touchCount === 1 ? ' acción' : ' acciones') : '0 acciones'}</span>
         </div>
       `;
 
@@ -2626,7 +2683,7 @@ function handleDrop(id, targetStage) {
   const currentIdx = order.indexOf(deal.stage === "prospecto" || deal.stage === "lead" ? "calificacion" : deal.stage);
   const targetIdx = order.indexOf(targetStage);
 
-  const hasLog = (deal.logs || []).length > 0;
+  const hasLog = ((deal.logs || []).length > 0) || (Number(deal.touches) || 0) > 0 || !!deal.lastNote;
   if (!hasLog && targetIdx > currentIdx) {
     openActivityModalForDeal(deal.id, targetStage);
     notify("🔒 <strong>Candado activo:</strong> Registra la interacción con el comercio antes de avanzar.");
