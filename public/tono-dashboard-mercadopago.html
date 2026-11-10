@@ -897,7 +897,7 @@
         <!-- KPI 3: Ritmo de Prospección (8/día) -->
         <div class="card kpi">
           <div class="kpi-top">
-            <span>Nuevos Prospectos Hoy</span>
+            <span id="kpi-new-title">Nuevos Prospectos Hoy</span>
             <span class="kpi-icon purplebg">🎯</span>
           </div>
           <div class="kpi-val" id="kpi-new-prospects">0</div>
@@ -1062,7 +1062,7 @@
       <div class="card">
         <div class="card-head" style="padding-bottom:12px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
           <div>
-            <div class="card-title" id="active-table-title">Tus Comercios en Curso • Cartera Activa de Hoy (0)</div>
+            <div class="card-title" id="active-table-title">Tus Comercios en Curso • Cartera Activa (0)</div>
             <div class="card-sub">Tu mesa de trabajo táctica. Los comercios en prospección activa con su historial y acciones rápidas.</div>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
@@ -1108,7 +1108,7 @@
         <!-- Banner cuando la cartera activa está vacía -->
         <div id="active-empty-state" style="display:none;padding:36px 16px;text-align:center;background:#f8fafc;border-radius:8px;margin:16px;border:2px dashed #cbd5e1;">
           <div style="font-size:32px;margin-bottom:8px;">🎯</div>
-          <div style="font-size:15px;font-weight:700;color:#0f172a;">Tu Cartera Activa de Hoy está lista para arrancar (0 comercios)</div>
+          <div style="font-size:15px;font-weight:700;color:#0f172a;">Tu Cartera Activa está lista para arrancar (0 comercios)</div>
           <div style="font-size:12px;color:#64748b;margin:6px auto 18px auto;max-width:480px;line-height:1.4;">
             Tienes <strong id="empty-bank-count-label">644</strong> comercios en tu Google Sheet listos para prospectar. Jala solo un lote de 8 a 10 para prospectar hoy con foco total y mantener tus ratios al 100%.
           </div>
@@ -1971,9 +1971,9 @@ function parseDateSafe(val) {
 
 // Filtro universal de fechas según el horizonte temporal activo
 function isDateInSelectedPeriod(val, period = currentMetricsPeriod) {
-  if (!val) return true;
+  if (!val) return false;
   const d = parseDateSafe(val);
-  if (!d) return true;
+  if (!d) return false;
 
   const now = new Date();
   if (period === "day") {
@@ -1987,7 +1987,7 @@ function isDateInSelectedPeriod(val, period = currentMetricsPeriod) {
     return d.getFullYear() === now.getFullYear() &&
            d.getMonth() === now.getMonth();
   }
-  return true;
+  return false;
 }
 
 // Compatibilidad retroactiva
@@ -2041,6 +2041,11 @@ function renderResumen() {
   let gaugeTag = "HOY ✏️";
   let uniqueFoot = "Comercios únicos tocados hoy";
 
+  // Metas y títulos para KPI 3 (Nuevos Prospectos en el Periodo)
+  let newProspectsGoal = 8;
+  let newProspectsTitle = "Nuevos Prospectos Hoy";
+  let newProspectsFootPeriod = "hoy";
+
   if (currentMetricsPeriod === "week") {
     // Semana laboral: Lunes a Viernes = 5 días hábiles
     periodGoal = dailyActivityGoal * 5;
@@ -2053,6 +2058,10 @@ function renderResumen() {
     gaugeSub = `Tacómetro semanal calibrado a ${periodGoal} toques (5 días hábiles Lun-Vie)`;
     gaugeTag = "SEMANA 📆";
     uniqueFoot = "Comercios únicos tocados esta semana";
+
+    newProspectsGoal = 40;
+    newProspectsTitle = "Nuevos Prospectos Esta Semana";
+    newProspectsFootPeriod = "esta semana";
   } else if (currentMetricsPeriod === "month") {
     // Mes laboral: Días hábiles Lunes a Viernes del mes en curso (ej. Noviembre: 21 días)
     periodGoal = dailyActivityGoal * workingDaysInCurrentMonth;
@@ -2065,6 +2074,10 @@ function renderResumen() {
     gaugeSub = `Tacómetro mensual calibrado a ${periodGoal} toques (${workingDaysInCurrentMonth} días hábiles Lun-Vie)`;
     gaugeTag = "MES 📊";
     uniqueFoot = `Comercios únicos tocados en ${currentMonthName}`;
+
+    newProspectsGoal = 8 * workingDaysInCurrentMonth;
+    newProspectsTitle = `Nuevos Prospectos en ${currentMonthName}`;
+    newProspectsFootPeriod = `en ${currentMonthName}`;
   }
 
   // Actualizar textos y badges contextuales
@@ -2076,6 +2089,9 @@ function renderResumen() {
 
   const kpiUniqueFootEl = document.getElementById("kpi-unique-foot");
   if (kpiUniqueFootEl) kpiUniqueFootEl.textContent = uniqueFoot;
+
+  const kpiNewTitleEl = document.getElementById("kpi-new-title");
+  if (kpiNewTitleEl) kpiNewTitleEl.textContent = newProspectsTitle;
 
   const gaugeCardTitleEl = document.getElementById("gauge-card-title");
   if (gaugeCardTitleEl) gaugeCardTitleEl.textContent = gaugeTitle;
@@ -2183,19 +2199,24 @@ function renderResumen() {
     kpiUniqueEl.textContent = uniqueWorkedInPeriod.size;
   }
 
-  // KPI 3: Total Cartera Activa y Nuevos Prospectos
+  // KPI 3: Ritmo de Prospección del Periodo vs Cartera Activa Total
   const totalActive = deals.length;
+  const newDealsInPeriod = deals.filter(d => {
+    const dt = d.pulledAt || d.createdAt;
+    return dt && isDateInSelectedPeriod(dt, currentMetricsPeriod);
+  }).length;
+
   const kpiEl = document.getElementById("kpi-new-prospects");
   const footEl = document.getElementById("kpi-new-foot");
   if (kpiEl) {
-    if (totalActive >= 8) {
-      kpiEl.innerHTML = `${totalActive} <span style="font-size:12px;color:#00a650;font-weight:700;">(Meta superada ✓)</span>`;
+    if (newDealsInPeriod >= newProspectsGoal && newProspectsGoal > 0) {
+      kpiEl.innerHTML = `${newDealsInPeriod} <span style="font-size:12px;color:#00a650;font-weight:700;">(Meta superada ✓)</span>`;
     } else {
-      kpiEl.innerHTML = `${totalActive} <span style="font-size:13px;color:#64748b;font-weight:500;">/ 8 min</span>`;
+      kpiEl.innerHTML = `${newDealsInPeriod} <span style="font-size:13px;color:#64748b;font-weight:500;">/ ${newProspectsGoal} min</span>`;
     }
   }
   if (footEl) {
-    footEl.textContent = `${totalActive} comercios listos en cartera activa`;
+    footEl.textContent = `${newDealsInPeriod} ingresados ${newProspectsFootPeriod} · ${totalActive} en cartera total`;
   }
 
   // KPI 4: Cierres Ganados MP
@@ -2513,7 +2534,7 @@ function renderActionTable() {
   const titleEl = document.getElementById("active-table-title");
 
   if (titleEl) {
-    titleEl.textContent = `Tus Comercios en Curso • Cartera Activa de Hoy (${deals.length})`;
+    titleEl.textContent = `Tus Comercios en Curso • Cartera Activa (${deals.length})`;
   }
 
   if (deals.length === 0) {
@@ -3545,6 +3566,7 @@ function pullToActive(id) {
     multiBranch: !!existingSister,
     sisterId: existingSister ? existingSister.id : null,
     createdAt: new Date().toISOString(),
+    pulledAt: new Date().toISOString(),
     days: 0,
     logs: []
   });
@@ -3599,6 +3621,7 @@ function pullBatch(count) {
       ...safeClone(item),
       stage: "calificacion",
       createdAt: new Date().toISOString(),
+      pulledAt: new Date().toISOString(),
       days: 0,
       logs: []
     });
@@ -3675,6 +3698,7 @@ function pullDiversifiedBatch(count = 8) {
       ...safeClone(item),
       stage: "calificacion",
       createdAt: new Date().toISOString(),
+      pulledAt: new Date().toISOString(),
       days: 0,
       logs: []
     });
@@ -3730,6 +3754,7 @@ function pullSelected() {
           ...safeClone(item),
           stage: "calificacion",
           createdAt: new Date().toISOString(),
+          pulledAt: new Date().toISOString(),
           days: 0,
           logs: []
         });
@@ -4276,6 +4301,7 @@ function createDeal(e) {
     multiBranch: isMultiSucursal,
     sisterId: sisterDeal ? sisterDeal.id : null,
     createdAt: new Date().toISOString(),
+    pulledAt: new Date().toISOString(),
     days: 0,
     logs: [],
     isCustomManual: true
@@ -4290,7 +4316,7 @@ function createDeal(e) {
 }
 
 function clearAllData() {
-  if (!confirm('¿Deseas vaciar tu cartera activa de hoy para empezar en blanco (0)? (Tus 644 comercios siguen seguros en el Acordeón Maestro).')) return;
+  if (!confirm('¿Deseas vaciar tu cartera activa para empezar en blanco (0)? (Tus 644 comercios siguen seguros en el Acordeón Maestro).')) return;
   deals = [];
   persist();
   render();
